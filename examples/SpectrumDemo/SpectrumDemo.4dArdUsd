@@ -1,0 +1,81 @@
+﻿Version     0.0
+Platform    Gen4-ESP32-32-P
+PlatRes     240x320
+Depends
+end
+Options
+    Arduino_uSD
+    FQBN                         esp32:esp32:gen4-ESP32-S3R8n16
+    Speed                        9600
+    Checksum                     No
+    ResponseSize                 2
+    Multidrop                    No
+    Destination                  0
+    DestBank                     0
+    MainForm                     0
+    SndBuf                       0
+    ButtonDisable                No
+    SignedDigits                 No
+    MaxString                    75
+    ComPort                      0
+    ComTX1pinIdx                 0
+    ComRX1pinIdx                 0
+end
+Form
+    Name                         Form1
+    Alias                        Form1
+    Bgtype                       Color
+    Color                        BLACK
+    Image                        (None)
+    Source.Height                0
+    Source.Left                  0
+    Source.Top                   0
+    Source.Width                 0
+    OnActivate                   ''
+    OnCreate                     ''
+    OnRepeat                     ''
+    OnTouchMoving                ''
+    OnTouchPressed               ''
+    OnTouchReleased              ''
+end
+Spectrum
+    Name                         Spectrum1
+    Alias                        Spectrum1
+    BarSpacing                   1
+    BarWidth                     22
+    Bevel.BorderColor            clBtnFace
+    Bevel.BorderWidth            0
+    Bevel.InnerColor             BLACK
+    Bevel.InnerHighlight         clBtnHighlight
+    Bevel.InnerOutline           None
+    Bevel.InnerShadow            clBtnShadow
+    Bevel.InnerSpace             1
+    Bevel.InnerStyle             Lowered
+    Bevel.Innerwidth             2
+    Bevel.OuterColor             clBtnFace
+    Bevel.OuterHighlight         clBtnHighlight
+    Bevel.OuterOutline           Outer
+    Bevel.OuterShadow            clBtnShadow
+    Bevel.OuterSpace             0
+    Bevel.OuterStyle             Raised
+    Bevel.Outerwidth             1
+    Bevel.Visible                Yes
+    Color                        BLACK
+    Columns                      10
+    Height                       319
+    Left                         0
+    Maxvalue                     100
+    Minvalue                     0
+    Palette1.High                clLime
+    Palette1.Low                 0x005100
+    Palette2.High                clYellow
+    Palette2.Low                 0x005151
+    Palette3.High                clRed
+    Palette3.Low                 0x000051
+    Percent1                     60
+    Percent2                     25
+    Spacing                      1
+    TickHeight                   1
+    Top                          0
+    Width                        239
+end

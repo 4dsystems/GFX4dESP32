@@ -1,0 +1,228 @@
+﻿Version     0.0
+Platform    Gen4-ESP32-32CT-CLB-P
+PlatRes     240x320
+Depends
+end
+Options
+    Arduino_uSD
+    FQBN                         esp32:esp32:gen4-ESP32-S3R8n16
+    Speed                        9600
+    Checksum                     No
+    ResponseSize                 2
+    Multidrop                    No
+    Destination                  0
+    DestBank                     0
+    MainForm                     0
+    SndBuf                       0
+    ButtonDisable                No
+    SignedDigits                 No
+    MaxString                    75
+    ComPort                      0
+    ComTX1pinIdx                 0
+    ComRX1pinIdx                 0
+end
+Form
+    Name                         Form1
+    Alias                        Form1
+    Bgtype                       Color
+    Color                        BLACK
+    Image                        (None)
+    Source.Height                0
+    Source.Left                  0
+    Source.Top                   0
+    Source.Width                 0
+    OnActivate                   ''
+    OnCreate                     ''
+    OnRepeat                     ''
+    OnTouchMoving                ''
+    OnTouchPressed               ''
+    OnTouchReleased              ''
+end
+UserLed
+    Name                         Userled1
+    Alias                        Userled1
+    Active                       No
+    Bevel.BorderColor            clBtnFace
+    Bevel.BorderWidth            0
+    Bevel.InnerColor             clBtnFace
+    Bevel.InnerHighlight         clLime
+    Bevel.InnerOutline           None
+    Bevel.InnerShadow            0x005100
+    Bevel.InnerSpace             1
+    Bevel.InnerStyle             None
+    Bevel.Innerwidth             1
+    Bevel.OuterColor             clBtnFace
+    Bevel.OuterHighlight         clBtnHighlight
+    Bevel.OuterOutline           Outer
+    Bevel.OuterShadow            clBtnShadow
+    Bevel.OuterSpace             0
+    Bevel.OuterStyle             Raised
+    Bevel.Outerwidth             1
+    Bevel.Visible                Yes
+    Height                       60
+    Left                         84
+    OutlineColor                 BLACK
+    OutlineWidth                 0
+    PaletteEx.High1              clRed
+    PaletteEx.High2              BLACK
+    PaletteEx.Low1               0x000051
+    PaletteEx.Low2               BLACK
+    Top                          10
+    Width                        146
+    OnChanged                    ''
+end
+UserLed
+    Name                         Userled2
+    Alias                        Userled2
+    Active                       No
+    Bevel.BorderColor            clBtnFace
+    Bevel.BorderWidth            0
+    Bevel.InnerColor             clBtnFace
+    Bevel.InnerHighlight         clLime
+    Bevel.InnerOutline           None
+    Bevel.InnerShadow            0x005100
+    Bevel.InnerSpace             1
+    Bevel.InnerStyle             None
+    Bevel.Innerwidth             1
+    Bevel.OuterColor             clBtnFace
+    Bevel.OuterHighlight         clBtnHighlight
+    Bevel.OuterOutline           Outer
+    Bevel.OuterShadow            clBtnShadow
+    Bevel.OuterSpace             0
+    Bevel.OuterStyle             Raised
+    Bevel.Outerwidth             1
+    Bevel.Visible                Yes
+    Height                       60
+    Left                         84
+    OutlineColor                 BLACK
+    OutlineWidth                 0
+    PaletteEx.High1              clRed
+    PaletteEx.High2              BLACK
+    PaletteEx.Low1               0x000051
+    PaletteEx.Low2               BLACK
+    Top                          90
+    Width                        146
+    OnChanged                    ''
+end
+UserLed
+    Name                         Userled3
+    Alias                        Userled3
+    Active                       No
+    Bevel.BorderColor            clBtnFace
+    Bevel.BorderWidth            0
+    Bevel.InnerColor             clBtnFace
+    Bevel.InnerHighlight         clLime
+    Bevel.InnerOutline           None
+    Bevel.InnerShadow            0x005100
+    Bevel.InnerSpace             1
+    Bevel.InnerStyle             None
+    Bevel.Innerwidth             1
+    Bevel.OuterColor             clBtnFace
+    Bevel.OuterHighlight         clBtnHighlight
+    Bevel.OuterOutline           Outer
+    Bevel.OuterShadow            clBtnShadow
+    Bevel.OuterSpace             0
+    Bevel.OuterStyle             Raised
+    Bevel.Outerwidth             1
+    Bevel.Visible                Yes
+    Height                       60
+    Left                         84
+    OutlineColor                 BLACK
+    OutlineWidth                 0
+    PaletteEx.High1              clRed
+    PaletteEx.High2              BLACK
+    PaletteEx.Low1               0x000051
+    PaletteEx.Low2               BLACK
+    Top                          170
+    Width                        146
+    OnChanged                    ''
+end
+UserLed
+    Name                         Userled4
+    Alias                        Userled4
+    Active                       No
+    Bevel.BorderColor            clBtnFace
+    Bevel.BorderWidth            0
+    Bevel.InnerColor             clBtnFace
+    Bevel.InnerHighlight         clLime
+    Bevel.InnerOutline           None
+    Bevel.InnerShadow            0x005100
+    Bevel.InnerSpace             1
+    Bevel.InnerStyle             None
+    Bevel.Innerwidth             1
+    Bevel.OuterColor             clBtnFace
+    Bevel.OuterHighlight         clBtnHighlight
+    Bevel.OuterOutline           Outer
+    Bevel.OuterShadow            clBtnShadow
+    Bevel.OuterSpace             0
+    Bevel.OuterStyle             Raised
+    Bevel.Outerwidth             1
+    Bevel.Visible                Yes
+    Height                       60
+    Left                         84
+    OutlineColor                 BLACK
+    OutlineWidth                 0
+    PaletteEx.High1              clRed
+    PaletteEx.High2              BLACK
+    PaletteEx.Low1               0x000051
+    PaletteEx.Low2               BLACK
+    Top                          250
+    Width                        146
+    OnChanged                    ''
+end
+4Dbutton
+    Name                         4Dbutton1
+    Alias                        4Dbutton1
+    Height                       64
+    Left                         10
+    Matrix                       -1
+    Momentary                    Yes
+    Size                         64x64
+    Style                        Red
+    Top                          8
+    Type                         Button01
+    Width                        64
+    OnChanged                    ''
+end
+4Dbutton
+    Name                         4Dbutton2
+    Alias                        4Dbutton2
+    Height                       64
+    Left                         10
+    Matrix                       -1
+    Momentary                    Yes
+    Size                         64x64
+    Style                        Red
+    Top                          88
+    Type                         Button01
+    Width                        64
+    OnChanged                    ''
+end
+4Dbutton
+    Name                         4Dbutton3
+    Alias                        4Dbutton3
+    Height                       64
+    Left                         10
+    Matrix                       -1
+    Momentary                    No
+    Size                         64x64
+    Style                        Red
+    Top                          168
+    Type                         Button01
+    Width                        64
+    OnChanged                    ''
+end
+4Dbutton
+    Name                         4Dbutton4
+    Alias                        4Dbutton4
+    Height                       64
+    Left                         10
+    Matrix                       -1
+    Momentary                    On
+    Size                         64x64
+    Style                        Red
+    Top                          248
+    Type                         Button01
+    Width                        64
+    OnChanged                    ''
+end

@@ -1,0 +1,57 @@
+//
+// NB! This is a file generated from the .4Dino file, changes will be lost
+//     the next time the .4Dino file is built
+//
+
+// When using Arduino, you need to set the correct include file and class initialization to match your display.
+// To save the hassle of doing this is manually, it is recommended to use Workshop4.
+
+#include "gfx4desp32_gen4_ESP32_32CT_CLB.h"
+
+gfx4desp32_gen4_ESP32_32CT_CLB gfx = gfx4desp32_gen4_ESP32_32CT_CLB();
+
+#include "SliderAndGaugeDemoConst.h"    // Note. This file will not be created if there are no generated graphics
+
+void setup()
+{
+  gfx.begin();
+  gfx.Cls();
+  gfx.ScrollEnable(false);
+  gfx.BacklightOn(true);
+  gfx.Orientation(PORTRAIT);
+  gfx.SmoothScrollSpeed(5);
+  gfx.TextColor(WHITE, BLACK); gfx.Font(2);  gfx.TextSize(1);
+  gfx.Open4dGFX("SliderAndGaugeDemo"); // Opens DAT and GCI files for read using filename without extension.
+  gfx.touch_Set(TOUCH_ENABLE);                // Global touch enabled
+  gfx.imageTouchEnable(iSlider1, true) ;                     // init_Slider1 enable touch of widget (on Form1)
+  gfx.UserImages(iSlider1,0) ;                               // init_Slider1 show initially, if required (on Form1)
+  gfx.UserImages(iCoolgauge1,0) ;                            // init_Coolgauge1 show initialy, if required
+} // end Setup **do not alter, remove or duplicate this line**
+
+void loop()
+{
+  // put your main code here, to run repeatedly:
+  int itouched, val ;
+  if(gfx.touch_Update())
+  {
+    itouched = gfx.imageTouched() ;
+    switch (itouched)
+    {                                                         // start touched selection **do not alter, remove or duplicate this line**
+      // case statements for Knobs and Sliders go here
+      case iSlider1 :                                      // process_Slider1 process (on Form1)
+        val = gfx.imageAutoSlider(iSlider1, HORIZONTAL_SLIDER, gfx.touch_GetX(), 8, 8);
+        // process Slider based on val
+        gfx.UserImages(iCoolgauge1, val) ; // where val is 0 to 100 (for a displayed 0 to 100)
+
+        break ;
+      default :                                               // end touched selection **do not alter, remove or duplicate this line**
+        int button = gfx.ImageTouchedAuto();    // use default for keyboards and buttons
+        val = gfx.getImageValue(button);
+        switch (button)
+        {                                                     // start button selection **do not alter, remove or duplicate this line**
+          // case, one for each button or keyboard, default should end up as -1
+        }                                                     // end button selection **do not alter, remove or duplicate this line**
+    }
+  }
+}
+

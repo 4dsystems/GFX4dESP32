@@ -1,0 +1,73 @@
+﻿Version     0.0
+Platform    Gen4-ESP32-32CT-CLB-P
+PlatRes     240x320
+Depends
+end
+Options
+    Arduino_uSD
+    FQBN                         esp32:esp32:gen4-ESP32-S3R8n16
+    Speed                        9600
+    Checksum                     No
+    ResponseSize                 2
+    Multidrop                    No
+    Destination                  0
+    DestBank                     0
+    MainForm                     0
+    SndBuf                       0
+    ButtonDisable                No
+    SignedDigits                 No
+    MaxString                    75
+    ComPort                      0
+    ComTX1pinIdx                 0
+    ComRX1pinIdx                 0
+end
+Form
+    Name                         Form1
+    Alias                        Form1
+    Bgtype                       Color
+    Color                        BLACK
+    Image                        (None)
+    Source.Height                0
+    Source.Left                  0
+    Source.Top                   0
+    Source.Width                 0
+    OnActivate                   ''
+    OnCreate                     ''
+    OnRepeat                     ''
+    OnTouchMoving                ''
+    OnTouchPressed               ''
+    OnTouchReleased              ''
+end
+Knob
+    Name                         Knob1
+    Alias                        Knob1
+    Backimage                    (None)
+    BaseAngle                    45
+    Handleimage                  (None)
+    Left                         78
+    Maxvalue                     100
+    Minvalue                     0
+    Radius                       40
+    Top                          184
+    OnChanged                    ''
+    OnChanging                   ''
+end
+LedDigits
+    Name                         Leddigits1
+    Alias                        Leddigits1
+    Color                        BLACK
+    Decimals                     0
+    Digits                       3
+    Height                       86
+    LeadingZero                  Yes
+    Left                         54
+    OutlineColor                 BLACK
+    Palette.High                 clLime
+    Palette.Low                  0x005100
+    Top                          52
+    Width                        138
+    OnChanged                    ''
+    OnTouchMoving                ''
+    OnTouchPressed               ''
+    OnTouchReleased              ''
+end

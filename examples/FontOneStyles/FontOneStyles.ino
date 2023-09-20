@@ -1,0 +1,65 @@
+//
+// NB! This is a file generated from the .4Dino file, changes will be lost
+//     the next time the .4Dino file is built
+//
+
+// When using Arduino, you need to set the correct include file and class initialization to match your display.
+// To save the hassle of doing this is manually, it is recommended to use Workshop4.
+
+#include "gfx4desp32_gen4_ESP32_32.h"
+
+gfx4desp32_gen4_ESP32_32 gfx = gfx4desp32_gen4_ESP32_32();
+
+#include "FontOneStylesConst.h"    // Note. This file will not be created if there are no generated graphics
+
+int count;
+
+void setup()
+{
+  gfx.begin();
+  gfx.Cls();
+  gfx.ScrollEnable(false);
+  gfx.BacklightOn(true);
+  gfx.Orientation(PORTRAIT);
+  gfx.SmoothScrollSpeed(5);
+  gfx.TextColor(WHITE); gfx.Font(1);  gfx.TextSize(5);
+  gfx.MoveTo(0,0);
+  gfx.TextColor(WHITE); gfx.Font(2);  gfx.TextSize(1);
+  gfx.print("Style DOT MATRIX");
+  gfx.MoveTo(0,70);
+  gfx.print("Style DOT MATRIX SQUARE");
+  gfx.MoveTo(0,140);
+  gfx.print("Style DOT MATRIX LED");
+  gfx.MoveTo(0,228);
+  gfx.print("Style DOT MATRIX FADE");
+  gfx.TextColor(WHITE); gfx.Font(1);  gfx.TextSize(6);
+} // end Setup **do not alter, remove or duplicate this line**
+
+void loop()
+{
+  gfx.TextSize(6);
+  gfx.FontStyle(DOTMATRIXROUND);
+  gfx.TextColor(ORANGE, BLACK);
+  gfx.MoveTo(0, 20);
+  gfx.print(count);
+  gfx.print("   ");
+  gfx.FontStyle(DOTMATRIXSQUARE);
+  gfx.TextColor(LIME, BLACK);
+  gfx.MoveTo(0, 90);
+  gfx.print(count);
+  gfx.print("   ");
+  gfx.TextSize(8);
+  gfx.FontStyle(DOTMATRIXLED);
+  gfx.TextColor(RED, BLACK);
+  gfx.MoveTo(0, 160);
+  gfx.print(count);
+  gfx.print("  ");
+  gfx.FontStyle(DOTMATRIXFADE);
+  gfx.TextColor(SKYBLUE, BLACK);
+  gfx.MoveTo(0, 244);
+  gfx.print(count);
+  gfx.print("  ");
+  count ++;
+  if(count > 999) count = 0;
+}
+

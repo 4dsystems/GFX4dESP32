@@ -1,0 +1,77 @@
+﻿Version     0.0
+Platform    Gen4-ESP32-32CT-CLB-P
+PlatRes     240x320
+Depends
+end
+Options
+    Arduino_uSD
+    FQBN                         esp32:esp32:gen4-ESP32-S3R8n16
+    Speed                        9600
+    Checksum                     No
+    ResponseSize                 2
+    Multidrop                    No
+    Destination                  0
+    DestBank                     0
+    MainForm                     0
+    SndBuf                       0
+    ButtonDisable                No
+    SignedDigits                 No
+    MaxString                    75
+    ComPort                      0
+    ComTX1pinIdx                 0
+    ComRX1pinIdx                 0
+end
+Form
+    Name                         Form1
+    Alias                        Form1
+    Bgtype                       Color
+    Color                        BLACK
+    Image                        (None)
+    Source.Height                0
+    Source.Left                  0
+    Source.Top                   0
+    Source.Width                 0
+    OnActivate                   ''
+    OnCreate                     ''
+    OnRepeat                     ''
+    OnTouchMoving                ''
+    OnTouchPressed               ''
+    OnTouchReleased              ''
+end
+Keyboard
+    Name                         Keyboard1
+    Alias                        Keyboard1
+    AutoCapsDisplay              Yes
+    Fill                         (Default)
+    Font.Color                   BLACK
+    Font.Effects                 []
+    Font.Name                    Tahoma
+    Font.Size                    8
+    Font.Style                   []
+    Height                       164
+    HighlightCaps                BLACK
+    KeyboardType                 KB1
+    KeyDistance                  0
+    Left                         0
+    SmallFont.Color              BLACK
+    SmallFont.Effects            []
+    SmallFont.Name               Tahoma
+    SmallFont.Size               7
+    SmallFont.Style              []
+    Top                          156
+    Width                        240
+    OnChanged                    ''
+end
+Rectangle
+    Name                         Rectangle1
+    Alias                        Rectangle1
+    Color                        BLACK
+    Filled                       Yes
+    Height                       155
+    Left                         0
+    Outlined                     No
+    OutlineColor                 WHITE
+    Pattern                      Fine
+    Top                          0
+    Width                        240
+end

@@ -1,0 +1,109 @@
+//
+// NB! This is a file generated from the .4Dino file, changes will be lost
+//     the next time the .4Dino file is built
+//
+#include "WiFi.h"
+
+// When using Arduino, you need to set the correct include file and class initialization to match your display.
+// To save the hassle of doing this is manually, it is recommended to use Workshop4.
+
+#include "gfx4desp32_gen4_ESP32_32.h"
+
+gfx4desp32_gen4_ESP32_32 gfx = gfx4desp32_gen4_ESP32_32();
+
+#include "WiFiScanInfoConst.h"    // Note. This file will not be created if there are no generated graphics
+
+void setup()
+{
+  gfx.begin();
+  gfx.Cls();
+  gfx.ScrollEnable(true);
+  gfx.BacklightOn(true);
+  gfx.Orientation(LANDSCAPE);
+  gfx.SmoothScrollSpeed(5);
+  gfx.TextColor(WHITE);
+  gfx.Font(1);
+  gfx.TextSize(1);
+  //gfx.Open4dGFX("WiFiScanInfo"); // Opens DAT and GCI files for read using filename without extension.
+
+  // Set WiFi to station mode and disconnect from an AP if it was previously connected.
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
+  delay(100);
+
+  gfx.println("Setup done");
+} // end Setup **do not alter, remove or duplicate this line**
+
+void loop() {
+  gfx.TextColor(ORANGE);
+  gfx.println("Scan start");
+
+  // WiFi.scanNetworks will return the number of networks found.
+  int n = WiFi.scanNetworks();
+
+  gfx.TextColor(GREEN);
+  gfx.println("Scan done");
+
+  if (n == 0) {
+    gfx.TextColor(RED);
+    gfx.println("no networks found");
+  } else {
+    gfx.TextColor(GREEN);
+    gfx.print(n);
+    gfx.println(" networks found");
+    gfx.TextColor(WHITE);
+    gfx.println("Nr | SSID                   | RSSI | CH | Encryption");
+    for (int i = 0; i < n; ++i) {
+      // Print SSID and RSSI for each network found
+      gfx.printf("%2d", i + 1);
+      gfx.print(" | ");
+      gfx.printf("%-22.22s", WiFi.SSID(i).c_str());
+      gfx.print(" | ");
+      gfx.printf("%4d", WiFi.RSSI(i));
+      gfx.print(" | ");
+      gfx.printf("%2d", WiFi.channel(i));
+      gfx.print(" | ");
+      switch (WiFi.encryptionType(i)) {
+        case WIFI_AUTH_OPEN:
+          gfx.print("open");
+          break;
+        case WIFI_AUTH_WEP:
+          gfx.print("WEP");
+          break;
+        case WIFI_AUTH_WPA_PSK:
+          gfx.print("WPA");
+          break;
+        case WIFI_AUTH_WPA2_PSK:
+          gfx.print("WPA2");
+          break;
+        case WIFI_AUTH_WPA_WPA2_PSK:
+          gfx.print("WPA+WPA2");
+          break;
+        case WIFI_AUTH_WPA2_ENTERPRISE:
+          gfx.print("WPA2-EAP");
+          break;
+        case WIFI_AUTH_WPA3_PSK:
+          gfx.print("WPA3");
+          break;
+        case WIFI_AUTH_WPA2_WPA3_PSK:
+          gfx.print("WPA2+WPA3");
+          break;
+        case WIFI_AUTH_WAPI_PSK:
+          gfx.print("WAPI");
+          break;
+        default:
+          gfx.print("unknown");
+      }
+      gfx.println();
+      delay(10);
+    }
+  }
+  gfx.println("");
+
+  // Delete the scan result to free memory for code below.
+  WiFi.scanDelete();
+
+  // Wait a bit before scanning again.
+  delay(5000);
+}
+

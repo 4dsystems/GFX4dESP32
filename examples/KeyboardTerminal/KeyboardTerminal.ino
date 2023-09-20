@@ -1,0 +1,80 @@
+//
+// NB! This is a file generated from the .4Dino file, changes will be lost
+//     the next time the .4Dino file is built
+//
+/***************************************************
+  Very simple Serial Terminal using 4D SD Keyboard
+  Widget and automatic keyboard handling
+***************************************************/
+
+// When using Arduino, you need to set the correct include file and class initialization to match your display.
+// To save the hassle of doing this is manually, it is recommended to use Workshop4.
+
+#include "gfx4desp32_gen4_ESP32_32CT_CLB.h"
+
+gfx4desp32_gen4_ESP32_32CT_CLB gfx = gfx4desp32_gen4_ESP32_32CT_CLB();
+
+#include "KeyboardTerminalConst.h"    // Note. This file will not be created if there are no generated graphics
+
+SdFat& uSD = gfx.getSdFatInstance();
+
+
+void setup()
+{
+  gfx.begin();
+  gfx.Cls();
+  gfx.ScrollEnable(false);
+  gfx.BacklightOn(true);
+  gfx.Orientation(LANDSCAPE);
+  gfx.SmoothScrollSpeed(5);
+  gfx.TextColor(WHITE, BLACK); gfx.Font(2);  gfx.TextSize(1);
+
+  if (!uSD.exists("KeyboardTerminal.gci")) {
+    gfx.println("GCI File doesn't exist");
+    while (true);
+  }
+  if (!uSD.exists("KeyboardTerminal.dat")) {
+    gfx.println("DAT File doesn't exist");
+    while (true);
+  }
+
+  gfx.Open4dGFX("KeyboardTerminal"); // Opens DAT and GCI files for read using filename without extension.
+  gfx.touch_Set(TOUCH_ENABLE);                // Global touch enabled
+
+  gfx.TextWindow(0, 0, 320, 75, LIME, BLACK, LIGHTGREY);
+  Serial.begin(115200);
+
+  gfx.imageTouchEnableRange(iKeyboard1_0, iKeyboard1_59, true, KEYPAD) ;   // init_Keyboard1 enable touch on keys (on Form1)
+  gfx.imageTouchEnable(iKeyboard1, false) ;                  // init_Keyboard1 disable touch on full keyboard (on Form1)
+  gfx.UserImages(iKeyboard1,0) ;                             // init_Keyboard1 show initially, if required (on Form1)
+} // end Setup **do not alter, remove or duplicate this line**
+
+void loop()
+{
+  // put your main code here, to run repeatedly:
+  int itouched, val ;
+  if(gfx.touch_Update())
+  {
+    itouched = gfx.imageTouched() ;
+    switch (itouched)
+    {                                                         // start touched selection **do not alter, remove or duplicate this line**
+      // case statements for Knobs and Sliders go here
+      default :                                               // end touched selection **do not alter, remove or duplicate this line**
+        int button = gfx.ImageTouchedAuto();    // use default for keyboards and buttons
+        val = gfx.getImageValue(button);
+        switch (button)
+        {                                                     // start button selection **do not alter, remove or duplicate this line**
+          // case, one for each button or keyboard, default should end up as -1
+          case iKeyboard1_0 ... iKeyboard1_59 :                                      // process_Keyboard1 process Keyboard (on Form1)
+            int kd = gfx.DecodeKeypad(iKeyboard1, button, iKeyboard1keystrokes, oKeyboard1);
+            // process key pressed
+            if (kd > -1) gfx.TWwrite(kd);
+            String sercom = gfx.GetCommand();
+            if (sercom != "") Serial.println(sercom);
+            break ;
+        }                                                     // end button selection **do not alter, remove or duplicate this line**
+    }
+  }
+  while (Serial.available() > 0) gfx.TWwrite(Serial.read());
+}
+

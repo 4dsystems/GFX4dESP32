@@ -1,0 +1,27 @@
+
+// When using Arduino, you need to set the correct include file and class initialization to match your display.
+// To save the hassle of doing this is manually, it is recommended to use Workshop4.
+
+#include "gfx4desp32_%%displaynm%%.h"
+
+gfx4desp32_%%displaynm%% gfx = gfx4desp32_%%displaynm%%();
+
+#include "NonTouchTemplateConst.h"    // Note. This file will not be created if there are no generated graphics
+
+void setup()
+{
+  gfx.begin();
+  gfx.Cls();
+  gfx.ScrollEnable(false);
+  gfx.BacklightOn(true);
+  gfx.Orientation(%%orientation%%);
+  gfx.SmoothScrollSpeed(5);
+  gfx.TextColor(WHITE, BLACK); gfx.Font(2);  gfx.TextSize(1);
+  gfx.Open4dGFX("NonTouchTemplate"); // Opens DAT and GCI files for read using filename without extension.
+} // end Setup **do not alter, remove or duplicate this line**
+
+void loop()
+{
+  // put your main code here, to run repeatedly:
+}
+
