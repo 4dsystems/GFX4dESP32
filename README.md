@@ -8,6 +8,4 @@ To install the library, please refer to the instructions in **Workshop4 ESP32 De
 
 It is recommended to use Workshop4 IDE to get the most of out the library functions.
 
-!!! note
-
-    Workshop4 is a **Windows-only** application.
+**Note**: Workshop4 is a **Windows-only** application.
