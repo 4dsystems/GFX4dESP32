@@ -1,5 +1,5 @@
-#ifndef __GFX4D_RGB_PANEL_T__
-#define __GFX4D_RGB_PANEL_T__
+#ifndef __GFX4D_SPI_PANEL_T__
+#define __GFX4D_SPI_PANEL_T__
 
 #include "gfx4desp32_touch.h"
 #include "gfx4desp32_spi_panel.h"
@@ -21,4 +21,4 @@ public:
   virtual bool touch_Update() override;
 };
 
-#endif // __GFX4D_RGB_PANEL_T__
+#endif // __GFX4D_SPI_PANEL_T__
