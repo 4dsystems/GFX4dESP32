@@ -94,20 +94,31 @@ bool gfx4desp32_rgb_panel_t::touch_Update() {
                     (((gTPData[3 + i * 6] & 0x0f) << 8) + gTPData[4 + i * 6]) -
                     1;
                 break;
-            case PORTRAIT:
+            case PORTRAIT_R:
                 lasttouchYpos = touchYpos;
                 lasttouchXpos = touchXpos;
-                touchXpos = __width -
-                    (((gTPData[1 + i * 6] & 0x0f) << 8) + gTPData[2 + i * 6]) -
-                    1;
+                if (touchYswap) {
+                    touchXpos = __width - (((gTPData[1 + i * 6] & 0x0f) << 8) + gTPData[2 + i * 6]) - 1;
+                }
+                else {
+                    touchXpos = ((gTPData[1 + i * 6] & 0x0f) << 8) + gTPData[2 + i * 6];
+                }
                 touchYpos = __height -
                     (((gTPData[3 + i * 6] & 0x0f) << 8) + gTPData[4 + i * 6]) -
                     1;
                 break;
-            case PORTRAIT_R:
+            case PORTRAIT:
                 lasttouchYpos = touchYpos;
                 lasttouchXpos = touchXpos;
-                touchXpos = ((gTPData[1 + i * 6] & 0x0f) << 8) + gTPData[2 + i * 6];
+                if (touchYswap) {
+                    touchXpos = ((gTPData[1 + i * 6] & 0x0f) << 8) + gTPData[2 + i * 6];
+                }
+                else {
+                    touchXpos = __width -
+                        (((gTPData[1 + i * 6] & 0x0f) << 8) + gTPData[2 + i * 6]) -
+                        1;
+                }
+                //touchXpos = ((gTPData[1 + i * 6] & 0x0f) << 8) + gTPData[2 + i * 6];
                 touchYpos = ((gTPData[3 + i * 6] & 0x0f) << 8) + gTPData[4 + i * 6];
                 break;
             }
