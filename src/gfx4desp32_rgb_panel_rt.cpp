@@ -41,7 +41,7 @@ bool gfx4desp32_rgb_panel_rt::touch_Update() {
 
     // *** process resistive touch ***
     int txpos = 0; int typos = 0; int z1 = 0; int z2 = 0;
-    txpos1 = 0;
+    // txpos1 = 0; // seems to be unused, only being set to 0, nothing else
     if (tPen != 2) {
         int xl[READS], yl[READS];
 
@@ -155,11 +155,11 @@ bool gfx4desp32_rgb_panel_rt::touch_Update() {
             touchXpos = map(txpos, calx1, calx2, __width, 0);
             touchYpos = map(typos, caly1, caly2, 0, __height);
             break;
-        case PORTRAIT:
+        case PORTRAIT_R:
             touchYpos = map(txpos, calx1, calx2, __height, 0);
             touchXpos = map(typos, caly1, caly2, __width, 0);
             break;
-        case PORTRAIT_R:
+        case PORTRAIT:
             touchYpos = map(txpos, calx1, calx2, 0, __height);
             touchXpos = map(typos, caly1, caly2, 0, __width);
             break;
