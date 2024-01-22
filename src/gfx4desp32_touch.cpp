@@ -9,8 +9,8 @@ gfx4desp32_touch::~gfx4desp32_touch() {}
   @brief      Get status of touch inversion on current display
   @returns    __TImode    0 - no inversion  1 inverted
 */
-/**********************************************************************/  
-uint8_t gfx4desp32_touch::touch_GetInvertMode(){
+/**********************************************************************/
+uint8_t gfx4desp32_touch::touch_GetInvertMode() {
   return __TImode;
 }
 
@@ -65,18 +65,18 @@ int16_t gfx4desp32_touch::touch_GetLastY() { return lasttouchYpos; }
 void gfx4desp32_touch::Open4dGFX(String file4d) {
   if (!gciImagesUsed) {
     gciImagesUsed = true;
-    gciobjtouchenable = (uint8_t *)malloc(MAX_WIDGETS);
+    gciobjtouchenable = (uint8_t*)malloc(MAX_WIDGETS);
     memset(gciobjtouchenable, 0, MAX_WIDGETS);
-    cdv = (uint8_t *)malloc(MAX_WIDGETS);
-    gciobjframes = (uint16_t *)malloc(MAX_WIDGETS << 1);
-    tuix = (int16_t *)malloc(MAX_WIDGETS << 1);
-    tuiy = (int16_t *)malloc(MAX_WIDGETS << 1);
-    tuiw = (int16_t *)malloc(MAX_WIDGETS << 1);
-    tuih = (int16_t *)malloc(MAX_WIDGETS << 1);
-    tuiImageIndex = (uint16_t *)malloc(MAX_WIDGETS << 1);
-    tuiIndex = (uint32_t *)malloc(MAX_WIDGETS << 2);
-    tuiExtra1 = (uint16_t *)malloc(MAX_WIDGETS << 1);
-    tuiExtra2 = (uint16_t *)malloc(MAX_WIDGETS << 1);
+    cdv = (uint8_t*)malloc(MAX_WIDGETS);
+    gciobjframes = (uint16_t*)malloc(MAX_WIDGETS << 1);
+    tuix = (int16_t*)malloc(MAX_WIDGETS << 1);
+    tuiy = (int16_t*)malloc(MAX_WIDGETS << 1);
+    tuiw = (int16_t*)malloc(MAX_WIDGETS << 1);
+    tuih = (int16_t*)malloc(MAX_WIDGETS << 1);
+    tuiImageIndex = (uint16_t*)malloc(MAX_WIDGETS << 1);
+    tuiIndex = (uint32_t*)malloc(MAX_WIDGETS << 2);
+    tuiExtra1 = (uint16_t*)malloc(MAX_WIDGETS << 1);
+    tuiExtra2 = (uint16_t*)malloc(MAX_WIDGETS << 1);
   }
   _Open4dGFX(file4d, false);
   opgfx = 1;
@@ -107,7 +107,7 @@ void gfx4desp32_touch::_Open4dGFX(String file4d, bool scan) {
   if (GCItype == GCI_SYSTEM_USD) {
     dat4d = "/" + dat4d;
     gci4d = "/" + gci4d;
-    userDat = LittleFS.open((char *)dat4d.c_str(), "r");
+    userDat = LittleFS.open((char*)dat4d.c_str(), "r");
   }
   if (GCItype == GCI_SYSTEM_PROGMEM) {
     datArrayPos = 0;
@@ -119,7 +119,13 @@ void gfx4desp32_touch::_Open4dGFX(String file4d, bool scan) {
   }
 #else
   if (GCItype == GCI_SYSTEM_USD) {
+#ifdef USE_SDMMC_FILE_SYSTEM
+    dat4d = "/" + dat4d;
+    gci4d = "/" + gci4d;
+    userDat = SD_MMC.open(dat4d);
+#else
     userDat = uSD.open(dat4d);
+#endif
   }
   if (GCItype == GCI_SYSTEM_PROGMEM) {
     datArrayPos = 0;
@@ -166,7 +172,7 @@ void gfx4desp32_touch::_Open4dGFX(String file4d, bool scan) {
     }
     if (GCItype == GCI_SYSTEM_PROGMEM) {
       while (datArrayPos < datArraySize) {
-        c = (char) DATarray[datArrayPos++];
+        c = (char)DATarray[datArrayPos++];
         if (c != 13 && c != 10) {
           strpos++;
           if (c == 34) {
@@ -206,14 +212,18 @@ void gfx4desp32_touch::_Open4dGFX(String file4d, bool scan) {
     return;
 #ifdef USE_LITTLEFS_FILE_SYSTEM
   if (GCItype == GCI_SYSTEM_USD) {
-    userImag = LittleFS.open((char *)gci4d.c_str(), "r");
+    userImag = LittleFS.open((char*)gci4d.c_str(), "r");
   }
   if (GCItype == GCI_SYSTEM_PROGMEM) {
     gciArrayPos = 0;
   }
 #else
   if (GCItype == GCI_SYSTEM_USD) {
-    userImag = uSD.open((char *)gci4d.c_str());
+#ifdef USE_SDMMC_FILE_SYSTEM
+    userImag = SD_MMC.open((char*)gci4d.c_str());
+#else 
+    userImag = uSD.open((char*)gci4d.c_str());
+#endif
   }
   if (GCItype == GCI_SYSTEM_PROGMEM) {
     gciArrayPos = 0;
@@ -261,11 +271,12 @@ void gfx4desp32_touch::imageTouchEnable(int gcinum, boolean en) {
     if (gcinum < 0) {
       for (int n = 0; n < MAX_WIDGETS; n++) {
         gciobjtouchenable[n] =
-            (gciobjtouchenable[n] & 0xf0) | ((uint8_t)en & 0x0f);
+          (gciobjtouchenable[n] & 0xf0) | ((uint8_t)en & 0x0f);
       }
-    } else {
+    }
+    else {
       gciobjtouchenable[gcinum] =
-          (gciobjtouchenable[gcinum] & 0xf0) | ((uint8_t)en & 0x0f);
+        (gciobjtouchenable[gcinum] & 0xf0) | ((uint8_t)en & 0x0f);
     }
   }
 }
@@ -277,8 +288,8 @@ void gfx4desp32_touch::imageTouchEnable(int gcinum, boolean en, int type) {
 }
 
 void gfx4desp32_touch::imageTouchEnable(int gcinum, boolean en, int type,
-                                        int frames, bool orientation, int gap1,
-                                        int gap2, uint16_t tc) {
+  int frames, bool orientation, int gap1,
+  int gap2, uint16_t tc) {
   if (opgfx) {
     gciobjtouchenable[gcinum] = (type << 4) | ((uint8_t)en & 0x0f);
     gciobjframes[gcinum] = frames;
@@ -288,17 +299,17 @@ void gfx4desp32_touch::imageTouchEnable(int gcinum, boolean en, int type,
 }
 
 void gfx4desp32_touch::imageTouchEnableRange(int gcinumFrom, int gcinumTo,
-                                             boolean en) {
+  boolean en) {
   if (opgfx) {
     for (int n = gcinumFrom; n <= gcinumTo; n++) {
       gciobjtouchenable[n] =
-          (gciobjtouchenable[n] & 0xf0) | ((uint8_t)en & 0x0f);
+        (gciobjtouchenable[n] & 0xf0) | ((uint8_t)en & 0x0f);
     }
   }
 }
 
 void gfx4desp32_touch::imageTouchEnableRange(int gcinumFrom, int gcinumTo,
-                                             boolean en, int type) {
+  boolean en, int type) {
   if (opgfx) {
     for (int n = gcinumFrom; n <= gcinumTo; n++) {
       gciobjtouchenable[n] = (type << 4) | ((uint8_t)en & 0x0f);
@@ -320,22 +331,23 @@ void gfx4desp32_touch::UserImages(uint16_t uisnb, int16_t framenb) {
   ScrollEnable(false);
   if (framenb > (gciobjframes[uisnb] - 1) || framenb < 0) {
     outofrange(tuix[uisnb], tuiy[uisnb], tuiw[uisnb], tuih[uisnb]);
-  } else {
+  }
+  else {
     switch (gciobjtouchenable[uisnb] >> 4) {
     case SLIDER3IMAGE:
       UserImages3image(uisnb, framenb, gciobjframes[uisnb],
-                       ((tuiExtra1[uisnb] >> 15) == 1),
-                       (tuiExtra1[uisnb] >> 8) & 0x7f, tuiExtra1[uisnb] & 0x7f,
-                       tuiExtra2[uisnb]);
+        ((tuiExtra1[uisnb] >> 15) == 1),
+        (tuiExtra1[uisnb] >> 8) & 0x7f, tuiExtra1[uisnb] & 0x7f,
+        tuiExtra2[uisnb]);
       break;
     case GAUGE2IMAGE:
       UserImages2image(uisnb, framenb, gciobjframes[uisnb],
-                       ((tuiExtra1[uisnb] >> 15) == 1),
-                       (tuiExtra1[uisnb] >> 8) & 0x7f, tuiExtra1[uisnb] & 0x7f);
+        ((tuiExtra1[uisnb] >> 15) == 1),
+        (tuiExtra1[uisnb] >> 8) & 0x7f, tuiExtra1[uisnb] & 0x7f);
       break;
     default:
       DrawWidget(tuiIndex[uisnb], tuix[uisnb], tuiy[uisnb], tuiw[uisnb],
-                 tuih[uisnb], framenb, 0, true, cdv[uisnb]);
+        tuih[uisnb], framenb, 0, true, cdv[uisnb]);
     }
   }
   ScrollEnable(setemp);
@@ -365,10 +377,11 @@ int16_t gfx4desp32_touch::ImageTouchedAuto() {
         if (UpdateImages == TOGGLE4STATES) // if 4 state
         {
           if (tuiImageIndex[itouched] ==
-              2) // dont use getImageValue(itouched) as we need more info
+            2) // dont use getImageValue(itouched) as we need more info
           {
             UserImages(itouched, 3); // show down pressed
-          } else {
+          }
+          else {
             UserImages(itouched, 1); // show up presses
           }
         }
@@ -380,15 +393,18 @@ int16_t gfx4desp32_touch::ImageTouchedAuto() {
       if (UpdateImages == TOGGLE4STATES) // if 4 state
       {
         if (tuiImageIndex[pressed] ==
-            1) { // dont use getImageValue(itouched) as we need more info
+          1) { // dont use getImageValue(itouched) as we need more info
           UserImages(pressed, 2);
-        } else {
+        }
+        else {
           UserImages(pressed, 0);
         }
-      } else {
+      }
+      else {
         if (getImageValue(pressed) == 0) {
           UserImages(pressed, 1);
-        } else {
+        }
+        else {
           UserImages(pressed, 0);
         }
       }
@@ -399,18 +415,19 @@ int16_t gfx4desp32_touch::ImageTouchedAuto() {
   }
   if (UpdateImages == KEYPAD) {
     UpdateImages = DRAW_UPDOWN;
-    butcntrl = ((shifted)*2);
+    butcntrl = ((shifted) * 2);
   }
   if (state == TOUCH_PRESSED) {
     itouched = imageTouched();
     if (itouched > -1 && itouched < getNumberofObjects()) {
       if (UpdateImages && itouched != pressed) {
         if (pressed > -1 && pressed < getNumberofObjects() &&
-            gciobjframes[pressed] >= butcntrl)
+          gciobjframes[pressed] >= butcntrl)
           UserImages(pressed, butcntrl);
         if (gciobjframes[itouched] >= 1 + butcntrl) {
           UserImages(itouched, 1 + butcntrl);
-        } else {
+        }
+        else {
           UserImages(itouched, 1);
         }
       }
@@ -422,7 +439,8 @@ int16_t gfx4desp32_touch::ImageTouchedAuto() {
   if (state == 2 && pressed > -1 && pressed < getNumberofObjects()) {
     if (UpdateImages == DRAW_UPDOWN && gciobjframes[pressed] >= butcntrl) {
       UserImages(pressed, butcntrl);
-    } else {
+    }
+    else {
       UserImages(pressed, 0);
     }
     temppressed = pressed;
@@ -432,7 +450,8 @@ int16_t gfx4desp32_touch::ImageTouchedAuto() {
   if (state == 0 && pressed > -1 && pressed < getNumberofObjects()) {
     if (UpdateImages == DRAW_UPDOWN && gciobjframes[pressed] >= butcntrl) {
       UserImages(pressed, butcntrl);
-    } else {
+    }
+    else {
       UserImages(pressed, 0);
     }
     temppressed = pressed;
@@ -446,8 +465,8 @@ int16_t gfx4desp32_touch::ImageTouchedAuto() {
 }
 
 uint16_t gfx4desp32_touch::GetSliderValue(uint16_t ui, uint8_t axis,
-                                          uint16_t uiv, uint16_t ming,
-                                          uint16_t maxg) {
+  uint16_t uiv, uint16_t ming,
+  uint16_t maxg) {
   int wpos = 0;
   int wsiz = 0;
   if (axis == HORIZONTAL_SLIDER) {
@@ -459,7 +478,7 @@ uint16_t gfx4desp32_touch::GetSliderValue(uint16_t ui, uint8_t axis,
       wpos = gciobjframes[ui] - 1;
     else
       wpos = (gciobjframes[ui] - 1) * wpos /
-             (wsiz - maxg);
+      (wsiz - maxg);
     return wpos;
   }
   if (axis == VERTICAL_SLIDER) {
@@ -471,15 +490,15 @@ uint16_t gfx4desp32_touch::GetSliderValue(uint16_t ui, uint8_t axis,
       wpos = 0;
     else
       wpos = (gciobjframes[ui] - 1) -
-             (gciobjframes[ui] - 1) * wpos /
-                 (wsiz - maxg);
+      (gciobjframes[ui] - 1) * wpos /
+      (wsiz - maxg);
     return wpos;
   }
   return wpos;
 }
 
-int gfx4desp32_touch::DecodeKeypad(int kpad, int kpress, byte *kbks,
-                                   int8_t *kbck) {
+int gfx4desp32_touch::DecodeKeypad(int kpad, int kpress, byte* kbks,
+  int8_t* kbck) {
   if (decodeKP == false)
     return -1;
   decodeKP = false;
@@ -571,7 +590,8 @@ bool gfx4desp32_touch::KeypadStatus(int keyType) {
 int gfx4desp32_touch::imageTouched() {
   if (opgfx) {
     return gciobjtouched;
-  } else {
+  }
+  else {
     return -1;
   }
 }
@@ -592,7 +612,7 @@ uint8_t gfx4desp32_touch::CheckButtons(void) {
     }
     if (bactive[n] && tpen == TOUCH_PRESSED && skip == false) {
       if (tx > bposx[n] && tx < (bposx[n] + bposw[n]) && ty > bposy[n] &&
-          ty < (bposy[n] + bposh[n])) {
+        ty < (bposy[n] + bposh[n])) {
         if (bstat[n] != 1) {
           bstat[n] = 1;
           ButtonDown(n);
@@ -617,9 +637,9 @@ int gfx4desp32_touch::SpriteTouched() {
       for (int nt = numSprites - 1; nt > -1; nt--) {
         if (GetSprite(nt, SPRITE_ACTIVE) == 1) {
           if (stx >= GetSprite(nt, SPRITE_X) &&
-              stx <= (GetSprite(nt, SPRITE_X) + GetSprite(nt, SPRITE_WIDTH)) &&
-              sty >= GetSprite(nt, SPRITE_Y) &&
-              sty <= (GetSprite(nt, SPRITE_Y) + GetSprite(nt, SPRITE_HEIGHT))) {
+            stx <= (GetSprite(nt, SPRITE_X) + GetSprite(nt, SPRITE_WIDTH)) &&
+            sty >= GetSprite(nt, SPRITE_Y) &&
+            sty <= (GetSprite(nt, SPRITE_Y) + GetSprite(nt, SPRITE_HEIGHT))) {
             tresp = nt;
             break;
           }
@@ -631,14 +651,15 @@ int gfx4desp32_touch::SpriteTouched() {
 }
 
 int16_t gfx4desp32_touch::imageAutoSlider(uint16_t ui, uint8_t axis,
-                                          uint16_t uiv, uint16_t ming,
-                                          uint16_t maxg) {
+  uint16_t uiv, uint16_t ming,
+  uint16_t maxg) {
   int wpos;
   int wsiz;
   if (axis == HORIZONTAL_SLIDER) {
     wpos = uiv - tuix[ui] - ming;
     wsiz = tuiw[ui];
-  } else // if (axis == VERTICAL_SLIDER)
+  }
+  else // if (axis == VERTICAL_SLIDER)
   {
     wpos = uiv - tuiy[ui] - ming;
     wsiz = tuih[ui];
@@ -646,26 +667,26 @@ int16_t gfx4desp32_touch::imageAutoSlider(uint16_t ui, uint8_t axis,
   // use gciobjframes[ui] instead of -1 to ensure even spread of values with
   // integer
   wpos = map(wpos, 0, wsiz - ming - maxg, 0,
-             gciobjframes[ui]); // because using -ve mapping for vertical gives
-                                // incorrect result
+    gciobjframes[ui]); // because using -ve mapping for vertical gives
+  // incorrect result
   wpos = constrain(wpos, 0,
-                   gciobjframes[ui] -
-                       1); // constrain after map else 'max' could be 1 high
+    gciobjframes[ui] -
+    1); // constrain after map else 'max' could be 1 high
 
   if (axis == VERTICAL_SLIDER)
     wpos = gciobjframes[ui] - 1 -
-           wpos; // because vertical slider runs in other direction
+    wpos; // because vertical slider runs in other direction
   UserImages(ui, wpos);
   return wpos;
 }
 
 int16_t gfx4desp32_touch::imageAutoKnob(int hndl, int uix, int uiy, int minarc,
-                                        int maxarc, int ming, int maxg) {
+  int maxarc, int ming, int maxg) {
   int degdiff = maxarc - minarc;
   int posit;
   int deg =
-      XYposToDegree(uix - (tuix[hndl] + (tuiw[hndl] >> 1)),
-                    uiy - (tuiy[hndl] + (tuih[hndl] >> 1))); // x - CentreX
+    XYposToDegree(uix - (tuix[hndl] + (tuiw[hndl] >> 1)),
+      uiy - (tuiy[hndl] + (tuih[hndl] >> 1))); // x - CentreX
   if (deg < minarc) // anything in the first 'dead zone' is minvalue
     deg = 0;
   else {
@@ -693,7 +714,8 @@ void gfx4desp32_touch::UserImageHide(int hndl, uint16_t color) {
   if (hndl > 0) {
     RectangleFilled(tuix[hndl], tuiy[hndl], tuiw[hndl], tuih[hndl], color);
     imageTouchEnable(hndl, false);
-  } else {
+  }
+  else {
     for (int n = 0; n > MAX_WIDGETS; n++) {
       RectangleFilled(tuix[n], tuiy[n], tuiw[n], tuih[n], color);
       imageTouchEnable(n, false);
@@ -704,9 +726,10 @@ void gfx4desp32_touch::UserImageHide(int hndl, uint16_t color) {
 void gfx4desp32_touch::UserImageHideBG(int hndl, int objBG) {
   if (hndl > 0) {
     UserImageDR(objBG, tuix[hndl], tuiy[hndl], tuiw[hndl], tuih[hndl],
-                tuix[hndl], tuiy[hndl]);
+      tuix[hndl], tuiy[hndl]);
     imageTouchEnable(hndl, false);
-  } else {
+  }
+  else {
     for (int n = 0; n > MAX_WIDGETS; n++) {
       UserImageDR(objBG, tuix[n], tuiy[n], tuiw[n], tuih[n], tuix[n], tuiy[n]);
       imageTouchEnable(n, false);
