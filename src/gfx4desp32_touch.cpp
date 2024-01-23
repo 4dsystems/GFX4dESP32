@@ -241,9 +241,11 @@ void gfx4desp32_touch::_Open4dGFX(String file4d, bool scan) {
       tuih[n] = (GCIread() << 8) + GCIread();
     if (!(scan))
       cdv[n] = GCIread();
-    /*int coldepth = */GCIread();
-    if (!(scan))
+    int frms = GCIread();
+    if (!(scan)) gciobjframes[n] = 0;
+    if (frms != 0 && !(scan)) {
       gciobjframes[n] = (GCIread() << 8) + GCIread();
+    }
   }
 }
 

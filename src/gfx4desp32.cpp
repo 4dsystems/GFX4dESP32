@@ -1536,9 +1536,11 @@ void gfx4desp32::_Open4dGFX(String file4d, bool scan) {
             tuih[n] = (GCIread() << 8) + GCIread();
         if (!(scan))
             cdv[n] = GCIread();
-        GCIread(); // dummy read to move pointer
-        if (!(scan))
+        int frms = GCIread();
+        if (!(scan)) gciobjframes[n] = 0;
+        if (frms != 0 && !(scan)) {
             gciobjframes[n] = (GCIread() << 8) + GCIread();
+        }
     }
 }
 
@@ -2012,6 +2014,10 @@ void gfx4desp32::UserImages(uint16_t uisnb, int16_t framenb) {
     ScrollEnable(false);
     if (framenb > (gciobjframes[uisnb] - 1) || framenb < 0) {
         outofrange(tuix[uisnb], tuiy[uisnb], tuiw[uisnb], tuih[uisnb]);
+    }
+    else {
+        DrawWidget(tuiIndex[uisnb], tuix[uisnb], tuiy[uisnb], tuiw[uisnb], tuih[uisnb], framenb, 0,
+            true, cdv[uisnb]);
     }
     ScrollEnable(setemp);
 }
