@@ -114,6 +114,22 @@ void gfx.PutPixel(x, y, colour), void; // Write 1 pixel at co-ordinates x, y and
 // Notes 	: Write 1 pixel at co-ordinates x, y and colour.
 //
 
+void gfx.PutPixelAlpha(x, y, colour, alpha), void; // Draws a pixel to the current frame buffer with color parameter switch
+// Syntax	: gfx.PutPixelAlpha(x, y, colour);
+// Usage	: gfx.PutPixelAlpha(10, 10, GCI_IMAGE + 3, 255);
+//			: gfx.PutPixelAlpha(10, 10, FRAMEBUFFER_IMAGE + 3, 127);
+//			: gfx.PutPixelAlpha(10, 10, RED, 127);
+// Notes 	: Draws a pixel to the current frame buffer with color parameter switch.
+//			: 'colour' can be a 16bit color or a GCI image or a FrameBuffer
+//			:     ex. gfx.PutPixelAlpha(10, 10, GCI_IMAGE + 3, 255) draws a pixel at 10, 10
+//			:         from GCI image index 3 and full alpha level. x and y are relative to objects x and y.
+//			:     ex. gfx.PutPixelAlpha(10, 10, FRAMEBUFFER_IMAGE + 3, 127) draws a pixel at 10, 100
+//			:         from GCI image index 3 with half alpha at the same x and y position.
+//			:     ex. gfx.PutPixelAlpha(10, 10, RED, 127) draws a RED pixel at 10, 10
+//			:         with half alpha at the same x and y position.
+//
+
+
 int16_t gfx.getHeight(), word; // Returns the height of the display in pixels.
 // Syntax	: gfx.getHeight();
 // Usage	: gfx.getHeight();
@@ -255,7 +271,16 @@ void gfx.Cls([colour]), void; // Clears the screen with the specified colour or 
 void gfx.begin(), void; // Initialize the screen
 // Syntax	: gfx.begin();
 // Usage	: gfx.begin();
-// Notes 	: Initialize the screen
+// Notes 	: Initialize global variables, orientation and clears the screen
+//			: uSD is mounted at this stage and called separately.
+//			:     begin();                          // start with default settings
+//			:     begin(IPS_DISPLAY);               // use ips display
+//			:     begin(18);                        // set display clock to 18Mhz
+//			:     begin(false);                     // start without backlight on
+//			:     begin(IPS_DISPLAY, 18);           // start with ips at 18Mhz
+//			:     begin(IPS_DISPLAY, true);         // start with ips and backlight on
+//			:     begin(20, false);                 // start at 20Mhz and backlight off
+//			:     begin(IPS_DISPLAY, 40, false);    // start with ips at 40Mhz and backlight off
 //
 
 void gfx.ScrollEnable(mode), void; // Enable or disable auto scrolling
@@ -319,6 +344,18 @@ void gfx.Arc(x, y, r, quadrants, colour), void; // Draw a 90-degree Arc with cen
 //			:       0x04 - Bottom right
 //			:       0x08 - Bottom left
 //			: Support function for outline rounded rectangles and circles
+//
+
+void gfx.RectangleFilledX(x1, y1, x2, y2, colour), void; // Draws a rectangle to the current frame buffer with color parameter switch
+// Syntax	: gfx.RectangleFilledX(x1, y1, x2, y2, colour);
+// Usage	: gfx.RectangleFilledX(10, 10, 100, 100, GCI_IMAGE + 3);
+//			: gfx.RectangleFilledX(10, 10, 100, 100, FRAMEBUFFER_IMAGE + 3);
+// Notes 	: Draws a filled rectangle having a diagonal with endpoints at (x1, y1) and (x2, y2) with colour 'colour'.
+//			: 'colour' can be a 16bit color or a GCI image or a FrameBuffer
+//			:     ex. gfx.RectangleFilledX(10, 10, 100, 100, GCI_IMAGE + 3) draws a rectangle at 10, 10
+//			:           from GCI image index 3. x and y are relative to objects x and y.
+//			:     ex. gfx.RectangleFilledX(10, 10, 100, 100, FRAMEBUFFER_IMAGE + 3) draws a rectangle at 10, 10
+//			:           from framebuffer 3 at the same x and y position.
 //
 
 void gfx.RectangleFilled(x1, y1, x2, y2, colour), void; // Draws a filled rectangle having a diagonal with endpoints at (x1, y1) and (x2, y2) with colour 'colour'.
@@ -624,10 +661,34 @@ void gfx.HlineD(y, x1, x2, colour), void; // Draw fast horizontal line from (x1,
 // Notes 	: Draw fast horizontal line from (x1, y) to (x2, y) - 4DGL compatible function
 //
 
+void gfx.HlineX(x, y, w, colour), void; // Draws a horizontal line to the current frame buffer with color parameter switch.
+// Syntax	: gfx.HlineX(x, y, h, colour);
+// Usage	: gfx.HlineX(10, 10, 100, GCI_IMAGE + 3);
+//			: gfx.HlineX(10, 10, 100, FRAMEBUFFER_IMAGE + 3);
+// Notes 	: Draws a horizontal line to the current frame buffer with color parameter switch.
+//			: 'colour' can be a 16bit color or a GCI image or a FrameBuffer
+//			:     ex. gfx.HlineX(10, 10, 100, GCI_IMAGE + 3) draws a horizontal line at 10, 10 and a length of 100 pixels
+//			:         from GCI image index 3. x and y are relative to objects x and y.
+//			:     ex. gfx.HlineX(10, 10, 100, FRAMEBUFFER_IMAGE + 3) draws a horizontal line at 10, 10 and a length of 100 pixels
+//			:         from GCI image index 3 at the same x and y position.
+//
+
 void gfx.VlineD(x, y1, y2, colour), void; // Draw fast vertical line from (x1, y) to (x2, y)
 // Syntax	: gfx.VlineD(x, y1, y2, colour);
 // Usage	: gfx.VlineD(x, y1, y2, colour);
 // Notes 	: Draw fast vertical line from (x, y1) to (x, y1) - 4DGL compatible function
+//
+
+void gfx.VlineX(x, y, w, colour), void; // Draws a vertical line to the current frame buffer with color parameter switch.
+// Syntax	: gfx.VlineX(x, y, w, colour);
+// Usage	: gfx.VlineX(10, 10, 100, GCI_IMAGE + 3);
+//			: gfx.VlineX(10, 10, 100, FRAMEBUFFER_IMAGE + 3);
+// Notes 	: Draws a vertical line to the current frame buffer with color parameter switch.
+//			: 'colour' can be a 16bit color or a GCI image or a FrameBuffer
+//			:     ex. gfx.VlineX(10, 10, 100, GCI_IMAGE + 3) draws a vertical line at 10, 10 and a length of 100 pixels
+//			:         from GCI image index 3. x and y are relative to objects x and y.
+//			:     ex. gfx.VlineX(10, 10, 100, FRAMEBUFFER_IMAGE + 3) draws a vertical line at 10, 10 and a length of 100 pixels
+//			:         from GCI image index 3 at the same x and y position.
 //
 
 void gfx.gradientShape(vert, ow, xPos, yPos, w, h, r1, r2, r3, r4, darken, colour, sr1, gl1, colorD, sr3, gl3, gtb), void; // Draw a shaped color gradient using the supplied parameters
@@ -847,6 +908,12 @@ void gfx.DrawToframebuffer(fbnum), void; // Set the frame buffer for drawing fun
 //			: If frame buffer 0 is set (default) all drawing functions will appear immediately on the display.
 //
 
+void gfx.GetFrameBuffer(), uint8_t; // Get the number of the current frame buffer in use.
+// Syntax	: gfx.GetFrameBuffer();
+// Usage	: gfx.GetFrameBuffer();
+// Notes 	: Returns current frame buffer number.
+//
+
 void gfx.SpriteAreaSet(x, y, x1, y1), void; // Sets the area of the screen that sprites will be displayed in.
 // Syntax	: gfx.SpriteAreaSet(x, y, x1, y1);
 // Usage	: gfx.SpriteAreaSet(x, y, x1, y1);
@@ -1021,7 +1088,7 @@ int gfx.imageGetWord(img, controlIndex), 1; // Queries the current selected para
 // Syntax	: gfx.imageGetWord(img, controlIndex);
 // Usage	: gfx.imageGetWord(img, controlIndex);
 // Notes 	: Queries the current selected parameter of the GCI widget
-//			: Parameters can be IMAGE_XPOS, IMAGE_YPOS, IMAGE_WIDTH or IMAGE_HEIGHT
+//			: Parameters can be IMAGE_XPOS, IMAGE_YPOS, IMAGE_WIDTH, IMAGE_HEIGHT or IMAGE_INDEX
 //
 
 void gfx.imageSetWord(img, controlIndex, val1 [, val2]), void; // Sets the selected parameter(s) of the GCI widget
@@ -1030,8 +1097,8 @@ void gfx.imageSetWord(img, controlIndex, val1 [, val2]), void; // Sets the selec
 // Usage	: gfx.imageSetWord(img, IMAGE_XYPOS, val1, val2);
 //			: gfx.imageSetWord(img, controlIndex, val1);
 // Notes 	: Sets the selected parameter(s) of the GCI widget
-//			: Parameters can be IMAGE_XPOS, IMAGE_YPOS, or IMAGE_XYPOS
-//			: WHen using IMAGE_XYPOS, two values are required
+//			: Parameters can be IMAGE_XPOS, IMAGE_YPOS, IMAGE_XYPOS or IMAGE_INDEX
+//			: When using IMAGE_XYPOS, two values are required
 //
 
 int16_t gfx.getImageValue(ui), 1; // Returns the current value of a GCI widget

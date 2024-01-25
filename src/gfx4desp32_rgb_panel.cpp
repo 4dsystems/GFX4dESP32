@@ -18,6 +18,18 @@
         __colour = (uint16_t)(bg | bg >> 16);                                  \
     }
 
+#include "esp_lcd_panel_ops.h"
+#include "esp_lcd_panel_rgb.h"
+#include "esp_lcd_types.h"
+#include "esp_err.h"
+#include "esp_log.h"
+// #include "esp_psram.h"
+#include "soc/lcd_periph.h"
+#include "hal/lcd_hal.h"
+#include "hal/lcd_ll.h"
+#include "rom/cache.h"
+#include "esp_rom_gpio.h"
+
 gfx4desp32_rgb_panel::gfx4desp32_rgb_panel(
     esp_lcd_rgb_panel_config_t* panel_config, int bk_pin, int bk_on_level,
     int bk_off_level, int sd_gpio_sck, int sd_gpio_miso, int sd_gpio_mosi,
@@ -25,14 +37,14 @@ gfx4desp32_rgb_panel::gfx4desp32_rgb_panel(
     : gfx4desp32() {
 
     this->panel_config = panel_config;
-    // this->bk_config.pin = bk_pin;
+    this->bk_config.pin = bk_pin;
     this->bk_config.on_level = bk_on_level;
     this->bk_config.off_level = bk_off_level;
     sd_sck = sd_gpio_sck;
     sd_miso = sd_gpio_miso;
     sd_mosi = sd_gpio_mosi;
     sd_cs = sd_gpio_cs;
-    backlight = bk_pin;
+    // backlight = bk_pin;
     __TImode = touchYinvert;
 }
 
@@ -40,7 +52,7 @@ gfx4desp32_rgb_panel::~gfx4desp32_rgb_panel() {}
 
 void gfx4desp32_rgb_panel::DisplayControl(uint8_t cmd) {
     switch (cmd) {
-    case 0:
+    case DISP_CTRL_RE_INIT:
         esp_lcd_panel_reset(panel_handle);
         digitalWrite(40, LOW);
         delay(400);
@@ -52,32 +64,32 @@ void gfx4desp32_rgb_panel::DisplayControl(uint8_t cmd) {
         digitalWrite(40, HIGH);
         rgb_panel = __containerof(panel_handle, esp_rgb_panel_t, base);;
         break;
-    case 1:
+    case DISP_CTRL_RESET:
         esp_lcd_panel_reset(panel_handle);
         break;
-    case 2:
+    case DISP_CTRL_NEW:
         ESP_ERROR_CHECK(esp_lcd_new_rgb_panel(panel_config, &panel_handle));
         break;
-    case 3:
+    case DISP_CTRL_INIT:
         esp_lcd_panel_init(panel_handle);
         break;
-    case 4:
+    case DISP_CTRL_STOP:
         gdma_reset(rgb_panel->dma_chan);
         lcd_ll_stop(rgb_panel->hal.dev);
         lcd_ll_fifo_reset(rgb_panel->hal.dev);
         break;
-    case 5:
+    case DISP_CTRL_START_TX:
         __start_transmission();
         break;
-    case 6:
+    case DISP_CTRL_DEL:
         esp_lcd_panel_del(panel_handle);
         break;
-    case 7:
+    case DISP_CTRL_START:
         gdma_start(rgb_panel->dma_chan, (intptr_t)rgb_panel->dma_nodes);
         esp_rom_delay_us(1);
         lcd_ll_start(rgb_panel->hal.dev);
         break;
-    case 8:
+    case DISP_CTRL_FLUSH:
         FlushArea(0, __scrHeight - 1, -1);
         break;
     }
@@ -87,8 +99,10 @@ void gfx4desp32_rgb_panel::DisplayControl(uint8_t cmd) {
 esp_lcd_panel_handle_t gfx4desp32_rgb_panel::__begin() {
 
     ESP_LOGI(TAG, "Turn off LCD Backlight");
-    gpio_config_t bk_gpio_config = { .pin_bit_mask = 1ULL << bk_config.pin,
-                                    .mode = GPIO_MODE_OUTPUT };
+    gpio_config_t bk_gpio_config = {
+        .pin_bit_mask = 1ULL << bk_config.pin,
+        .mode = GPIO_MODE_OUTPUT
+    };
     ESP_ERROR_CHECK(gpio_config(&bk_gpio_config));
 
     ESP_LOGI(TAG, "Install RGB LCD panel driver");
@@ -135,8 +149,9 @@ esp_lcd_panel_handle_t gfx4desp32_rgb_panel::__begin() {
     scroll_Y1 = 0;
     scroll_X2 = __width - 1;
     scroll_Y2 = __height - 1;
-    ledcSetup(1, 25000, 10);
-    ledcAttachPin(backlight, 1);
+
+    ledcSetup(backlight, 25000, 10);
+    ledcAttachPin(bk_config.pin, backlight);
 
     Contrast(15);
     if (I2CInit == false) {
@@ -165,52 +180,52 @@ void gfx4desp32_rgb_panel::Contrast(int ctrst) {
         ctrst = 0;
     switch (ctrst) {
     case 15:
-        ledcWrite(1, 1023);
+        ledcWrite(backlight, 1023);
         break;
     case 14:
-        ledcWrite(1, 820);
+        ledcWrite(backlight, 820);
         break;
     case 13:
-        ledcWrite(1, 608);
+        ledcWrite(backlight, 608);
         break;
     case 12:
-        ledcWrite(1, 460);
+        ledcWrite(backlight, 460);
         break;
     case 11:
-        ledcWrite(1, 352);
+        ledcWrite(backlight, 352);
         break;
     case 10:
-        ledcWrite(1, 276);
+        ledcWrite(backlight, 276);
         break;
     case 9:
-        ledcWrite(1, 224);
+        ledcWrite(backlight, 224);
         break;
     case 8:
-        ledcWrite(1, 188);
+        ledcWrite(backlight, 188);
         break;
     case 7:
-        ledcWrite(1, 140);
+        ledcWrite(backlight, 140);
         break;
     case 6:
-        ledcWrite(1, 105);
+        ledcWrite(backlight, 105);
         break;
     case 5:
-        ledcWrite(1, 78);
+        ledcWrite(backlight, 78);
         break;
     case 4:
-        ledcWrite(1, 62);
+        ledcWrite(backlight, 62);
         break;
     case 3:
-        ledcWrite(1, 47);
+        ledcWrite(backlight, 47);
         break;
     case 2:
-        ledcWrite(1, 35);
+        ledcWrite(backlight, 35);
         break;
     case 1:
-        ledcWrite(1, 28);
+        ledcWrite(backlight, 28);
         break;
     case 0:
-        ledcWrite(1, 0);
+        ledcWrite(backlight, 0);
         break;
     }
 }
@@ -224,10 +239,10 @@ void gfx4desp32_rgb_panel::Contrast(int ctrst) {
 /****************************************************************************/
 void gfx4desp32_rgb_panel::BacklightOn(bool blight) {
     if (blight) {
-        ledcWrite(1, 1023);
+        ledcWrite(backlight, 1023);
     }
     else {
-        ledcWrite(1, 0);
+        ledcWrite(backlight, 0);
     }
 }
 
@@ -300,7 +315,7 @@ uint8_t gfx4desp32_rgb_panel::getPanelOrientation(void) { return rotation; }
 /*!
   @brief    Set Invert mode
   @param    Inv    true / false
-  @note     Needs coding. Not sure how to deal with this on RGB displays
+@note     Needs coding. Not sure how to deal with this on RGB displays
 */
 /****************************************************************************/
 void gfx4desp32_rgb_panel::Invert(bool Inv) {
@@ -504,9 +519,9 @@ void gfx4desp32_rgb_panel::DrawFrameBufferArea(uint8_t fbnum, int16_t ui) {
                   y2 - bottom co-ordinate
 */
 /****************************************************************************/
-void gfx4desp32_rgb_panel::DrawFrameBufferArea(uint8_t fbnum, uint16_t x1,
-    uint16_t y1, uint16_t x2,
-    uint16_t y2) {
+void gfx4desp32_rgb_panel::DrawFrameBufferArea(uint8_t fbnum, int16_t x1,
+    int16_t y1, int16_t x2,
+    int16_t y2) {
     uint8_t* tfrom = SelectFB(fbnum);
     uint8_t* to = SelectFB(frame_buffer);
     int32_t x_start = 0;
@@ -529,18 +544,20 @@ void gfx4desp32_rgb_panel::DrawFrameBufferArea(uint8_t fbnum, uint16_t x1,
         y_start = rgb_panel->timings.v_res - 2 - y2;
         y_end = rgb_panel->timings.v_res - 2 - y1;
         break;
-    case PORTRAIT:
+    case PORTRAIT_R:
         x_start = rgb_panel->timings.h_res - 1 - y2;
         x_end = rgb_panel->timings.h_res - 1 - y1;
         y_start = x1;
         y_end = x2;
         break;
-    case PORTRAIT_R:
+    case PORTRAIT:
         x_start = y1;
         x_end = y2;
         y_start = rgb_panel->timings.v_res - 2 - x2;
         y_end = rgb_panel->timings.v_res - 2 - x1;
     }
+    if (x_start >= rgb_panel->timings.h_res || x_end < 0 || y_start >= (rgb_panel->timings.v_res - 2) || y_end < 0)
+        return;
     if (x_start < 0)
         x_start = 0;
     if (y_start < 0)
@@ -686,7 +703,7 @@ void gfx4desp32_rgb_panel::WrGRAMs(uint8_t* color_data, uint32_t len) {
             pixelPos++;
         }
     }
-    if (rotation == PORTRAIT) {
+    if (rotation == PORTRAIT_R) {
         pto = tpto + (__scrWidth - (GRAMypos << 1) - 2) + (GRAMxpos * __scrWidth);
         while (len--) {
             if (GRAMxpos >= clipX1 && GRAMxpos <= clipX2 && GRAMypos >= clipY1 &&
@@ -725,7 +742,7 @@ void gfx4desp32_rgb_panel::WrGRAMs(uint8_t* color_data, uint32_t len) {
             pixelPos++;
         }
     }
-    if (rotation == PORTRAIT_R) {
+    if (rotation == PORTRAIT) {
         pto = tpto + (GRAMypos << 1) + ((__scrHeight - GRAMxpos - 1) * __scrWidth);
         while (len--) {
             if (GRAMxpos >= clipX1 && GRAMxpos <= clipX2 && GRAMypos >= clipY1 &&
@@ -769,13 +786,13 @@ void gfx4desp32_rgb_panel::WrGRAMs(uint8_t* color_data, uint32_t len) {
         wrGRAM = false;
         // CPU writes data to PSRAM through DCache, data in PSRAM might not get
         // updated, so write back
-        if (rotation == 0)
+        if (rotation == LANDSCAPE)
             FlushArea(GRAMy1, GRAMy2, -1);
-        if (rotation == 1)
+        if (rotation == LANDSCAPE_R)
             FlushArea(__scrHeight - GRAMy2 - 1, __scrHeight - GRAMy1 - 1, -1);
-        if (rotation == 2)
+        if (rotation == PORTRAIT_R)
             FlushArea(GRAMx1, GRAMx2, -1);
-        if (rotation == 3)
+        if (rotation == PORTRAIT)
             FlushArea(__scrHeight - GRAMx2 - 1, __scrHeight - GRAMx1 - 1, -1);
     }
 }
@@ -877,7 +894,7 @@ void gfx4desp32_rgb_panel::WrGRAMs(const uint8_t* color_data, uint32_t len) {
             }
         }
     }
-    if (rotation == PORTRAIT) {
+    if (rotation == PORTRAIT_R) {
         pto = tpto + (__scrWidth - (GRAMypos << 1) - 2) + (GRAMxpos * __scrWidth);
         while (len--) {
             if (GRAMxpos >= clipX1 && GRAMxpos <= clipX2 && GRAMypos >= clipY1 &&
@@ -915,7 +932,7 @@ void gfx4desp32_rgb_panel::WrGRAMs(const uint8_t* color_data, uint32_t len) {
             }
         }
     }
-    if (rotation == PORTRAIT_R) {
+    if (rotation == PORTRAIT) {
         pto = tpto + (GRAMypos << 1) + ((__scrHeight - GRAMxpos - 1) * __scrWidth);
         while (len--) {
             if (GRAMxpos >= clipX1 && GRAMxpos <= clipX2 && GRAMypos >= clipY1 &&
@@ -956,13 +973,13 @@ void gfx4desp32_rgb_panel::WrGRAMs(const uint8_t* color_data, uint32_t len) {
     if (GRAMypos > GRAMy2 && frame_buffer == 0) {
         // CPU writes data to PSRAM through DCache, data in PSRAM might not get
         // updated, so write back
-        if (rotation == 0)
+        if (rotation == LANDSCAPE)
             FlushArea(GRAMy1, GRAMy2, -1);
-        if (rotation == 1)
+        if (rotation == LANDSCAPE_R)
             FlushArea(__scrHeight - GRAMy2 - 1, __scrHeight - GRAMy1 - 1, -1);
-        if (rotation == 2)
+        if (rotation == PORTRAIT_R)
             FlushArea(GRAMx1, GRAMx2, -1);
-        if (rotation == 3)
+        if (rotation == PORTRAIT)
             FlushArea(__scrHeight - GRAMx2 - 1, __scrHeight - GRAMx1 - 1, -1);
     }
 }
@@ -1172,7 +1189,7 @@ void gfx4desp32_rgb_panel::WrGRAMs(uint16_t* color_data, uint32_t len) {
             pixelPos++;
         }
     }
-    if (rotation == PORTRAIT) {
+    if (rotation == PORTRAIT_R) {
         pto = tpto + (__scrWidth - (GRAMypos << 1) - 2) + (GRAMxpos * __scrWidth);
         while (len--) {
             tcol = color_data[pc++];
@@ -1209,7 +1226,7 @@ void gfx4desp32_rgb_panel::WrGRAMs(uint16_t* color_data, uint32_t len) {
             pixelPos++;
         }
     }
-    if (rotation == PORTRAIT_R) {
+    if (rotation == PORTRAIT) {
         pto = tpto + (GRAMypos << 1) + ((__scrHeight - GRAMxpos - 1) * __scrWidth);
         while (len--) {
             tcol = color_data[pc++];
@@ -1249,13 +1266,13 @@ void gfx4desp32_rgb_panel::WrGRAMs(uint16_t* color_data, uint32_t len) {
     if (pixelPos >= pixelCount &&
         frame_buffer == 0) { // if GRAM area is written to flush the area.
         wrGRAM = false;
-        if (rotation == 0)
+        if (rotation == LANDSCAPE)
             FlushArea(GRAMy1, GRAMy2, -1);
-        if (rotation == 1)
+        if (rotation == LANDSCAPE_R)
             FlushArea(__scrHeight - GRAMy2 - 1, __scrHeight - GRAMy1 - 1, -1);
-        if (rotation == 2)
+        if (rotation == PORTRAIT_R)
             FlushArea(GRAMx1, GRAMx2, -1);
-        if (rotation == 3)
+        if (rotation == PORTRAIT)
             FlushArea(__scrHeight - GRAMx2 - 1, __scrHeight - GRAMx1 - 1, -1);
     }
 }
@@ -1365,7 +1382,7 @@ void gfx4desp32_rgb_panel::WrGRAMs(uint32_t* color_data, uint16_t len) {
             }
         }
     }
-    if (rotation == PORTRAIT) {
+    if (rotation == PORTRAIT_R) {
         pto = tpto + (__scrWidth - (GRAMypos << 1) - 2) + (GRAMxpos * __scrWidth);
         while (len--) {
             innerloop = 2;
@@ -1406,7 +1423,7 @@ void gfx4desp32_rgb_panel::WrGRAMs(uint32_t* color_data, uint16_t len) {
             }
         }
     }
-    if (rotation == PORTRAIT_R) {
+    if (rotation == PORTRAIT) {
         pto = tpto + (GRAMypos << 1) + ((__scrHeight - GRAMxpos - 1) * __scrWidth);
         while (len--) {
             innerloop = 2;
@@ -1450,13 +1467,13 @@ void gfx4desp32_rgb_panel::WrGRAMs(uint32_t* color_data, uint16_t len) {
     if (pixelPos >= pixelCount &&
         frame_buffer == 0) { // if GRAM area is written to flush the area.
         wrGRAM = false;
-        if (rotation == 0)
+        if (rotation == LANDSCAPE)
             FlushArea(GRAMy1, GRAMy2, -1);
-        if (rotation == 1)
+        if (rotation == LANDSCAPE_R)
             FlushArea(__scrHeight - GRAMy2 - 1, __scrHeight - GRAMy1 - 1, -1);
-        if (rotation == 2)
+        if (rotation == PORTRAIT_R)
             FlushArea(GRAMx1, GRAMx2, -1);
-        if (rotation == 3)
+        if (rotation == PORTRAIT)
             FlushArea(__scrHeight - GRAMx2 - 1, __scrHeight - GRAMx1 - 1, -1);
     }
 }
@@ -1513,7 +1530,7 @@ void gfx4desp32_rgb_panel::pushColors(uint16_t* color_data, uint32_t len) {
             pixelPos++;
         }
     }
-    if (rotation == PORTRAIT) {
+    if (rotation == PORTRAIT_R) {
         pto = tpto + (__scrWidth - (GRAMypos << 1) - 2) + (GRAMxpos * __scrWidth);
         while (len--) {
             tcol = color_data[pc++];
@@ -1530,7 +1547,7 @@ void gfx4desp32_rgb_panel::pushColors(uint16_t* color_data, uint32_t len) {
             pixelPos++;
         }
     }
-    if (rotation == PORTRAIT_R) {
+    if (rotation == PORTRAIT) {
         pto = tpto + (GRAMypos << 1) + ((__scrHeight - GRAMxpos - 1) * __scrWidth);
         while (len--) {
             tcol = color_data[pc++];
@@ -1550,13 +1567,13 @@ void gfx4desp32_rgb_panel::pushColors(uint16_t* color_data, uint32_t len) {
     if (pixelPos >= pixelCount &&
         frame_buffer == 0) { // if GRAM area fully written to, flush area
         wrGRAM = false;
-        if (rotation == 0)
+        if (rotation == LANDSCAPE)
             FlushArea(GRAMy1, GRAMy2, -1);
-        if (rotation == 1)
+        if (rotation == LANDSCAPE_R)
             FlushArea(__scrHeight - GRAMy2 - 1, __scrHeight - GRAMy1 - 1, -1);
-        if (rotation == 2)
+        if (rotation == PORTRAIT_R)
             FlushArea(GRAMx1, GRAMx2, -1);
-        if (rotation == 3)
+        if (rotation == PORTRAIT)
             FlushArea(__scrHeight - GRAMx2 - 1, __scrHeight - GRAMx1 - 1, -1);
     }
 }
@@ -1614,7 +1631,7 @@ void gfx4desp32_rgb_panel::pushColors(uint8_t* color_data, uint32_t len) {
             pixelPos++;
         }
     }
-    if (rotation == PORTRAIT) {
+    if (rotation == PORTRAIT_R) {
         pto = tpto + (__scrWidth - (GRAMypos << 1) - 2) + (GRAMxpos * __scrWidth);
         while (len--) {
             pto[1] = color_data[pc++];
@@ -1630,7 +1647,7 @@ void gfx4desp32_rgb_panel::pushColors(uint8_t* color_data, uint32_t len) {
             pixelPos++;
         }
     }
-    if (rotation == PORTRAIT_R) {
+    if (rotation == PORTRAIT) {
         pto = tpto + (GRAMypos << 1) + ((__scrHeight - GRAMxpos - 1) * __scrWidth);
         while (len--) {
             pto[1] = color_data[pc++];
@@ -1649,13 +1666,13 @@ void gfx4desp32_rgb_panel::pushColors(uint8_t* color_data, uint32_t len) {
     if (pixelPos >= pixelCount &&
         frame_buffer == 0) { // if GRAM area fully written to, flush area
         wrGRAM = false;
-        if (rotation == 0)
+        if (rotation == LANDSCAPE)
             FlushArea(GRAMy1, GRAMy2, -1);
-        if (rotation == 1)
+        if (rotation == LANDSCAPE_R)
             FlushArea(__scrHeight - GRAMy2 - 1, __scrHeight - GRAMy1 - 1, -1);
-        if (rotation == 2)
+        if (rotation == PORTRAIT_R)
             FlushArea(GRAMx1, GRAMx2, -1);
-        if (rotation == 3)
+        if (rotation == PORTRAIT)
             FlushArea(__scrHeight - GRAMx2 - 1, __scrHeight - GRAMx1 - 1, -1);
     }
 }
@@ -1699,7 +1716,7 @@ void gfx4desp32_rgb_panel::pushColors(const uint8_t* color_data, uint32_t len) {
             }
         }
     }
-    if (rotation == PORTRAIT) {
+    if (rotation == PORTRAIT_R) {
         pto = tpto + (__scrWidth - (GRAMypos << 1) - 2) + (GRAMxpos * __scrWidth);
         while (len--) {
             pto[1] = color_data[pc++];
@@ -1714,7 +1731,7 @@ void gfx4desp32_rgb_panel::pushColors(const uint8_t* color_data, uint32_t len) {
             }
         }
     }
-    if (rotation == PORTRAIT_R) {
+    if (rotation == PORTRAIT) {
         pto = tpto + (GRAMypos << 1) + ((__scrHeight - GRAMxpos - 1) * __scrWidth);
         while (len--) {
             pto[1] = color_data[pc++];
@@ -1731,13 +1748,13 @@ void gfx4desp32_rgb_panel::pushColors(const uint8_t* color_data, uint32_t len) {
     }
     if (GRAMypos > GRAMy2 && frame_buffer == 0) {
         wrGRAM = false;
-        if (rotation == 0)
+        if (rotation == LANDSCAPE)
             FlushArea(GRAMy1, GRAMy2, -1);
-        if (rotation == 1)
+        if (rotation == LANDSCAPE_R)
             FlushArea(__scrHeight - GRAMy2 - 1, __scrHeight - GRAMy1 - 1, -1);
-        if (rotation == 2)
+        if (rotation == PORTRAIT_R)
             FlushArea(GRAMx1, GRAMx2, -1);
-        if (rotation == 3)
+        if (rotation == PORTRAIT)
             FlushArea(__scrHeight - GRAMx2 - 1, __scrHeight - GRAMx1 - 1, -1);
     }
 }
@@ -1803,7 +1820,7 @@ void gfx4desp32_rgb_panel::WrGRAM(uint16_t color) {
         }
         pixelPos++;
     }
-    if (rotation == PORTRAIT) {
+    if (rotation == PORTRAIT_R) {
         pto = tpto + (__scrWidth - (GRAMypos << 1) - 2) + (GRAMxpos * __scrWidth);
         if (GRAMxpos >= clipX1 && GRAMxpos <= clipX2 && GRAMypos >= clipY1 &&
             GRAMypos <= clipY2) {
@@ -1819,7 +1836,7 @@ void gfx4desp32_rgb_panel::WrGRAM(uint16_t color) {
         }
         pixelPos++;
     }
-    if (rotation == PORTRAIT_R) {
+    if (rotation == PORTRAIT) {
         pto = tpto + (GRAMypos << 1) + ((__scrHeight - GRAMxpos - 1) * __scrWidth);
         if (GRAMxpos >= clipX1 && GRAMxpos <= clipX2 && GRAMypos >= clipY1 &&
             GRAMypos <= clipY2) {
@@ -1839,13 +1856,13 @@ void gfx4desp32_rgb_panel::WrGRAM(uint16_t color) {
     if (pixelPos >= pixelCount &&
         frame_buffer == 0) { // if GRAM area is written to flush the area.
         wrGRAM = false;
-        if (rotation == 0)
+        if (rotation == LANDSCAPE)
             FlushArea(GRAMy1, GRAMy2, -1);
-        if (rotation == 1)
+        if (rotation == LANDSCAPE_R)
             FlushArea(__scrHeight - GRAMy2 - 1, __scrHeight - GRAMy1 - 1, -1);
-        if (rotation == 2)
+        if (rotation == PORTRAIT_R)
             FlushArea(GRAMx1, GRAMx2, -1);
-        if (rotation == 3)
+        if (rotation == PORTRAIT)
             FlushArea(__scrHeight - GRAMx2 - 1, __scrHeight - GRAMx1 - 1, -1);
     }
 }
@@ -1870,13 +1887,36 @@ uint16_t gfx4desp32_rgb_panel::ReadPixel(uint16_t xrp, uint16_t yrp) {
     if (rotation == LANDSCAPE_R)
         pto = tpto + ((__scrHeight - yrp - 1) * __scrWidth) +
         (__scrWidth - ((xrp + 1) << 1));
-    if (rotation == PORTRAIT) {
+    if (rotation == PORTRAIT_R) {
         int32_t temp = (__scrWidth - ((yrp + 1) << 1)) + (__scrWidth * xrp);
         if (temp < 0 || temp > __fbSize)
             return 0;
         pto = tpto + temp;
     }
-    if (rotation == PORTRAIT_R)
+    if (rotation == PORTRAIT)
+        pto = tpto + (yrp << 1) + ((__scrHeight - xrp - 1) * __scrWidth);
+    return pto[0] + (pto[1] << 8);
+}
+
+uint16_t gfx4desp32_rgb_panel::ReadPixelFromFrameBuffer(uint16_t xrp, uint16_t yrp, uint8_t fB) {
+    if (yrp > clipY2 || yrp < clipY1)
+        return 0;
+    if (xrp > clipX2 || yrp < clipX1)
+        return 0;
+    uint8_t* tpto = SelectFB(fB);
+    uint8_t* pto;
+    if (rotation == LANDSCAPE)
+        pto = tpto + (yrp * __scrWidth) + (xrp << 1);
+    if (rotation == LANDSCAPE_R)
+        pto = tpto + ((__scrHeight - yrp - 1) * __scrWidth) +
+        (__scrWidth - ((xrp + 1) << 1));
+    if (rotation == PORTRAIT_R) {
+        int32_t temp = (__scrWidth - ((yrp + 1) << 1)) + (__scrWidth * xrp);
+        if (temp < 0 || temp > __fbSize)
+            return 0;
+        pto = tpto + temp;
+    }
+    if (rotation == PORTRAIT)
         pto = tpto + (yrp << 1) + ((__scrHeight - xrp - 1) * __scrWidth);
     return pto[0] + (pto[1] << 8);
 }
@@ -1907,14 +1947,14 @@ uint16_t gfx4desp32_rgb_panel::ReadLine(int16_t x, int16_t y, int16_t w,
     uint8_t* pto;
     int pc = 0;
     int readw = w;
-    if (rotation == 0) {
+    if (rotation == LANDSCAPE) {
         pto = tpto + (y * __scrWidth) + (x << 1);
         while (w--) {
             data[pc++] = pto[0] + (pto[1] << 8);
             pto += 2;
         }
     }
-    if (rotation == 1) {
+    if (rotation == LANDSCAPE_R) {
         pto = tpto + ((__scrHeight - y - 1) * __scrWidth) +
             (__scrWidth - ((x + 1) << 1));
         while (w--) {
@@ -1922,14 +1962,14 @@ uint16_t gfx4desp32_rgb_panel::ReadLine(int16_t x, int16_t y, int16_t w,
             pto -= 2;
         }
     }
-    if (rotation == 2) {
+    if (rotation == PORTRAIT_R) {
         pto = tpto + (__scrWidth - ((y + 1) << 1)) + (x * __scrWidth);
         while (w--) {
             data[pc++] = pto[0] + (pto[1] << 8);
             pto += __scrWidth;
         }
     }
-    if (rotation == 3) {
+    if (rotation == PORTRAIT) {
         pto = tpto + (y << 1) + ((__scrHeight - x - 1) * __scrWidth);
         while (w--) {
             data[pc++] = pto[0] + (pto[1] << 8);
@@ -1938,6 +1978,39 @@ uint16_t gfx4desp32_rgb_panel::ReadLine(int16_t x, int16_t y, int16_t w,
     }
     return readw;
 }
+
+/****************************************************************************/
+/*!
+  @brief  Copy a line of pixels from selected frame buffer to current frame buffer.
+  @param  x left X position in pixels
+  @param  y top Y position in pixels
+  @param  w width of line
+  @param  fb source frame buffer number
+*/
+/****************************************************************************/
+void gfx4desp32_rgb_panel::CopyFrameBufferLine(int16_t x, int16_t y, int16_t w,
+    int Fb) {
+    if (y > clipY2 || y < clipY1)
+        return;
+    if (x > clipX2 || (x + w - 1) < clipX1)
+        return;
+    if (w < 0) {
+        x += w;
+        w = abs(w);
+    }
+    if (x < clipX1) {
+        w -= clipX1 - x;
+        x = clipX1;
+    }
+    if ((x + w - 1) >= clipX2)
+        w = clipX2 - x;
+    uint8_t cb = GetFrameBuffer();
+    DrawToframebuffer(Fb);
+    ReadLine(x, y, w, lbuff);
+    DrawToframebuffer(cb);
+    WriteLine(x, y, w, lbuff);
+}
+
 
 /****************************************************************************/
 /*!
@@ -1962,52 +2035,115 @@ void gfx4desp32_rgb_panel::WriteLine(int16_t x, int16_t y, int16_t w,
         w = clipX2 - x;
     uint8_t* tpto = SelectFB(frame_buffer);
     uint8_t* pto;
+    uint8_t colM, colL;
+    uint16_t tcol;
     int pc = 0;
     int flushw = w;
-    if (rotation == 0) {
+    if (rotation == LANDSCAPE) {
         pto = tpto + (y * __scrWidth) + (x << 1);
         while (w--) {
-            pto[0] = data[pc];
-            pto[1] = data[pc] >> 8;
+            tcol = data[pc++];
+            colM = tcol >> 8;
+            colL = tcol & 0xff;
+            if (!transalpha) {
+                pto[1] = colM;
+                pto[0] = colL;
+            }
+            else {
+                if (!(transparency && (colM == _transMSB && colL == _transLSB))) {
+                    if (alpha) {
+                        calcAlpha(colL + (colM << 8), pto[0] | (pto[1] << 8), __alpha);
+                        pto[0] = __colour;
+                        pto[1] = __colour >> 8;
+                    }
+                    else {
+                        pto[1] = colM;
+                        pto[0] = colL;
+                    }
+                }
+            }
+
             pto += 2;
-            pc++;
         }
-        if (frame_buffer == 0)
-            FlushArea(y, y, -1);
     }
-    if (rotation == 1) {
+    if (rotation == LANDSCAPE_R) {
         pto = tpto + ((__scrHeight - y - 1) * __scrWidth) +
             (__scrWidth - ((x + 1) << 1));
         while (w--) {
-            pto[0] = data[pc];
-            pto[1] = data[pc] >> 8;
+            tcol = data[pc++];
+            colM = tcol >> 8;
+            colL = tcol & 0xff;
+            if (!transalpha) {
+                pto[1] = colM;
+                pto[0] = colL;
+            }
+            else {
+                if (!(transparency && (colM == _transMSB && colL == _transLSB))) {
+                    if (alpha) {
+                        calcAlpha(colL + (colM << 8), pto[0] | (pto[1] << 8), __alpha);
+                        pto[0] = __colour;
+                        pto[1] = __colour >> 8;
+                    }
+                    else {
+                        pto[1] = colM;
+                        pto[0] = colL;
+                    }
+                }
+            }
             pto -= 2;
-            pc++;
         }
-        if (frame_buffer == 0)
-            FlushArea(__scrHeight - y - 1, __scrHeight - y - 1, -1);
     }
-    if (rotation == 2) {
+    if (rotation == PORTRAIT_R) {
         pto = tpto + (__scrWidth - ((y + 1) << 1)) + (x * __scrWidth);
         while (w--) {
-            pto[0] = data[pc];
-            pto[1] = data[pc] >> 8;
+            tcol = data[pc++];
+            colM = tcol >> 8;
+            colL = tcol & 0xff;
+            if (!transalpha) {
+                pto[1] = colM;
+                pto[0] = colL;
+            }
+            else {
+                if (!(transparency && (colM == _transMSB && colL == _transLSB))) {
+                    if (alpha) {
+                        calcAlpha(colL + (colM << 8), pto[0] | (pto[1] << 8), __alpha);
+                        pto[0] = __colour;
+                        pto[1] = __colour >> 8;
+                    }
+                    else {
+                        pto[1] = colM;
+                        pto[0] = colL;
+                    }
+                }
+            }
             pto += __scrWidth;
-            pc++;
         }
-        if (frame_buffer == 0)
-            FlushArea(x, x + flushw, -1);
     }
-    if (rotation == 3) {
+    if (rotation == PORTRAIT) {
         pto = tpto + (y << 1) + ((__scrHeight - x - 1) * __scrWidth);
         while (w--) {
-            pto[0] = data[pc];
-            pto[1] = data[pc] >> 8;
+            tcol = data[pc++];
+            colM = tcol >> 8;
+            colL = tcol & 0xff;
+            if (!transalpha) {
+                pto[1] = colM;
+                pto[0] = colL;
+            }
+            else {
+                if (!(transparency && (colM == _transMSB && colL == _transLSB))) {
+                    if (alpha) {
+                        calcAlpha(colL + (colM << 8), pto[0] | (pto[1] << 8), __alpha);
+                        pto[0] = __colour;
+                        pto[1] = __colour >> 8;
+                    }
+                    else {
+                        pto[1] = colM;
+                        pto[0] = colL;
+                    }
+                }
+            }
             pto -= __scrWidth;
-            pc++;
         }
-        if (frame_buffer == 0)
-            FlushArea(__scrHeight - x - 1 - flushw, __scrHeight - x - 1, -1);
     }
 }
 
@@ -2191,13 +2327,13 @@ void gfx4desp32_rgb_panel::Scroll(int steps) {
         y_start = rgb_panel->timings.v_res - 2 - scroll_Y2;
         y_end = rgb_panel->timings.v_res - 2 - scroll_Y1;
     }
-    if (rotation == PORTRAIT) {
+    if (rotation == PORTRAIT_R) {
         x_start = rgb_panel->timings.h_res - 1 - scroll_Y2;
         x_end = rgb_panel->timings.h_res - 1 - scroll_Y1;
         y_start = scroll_X1;
         y_end = scroll_X2;
     }
-    if (rotation == PORTRAIT_R) {
+    if (rotation == PORTRAIT) {
         x_start = scroll_Y1;
         x_end = scroll_Y2;
         y_start = rgb_panel->timings.v_res - 2 - scroll_X2;
@@ -2276,7 +2412,7 @@ void gfx4desp32_rgb_panel::Scroll(int steps) {
                         }
                         to += 2;
                     }
-                    to -= (__scrWidth + (s_width << 1)); 
+                    to -= (__scrWidth + (s_width << 1));
                 }
             }
             FlushArea(y_start, y_end, -1);
@@ -2418,7 +2554,7 @@ void gfx4desp32_rgb_panel::RectangleFilled(int x1, int y1, int x2, int y2,
         if (frame_buffer == 0)
             FlushArea(__scrHeight - y2 - 1, __scrHeight - y1 - 1, -1);
     }
-    if (rotation == PORTRAIT) {
+    if (rotation == PORTRAIT_R) {
         pto = tpto + (__scrWidth - ((ypos + 1) << 1)) +
             (xpos * __scrWidth);
         while (pixels--) {
@@ -2446,7 +2582,7 @@ void gfx4desp32_rgb_panel::RectangleFilled(int x1, int y1, int x2, int y2,
         if (frame_buffer == 0)
             FlushArea(x1, x2, -1);
     }
-    if (rotation == PORTRAIT_R) {
+    if (rotation == PORTRAIT) {
         pto = tpto + (ypos << 1) +
             ((__scrHeight - xpos - 1) * __scrWidth);
         while (pixels--) {
@@ -2503,6 +2639,41 @@ uint8_t* gfx4desp32_rgb_panel::SelectFB(uint8_t sel) {
         break;
     }
     return rgb_panel->fb;
+}
+
+void gfx4desp32_rgb_panel::AllocateDRcache(uint32_t cacheSize) {
+    size_t psram_trans_align = rgb_panel->psram_trans_align;
+    psRAMbuffer2 = (uint8_t*)heap_caps_aligned_calloc(psram_trans_align, 1, cacheSize, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    cache_Enabled = true;
+}
+
+void gfx4desp32_rgb_panel::AllocateFB(uint8_t sel) {
+    size_t psram_trans_align = rgb_panel->psram_trans_align;
+    if (sel == 0) {
+        psRAMbuffer1 = (uint8_t*)heap_caps_aligned_calloc(psram_trans_align, 1, 1024000, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    }
+    if (sel == 1) {
+        psRAMbuffer3 = (uint8_t*)heap_caps_aligned_calloc(psram_trans_align, 1, __fbSize, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        framebufferInit1 = true;
+    }
+    if (sel == 2) {
+        psRAMbuffer4 = (uint8_t*)heap_caps_aligned_calloc(psram_trans_align, 1, __fbSize, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        framebufferInit2 = true;
+    }
+    if (sel == 3) {
+        psRAMbuffer5 = (uint8_t*)heap_caps_aligned_calloc(psram_trans_align, 1, __fbSize, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        framebufferInit3 = true;
+    }
+    if (sel == 4) {
+        psRAMbuffer6 = (uint8_t*)heap_caps_aligned_calloc(psram_trans_align, 1, __fbSize, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        framebufferInit4 = true;
+    }
+}
+
+void gfx4desp32_rgb_panel::CopyFrameBuffer(uint8_t fbto, uint8_t fbfrom1) {
+    uint8_t* to = SelectFB(fbto);
+    uint8_t* from1 = SelectFB(fbfrom1);
+    memcpy(to, from1, __fbSize);
 }
 
 /****************************************************************************/
@@ -2632,7 +2803,7 @@ void gfx4desp32_rgb_panel::PutPixel(int16_t x, int16_t y, uint16_t color) {
         if (frame_buffer == 0)
             FlushArea(__scrHeight - y - 1, __scrHeight - y - 1, (__scrWidth - x + 1));
     }
-    if (rotation == PORTRAIT) {
+    if (rotation == PORTRAIT_R) {
         int32_t temp = (__scrWidth - ((y + 1) << 1)) + (__scrWidth * x);
         if (temp < 0 || temp > __fbSize)
             return;
@@ -2649,7 +2820,7 @@ void gfx4desp32_rgb_panel::PutPixel(int16_t x, int16_t y, uint16_t color) {
         if (frame_buffer == 0)
             FlushArea(x, x, __scrWidth - y + 1);
     }
-    if (rotation == PORTRAIT_R) {
+    if (rotation == PORTRAIT) {
         pto = tpto + (y << 1) + ((__scrHeight - x - 1) * __scrWidth);
         if (!alpha) {
             pto[0] = color;
@@ -2686,18 +2857,19 @@ void gfx4desp32_rgb_panel::Hline(int16_t x, int16_t y, int16_t w,
     }
     if (w < 0) {
         x += w;
-        w *= -1;
+        //w *= -1;
+        w = abs(w);
     }
     if (x < clipX1) {
         w -= clipX1 - x;
         x = clipX1;
     }
-    if ((x + w - 1) >= clipX2)
-        w = clipX2 - x;
+    if ((x + w) > clipX2 - 1)
+        w = clipX2 - x + 1;
     uint8_t* tpto = SelectFB(frame_buffer);
     uint8_t* pto;
     int flushw = w;
-    if (rotation == 0) {
+    if (rotation == LANDSCAPE) {
         pto = tpto + (y * __scrWidth) + (x << 1);
         while (w--) {
             if (!alpha) {
@@ -2714,7 +2886,7 @@ void gfx4desp32_rgb_panel::Hline(int16_t x, int16_t y, int16_t w,
         if (frame_buffer == 0)
             FlushArea(y, y, -1);
     }
-    if (rotation == 1) {
+    if (rotation == LANDSCAPE_R) {
         pto = tpto + ((__scrHeight - y - 1) * __scrWidth) +
             (__scrWidth - ((x + 1) << 1));
         while (w--) {
@@ -2732,7 +2904,7 @@ void gfx4desp32_rgb_panel::Hline(int16_t x, int16_t y, int16_t w,
         if (frame_buffer == 0)
             FlushArea(__scrHeight - y - 1, __scrHeight - y - 1, -1);
     }
-    if (rotation == 2) {
+    if (rotation == PORTRAIT_R) {
         pto = tpto + (__scrWidth - ((y + 1) << 1)) +
             (x * __scrWidth);
         while (w--) {
@@ -2750,7 +2922,7 @@ void gfx4desp32_rgb_panel::Hline(int16_t x, int16_t y, int16_t w,
         if (frame_buffer == 0)
             FlushArea(x, x + flushw, -1);
     }
-    if (rotation == 3) {
+    if (rotation == PORTRAIT) {
         pto = tpto + (y << 1) +
             ((__scrHeight - x - 1) * __scrWidth);
         while (w--) {
@@ -2797,12 +2969,12 @@ void gfx4desp32_rgb_panel::Vline(int16_t x, int16_t y, int16_t w,
         w -= clipY1 - y;
         y = clipY1;
     }
-    if ((y + w - 1) >= clipY2)
-        w = clipY2 - y;
+    if ((y + w) > clipY2 - 1)
+        w = clipY2 - y + 1;
     uint8_t* tpto = SelectFB(frame_buffer);
     uint8_t* pto;
     int flushw = w;
-    if (rotation == 0) {
+    if (rotation == LANDSCAPE) {
         pto = tpto + (y * __scrWidth) + (x << 1);
         while (w--) {
             if (!alpha) {
@@ -2819,7 +2991,7 @@ void gfx4desp32_rgb_panel::Vline(int16_t x, int16_t y, int16_t w,
         if (frame_buffer == 0)
             FlushArea(y, y + flushw, -1);
     }
-    if (rotation == 1) {
+    if (rotation == LANDSCAPE_R) {
         pto = tpto + ((__scrHeight - y - 1) * __scrWidth) +
             (__scrWidth - ((x + 1) << 1));
         while (w--) {
@@ -2837,7 +3009,7 @@ void gfx4desp32_rgb_panel::Vline(int16_t x, int16_t y, int16_t w,
         if (frame_buffer == 0)
             FlushArea(__scrHeight - y - 1 - flushw, __scrHeight - y - 1, -1);
     }
-    if (rotation == 2) {
+    if (rotation == PORTRAIT_R) {
         pto = tpto + (__scrWidth - ((y + 1) << 1)) +
             (x * __scrWidth);
         while (w--) {
@@ -2855,7 +3027,7 @@ void gfx4desp32_rgb_panel::Vline(int16_t x, int16_t y, int16_t w,
         if (frame_buffer == 0)
             FlushArea(x, x, -1);
     }
-    if (rotation == 3) {
+    if (rotation == PORTRAIT) {
         pto = tpto + (y << 1) +
             ((__scrHeight - x - 1) * __scrWidth);
         while (w--) {
