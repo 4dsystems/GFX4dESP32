@@ -1,1 +1,3 @@
-_archived/
+*.zip
+exclude/
+compare/

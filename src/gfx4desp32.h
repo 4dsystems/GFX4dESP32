@@ -33,24 +33,52 @@
 //**** Uncomment below if LittleFS File sysem is used instead of uSD ****
 // #define USE_LITTLEFS_FILE_SYSTEM
 
+//**** Uncomment below if SD_MMC File sysem is used instead of SdFat. Note, SPI is not available to user on RGB displays when SDMMC is enabled ****
+//#define USE_SDMMC_FILE_SYSTEM
+
+//**** Uncomment below if external SDMMC slot is used instead of on-board slot, Note, not available on RGB displays ****
+//#define SDMMC_4BIT
+
 #include "gfx4desp32_types.h"
 
 #ifdef USE_LITTLEFS_FILE_SYSTEM
 #include <LittleFS.h>
 #else
+#ifdef USE_SDMMC_FILE_SYSTEM
+#include "SD_MMC.h"
+#include <FS.h>
+#else   
 #include <SdFat.h>
 #endif
+#endif
+
+#define QSPI_SDMMC_4BIT_CLK     14
+#define QSPI_SDMMC_4BIT_DATA2   15
+#define QSPI_SDMMC_4BIT_DATA0   16
+#define QSPI_SDMMC_4BIT_DATA1   21
+#define QSPI_SDMMC_4BIT_DATA3   38
+#define QSPI_SDMMC_4BIT_CMD     39
+
+#define SPI_SDMMC_4BIT_CLK      15
+#define SPI_SDMMC_4BIT_DATA2    48
+#define SPI_SDMMC_4BIT_DATA0    47
+#define SPI_SDMMC_4BIT_DATA1    38
+#define SPI_SDMMC_4BIT_DATA3    39
+#define SPI_SDMMC_4BIT_CMD      40
 
 #define gfx4d_font      File
 
-#define SD_BUFF_SIZE    16 * 1024 // 102400
+#define SD_BUFF_SIZE    8 * 1024 // 102400
 
 #define ON              true
 #define OFF             false
 #define ALL             -1
 
+#define BK_LIGHT_STARTUP_LEVEL      15
 #define DEFAULT_BK_LIGHT_ON_LEVEL   1
 #define DEFAULT_BK_LIGHT_OFF_LEVEL  !DEFAULT_BK_LIGHT_ON_LEVEL
+#define BEGIN_WITH_BACKLIGHT_OFF    false
+#define BEGIN_WITH_BACKLIGHT_ON     true
 
 #define DEFAULT_PIN_NUM_BK_LIGHT    2
 
@@ -223,6 +251,7 @@
 #define IMAGE_HEIGHT                8
 #define IMAGE_VALUE                 16
 #define IMAGE_XYPOS                 32
+#define IMAGE_INDEX                 64
 
 #define SOLID                       0
 #define DOTMATRIXROUND              1
@@ -337,6 +366,18 @@
 #define DISP_CTRL_DEL               0x06
 #define DISP_CTRL_START             0x07
 #define DISP_CTRL_FLUSH             0x08
+#define DISP_CTRL_RESTART_TX        0x09
+#define DISP_CTRL_RESET_ON_VSYNC    0x0a
+#define DISP_CTRL_SET_CLOCK         0x0b
+#define DISP_CTRL_RESTART_DISPLAY   0x0c
+#define DISP_CTRL_FILL_BOUNCE_BUFFER 0x0d
+
+#define DISPLAY_BUS_SPI             0x01
+#define DISPLAY_BUS_QSPI            0x02
+#define DISPLAY_BUS_RGB             0x03
+
+#define GCI_IMAGE                   0xf0000UL
+#define FRAMEBUFFER_IMAGE           0xf00000UL
 
 #define SetGRAM                     setGRAM
 #define startWrite                  StartWrite
@@ -429,7 +470,11 @@ private:
     int8_t fnoBkup;
 
 protected:
+#ifndef USE_LITTLEFS_FILE_SYSTEM
+#ifndef USE_SDMMC_FILE_SYSTEM
     static SdFat uSD;
+#endif
+#endif
     esp_lcd_panel_handle_t panel_handle = NULL;
     gfx4desp32_backlight_config bk_config = {
         .pin = DEFAULT_PIN_NUM_BK_LIGHT,
@@ -566,7 +611,11 @@ public:
 
     gfx4desp32();
     ~gfx4desp32();
+#ifndef USE_LITTLEFS_FILE_SYSTEM
+#ifndef USE_SDMMC_FILE_SYSTEM
     static SdFat& getSdFatInstance();
+#endif
+#endif
     virtual esp_lcd_panel_handle_t __begin() = 0;
     virtual void DisplayControl(uint8_t cmd) = 0;
     virtual void RectangleFilled(int x1, int y1, int x2, int y2,
@@ -604,26 +653,39 @@ public:
     virtual void AlphaBlend(bool alphablend) = 0;
     virtual void AlphaBlendLevel(uint32_t alphaLevel) = 0;
     virtual uint16_t ReadPixel(uint16_t xrp, uint16_t yrp) = 0;
+    virtual uint16_t ReadPixelFromFrameBuffer(uint16_t xrp, uint16_t yrp, uint8_t fb) = 0;
     virtual uint16_t ReadLine(int16_t x, int16_t y, int16_t w, uint16_t* data) = 0;
     virtual void WriteLine(int16_t x, int16_t y, int16_t w, uint16_t* data) = 0;
     virtual void DrawFrameBuffer(uint8_t fbnum) = 0;
     virtual void DrawFrameBufferArea(uint8_t fbnum, int16_t ui) = 0;
-    virtual void DrawFrameBufferArea(uint8_t fbnum, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2) = 0;
+    virtual void DrawFrameBufferArea(uint8_t fbnum, int16_t x1, int16_t y1, int16_t x2, int16_t y2) = 0;
     virtual void MergeFrameBuffers(uint8_t fbto, uint8_t fbfrom1, uint8_t fbfrom2, uint16_t transColor) = 0;
     virtual void MergeFrameBuffers(uint8_t fbto, uint8_t fbfrom1, uint8_t fbfrom2, uint8_t fbfrom3, uint16_t transColor, uint16_t transColor1) = 0;
     // virtual void drawBitmap(int x1, int y1, int x2, int y2, uint16_t* c_data) = 0;
+    virtual void CopyFrameBuffer(uint8_t fbto, uint8_t fbfrom1) = 0;
+    virtual void CopyFrameBufferLine(int16_t x, int16_t y, int16_t w, int fb) = 0;
+    void CopyImageLine(int inum, int x, int y, int w);
     virtual void PinMode(byte pin, uint8_t mode) = 0;
     virtual void DigitalWrite(byte pin, bool state) = 0;
     virtual int DigitalRead(byte pin) = 0;
     virtual void FlushArea(int x1, int x2, int y1, int y2, int xpos) = 0;
     virtual void WriteToFrameBuffer(uint32_t offset, uint8_t* data, uint32_t len) = 0;
     virtual void WriteToFrameBuffer(uint32_t offset, uint16_t* data, uint32_t len) = 0;
+    virtual void AllocateFB(uint8_t sel) = 0;
+    virtual void AllocateDRcache(uint32_t cacheSize) = 0;
     void Cls();
     void Cls(uint16_t color);
-    void begin(String ips = DEFAULT_DISPLAY);
+    void begin(String ips = DEFAULT_DISPLAY, int pval = 0, bool backightStartOn = true);
+    void begin(String ips);
+    void begin(int pval);
+    void begin(bool backLightStartOn);
+    void begin(String ips, int pval);
+    void begin(String ips, bool backLightStartOn);
+    void begin(int pval, bool backLightStartOn);
     void ScrollEnable(bool sEn);
     int16_t getX(void);
     int16_t getY(void);
+    void PutPixelAlpha(int x, int y, int32_t color, uint8_t alpha);
     void CircleFilled(int16_t xc, int16_t yc, int16_t r, uint16_t color);
     void Circle(int16_t xc, int16_t yc, int16_t r, uint16_t color);
     void Ellipse(int16_t xe, int16_t ye, int16_t radx, int16_t rady, uint16_t color);
@@ -790,6 +852,7 @@ public:
     void DeleteButtonBG(int hndl, int objBG);
     void setAddrWindow(int16_t x1, int16_t y1, int16_t w, int16_t h);
     void Orbit(int angle, int lngth, int* oxy);
+    void Orbit(float angle, float lngth, float* oxy);
     void UserImageHide(int hndl);
     virtual void UserImageHide(int hndl, uint16_t color);
     virtual void UserImageHideBG(int hndl, int objBG);
@@ -872,6 +935,11 @@ public:
     uint32_t DATAsize();
     void setCacheSize(uint32_t cs);
     int16_t getLastPointerPos();
+    uint8_t GetFrameBuffer();
+    uint16_t ReadImagePixel(int inum, int x, int y);
+    void HlineX(int x, int y, int w, int32_t color);
+    void VlineX(int x, int y, int w, int32_t color);
+    void RectangleFilledX(int x0, int y0, int x1, int y1, int32_t color);
 
     uint8_t GFX4dESP32_RED;
     uint8_t GFX4dESP32_BLUE;
@@ -924,12 +992,14 @@ public:
     int inx[MAX_ARCSIZE];
     uint16_t oldgTX, oldgTY, oldgPEN;
     uint16_t gTX, gTY, gPEN;
+    uint8_t* fb;
     uint8_t* psRAMbuffer1;
     uint8_t* psRAMbuffer2;
     uint8_t* psRAMbuffer3;
     uint8_t* psRAMbuffer4;
     uint8_t* psRAMbuffer5;
     uint8_t* psRAMbuffer6;
+    uint8_t* workbuffer;
     uint32_t screenArea;
     bool cache_Enabled;
     uint32_t cache_Start;
@@ -942,6 +1012,7 @@ public:
     bool framebufferInit2;
     bool framebufferInit3;
     bool framebufferInit4;
+    bool workbufferInit;
     bool IPS_Display = false;
     const uint8_t* DATarray = NULL;
     const uint8_t* GCIarray = NULL;
@@ -955,6 +1026,18 @@ public:
     bool usePushColors;
     bool WriteFBonly;
     int16_t LastLinearPointerPosition;
+    bool changePCLK;
+    uint32_t PCLKval;
+    uint8_t displayBus;
+    bool bkStartOn;
+    uint32_t __alpha;
+    uint32_t __alphatemp;
+    uint16_t __colour;
+    uint16_t lbuff[800];
+    int grad1[21];
+    int grad2[7];
+    uint8_t gradON;
+    bool gradientVert;
 };
 
 #endif

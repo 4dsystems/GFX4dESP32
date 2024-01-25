@@ -33,6 +33,8 @@
 #include "hal/gpio_hal.h"
 #include "hal/lcd_hal.h"
 #include "hal/lcd_ll.h"
+#include "Wire.h"
+
 
 
 
@@ -51,13 +53,14 @@ gfx4desp32_spi_panel::gfx4desp32_spi_panel(
     panel_VRES = vres;
     panelPin_RST = panel_Pin_RST;
 
+    this->bk_config.pin = bk_pin;
     this->bk_config.on_level = bk_on_level;
     this->bk_config.off_level = bk_off_level;
     sd_sck = sd_gpio_SCK;
     sd_miso = sd_gpio_MISO;
     sd_mosi = sd_gpio_MOSI;
     sd_cs = sd_gpio_CS;
-    backlight = bk_pin;
+    // backlight = bk_pin;
     v_res = vres;
     h_res = hres;
     __TImode = touchXinvert;
@@ -79,8 +82,10 @@ void gfx4desp32_spi_panel::DisplayControl(uint8_t cmd) {
 esp_lcd_panel_handle_t gfx4desp32_spi_panel::__begin() {
 
     ESP_LOGI(TAG, "Turn off LCD Backlight");
-    gpio_config_t bk_gpio_config = { .pin_bit_mask = 1ULL << bk_config.pin,
-                                    .mode = GPIO_MODE_OUTPUT };
+    gpio_config_t bk_gpio_config = {
+        .pin_bit_mask = 1ULL << bk_config.pin,
+        .mode = GPIO_MODE_OUTPUT
+    };
     ESP_ERROR_CHECK(gpio_config(&bk_gpio_config));
 
     ESP_LOGI(TAG, "Install SPI LCD panel driver");
@@ -103,11 +108,17 @@ esp_lcd_panel_handle_t gfx4desp32_spi_panel::__begin() {
     esp_lcd_panel_io_spi_config_t io_config = {};
     io_config.dc_gpio_num = panelPin_DC;
     io_config.cs_gpio_num = panelPin_CS;
-    io_config.pclk_hz = 40 * 1000 * 1000; // maximum spi dislay clock speed
+    if (changePCLK) {
+        io_config.pclk_hz = PCLKval;
+        changePCLK = false;
+    }
+    else {
+        io_config.pclk_hz = 40 * 1000 * 1000; // maximum spi dislay clock speed
+    }
     io_config.lcd_cmd_bits = 8;
     io_config.lcd_param_bits = 8;
     io_config.spi_mode = 0;
-    io_config.trans_queue_depth = 6;
+    io_config.trans_queue_depth = 7;
     esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)GEN4_35CT_SPI_HOST,
         &io_config, &io_handle);
 
@@ -152,7 +163,7 @@ esp_lcd_panel_handle_t gfx4desp32_spi_panel::__begin() {
     while (len != 0xff) {
         command = InitCommands[ic + 1];
         if (len == 0xfe) {
-            delay(command);
+            delay(command * 10);
             ic += 2;
         }
         else {
@@ -211,10 +222,11 @@ esp_lcd_panel_handle_t gfx4desp32_spi_panel::__begin() {
     scroll_Y1 = 0;
     scroll_X2 = __width - 1;
     scroll_Y2 = __height - 1;
-    ledcSetup(1, 20000, 10);
-    ledcAttachPin(backlight, 1);
 
-    Contrast(15);
+    ledcSetup(backlight, 20000, 10);
+    ledcAttachPin(bk_config.pin, 1);
+
+    //Contrast(15);
 
     /*** Initiaize main frame buffer ***/
     fb = (uint8_t*)ps_malloc(__fbSize);
@@ -241,52 +253,52 @@ void gfx4desp32_spi_panel::Contrast(int ctrst) {
         ctrst = 0;
     switch (ctrst) {
     case 15:
-        ledcWrite(1, 1023);
+        ledcWrite(backlight, 1023);
         break;
     case 14:
-        ledcWrite(1, 820);
+        ledcWrite(backlight, 820);
         break;
     case 13:
-        ledcWrite(1, 608);
+        ledcWrite(backlight, 608);
         break;
     case 12:
-        ledcWrite(1, 460);
+        ledcWrite(backlight, 460);
         break;
     case 11:
-        ledcWrite(1, 352);
+        ledcWrite(backlight, 352);
         break;
     case 10:
-        ledcWrite(1, 276);
+        ledcWrite(backlight, 276);
         break;
     case 9:
-        ledcWrite(1, 224);
+        ledcWrite(backlight, 224);
         break;
     case 8:
-        ledcWrite(1, 188);
+        ledcWrite(backlight, 188);
         break;
     case 7:
-        ledcWrite(1, 140);
+        ledcWrite(backlight, 140);
         break;
     case 6:
-        ledcWrite(1, 105);
+        ledcWrite(backlight, 105);
         break;
     case 5:
-        ledcWrite(1, 78);
+        ledcWrite(backlight, 78);
         break;
     case 4:
-        ledcWrite(1, 62);
+        ledcWrite(backlight, 62);
         break;
     case 3:
-        ledcWrite(1, 47);
+        ledcWrite(backlight, 47);
         break;
     case 2:
-        ledcWrite(1, 31);
+        ledcWrite(backlight, 35);
         break;
     case 1:
-        ledcWrite(1, 15);
+        ledcWrite(backlight, 28);
         break;
     case 0:
-        ledcWrite(1, 0);
+        ledcWrite(backlight, 0);
         break;
     }
 }
@@ -301,10 +313,10 @@ void gfx4desp32_spi_panel::Contrast(int ctrst) {
 /****************************************************************************/
 void gfx4desp32_spi_panel::BacklightOn(bool blight) {
     if (blight) {
-        ledcWrite(1, 1023);
+        ledcWrite(backlight, 1023);
     }
     else {
-        ledcWrite(1, 0);
+        ledcWrite(backlight, 0);
     }
 }
 
@@ -398,7 +410,32 @@ uint8_t gfx4desp32_spi_panel::getPanelOrientation(void) { return rotation; }
 */
 /****************************************************************************/
 void gfx4desp32_spi_panel::Invert(bool Inv) {
-    /*** Not sure how to deal with this on RGB displays ***/
+    if (DisplayModel == GFX4d_DISPLAY_ILI9488) {
+        if (Inv) {
+            esp_lcd_panel_io_tx_param(io_handle, ILI9488_CMD_DISP_INVERSION_OFF, NULL, 0);
+        }
+        else {
+            esp_lcd_panel_io_tx_param(io_handle, ILI9488_CMD_DISP_INVERSION_ON, NULL, 0);
+        }
+    }
+    else {
+        if (IPS_Display) {
+            if (Inv) {
+                esp_lcd_panel_invert_color(panel_handle, false);
+            }
+            else {
+                esp_lcd_panel_invert_color(panel_handle, true);
+            }
+        }
+        else {
+            if (Inv) {
+                esp_lcd_panel_invert_color(panel_handle, true);
+            }
+            else {
+                esp_lcd_panel_invert_color(panel_handle, false);
+            }
+        }
+    }
 }
 
 /****************************************************************************/
@@ -571,9 +608,9 @@ void gfx4desp32_spi_panel::DrawFrameBufferArea(uint8_t fbnum, int16_t ui) {
                   y2 - bottom co-ordinate
 */
 /****************************************************************************/
-void gfx4desp32_spi_panel::DrawFrameBufferArea(uint8_t fbnum, uint16_t x1,
-    uint16_t y1, uint16_t x2,
-    uint16_t y2) {
+void gfx4desp32_spi_panel::DrawFrameBufferArea(uint8_t fbnum, int16_t x1,
+    int16_t y1, int16_t x2,
+    int16_t y2) {
     uint8_t* tfrom = SelectFB(fbnum);
     uint8_t* to = SelectFB(frame_buffer);
     int32_t x_start;
@@ -585,10 +622,12 @@ void gfx4desp32_spi_panel::DrawFrameBufferArea(uint8_t fbnum, uint16_t x1,
     y_start = y1;
     x_end = x2;
     y_end = y2;
-    if (x_end >= h_res)
-        x_end = h_res - 1;
-    if (y_end >= v_res)
-        y_end = v_res - 1;
+    if (x_start >= __width || x_end < 0 || y_start >= __height || y_end < 0)
+        return;
+    if (x_end >= __width)
+        x_end = __width - 1;
+    if (y_end >= __height)
+        y_end = __height - 1;
     uint32_t s_width = x_end - x_start + 1;
     uint32_t s_height = y_end - y_start + 1;
     uint32_t pc = (y_start * __scrWidth) + (x_start << 1);
@@ -923,8 +962,8 @@ void gfx4desp32_spi_panel::FlushArea(int y1, int y2, int xpos) {
 /****************************************************************************/
 /*!
   @brief  Flush frame buffer area recently written to
-      @param  x1 left start position in pixels
-      @param  x2 right end position in pixels
+  @param  x1 left start position in pixels
+  @param  x2 right end position in pixels
   @param  y1 top start position in pixels
   @param  y2 bottom position in pixels
   @param  xpos x position in line
@@ -1576,7 +1615,18 @@ uint16_t gfx4desp32_spi_panel::ReadPixel(uint16_t xrp, uint16_t yrp) {
     uint8_t* tpto = SelectFB(frame_buffer);
     uint8_t* pto;
     pto = tpto + (yrp * __scrWidth) + (xrp << 1);
-    return pto[0] + (pto[1] << 8);
+    return pto[1] + (pto[0] << 8);
+}
+
+uint16_t gfx4desp32_spi_panel::ReadPixelFromFrameBuffer(uint16_t xrp, uint16_t yrp, uint8_t fb) {
+    if (yrp > clipY2 || yrp < clipY1)
+        return 0;
+    if (xrp > clipX2 || yrp < clipX1)
+        return 0;
+    uint8_t* tpto = SelectFB(fb);
+    uint8_t* pto;
+    pto = tpto + (yrp * __scrWidth) + (xrp << 1);
+    return pto[1] + (pto[0] << 8);
 }
 
 /****************************************************************************/
@@ -1611,6 +1661,41 @@ uint16_t gfx4desp32_spi_panel::ReadLine(int16_t x, int16_t y, int16_t w,
         pto += 2;
     }
     return readw;
+}
+
+/****************************************************************************/
+/*!
+  @brief  Write a line of pixels.
+  @param  x left X position in pixels
+  @param  y top Y position in pixels
+  @param  w width of line
+  @param  data - 16 bit user array
+*/
+/****************************************************************************/
+void gfx4desp32_spi_panel::CopyFrameBufferLine(int16_t x, int16_t y, int16_t w,
+    int fb) {
+    if (y > clipY2 || y < clipY1)
+        return;
+    if (x > clipX2 || (x + w - 1) < clipX1)
+        return;
+    if (w < 0) {
+        x += w;
+        w = abs(w);
+    }
+    if (x < clipX1) {
+        w -= clipX1 - x;
+        x = clipX1;
+    }
+    if ((x + w - 1) >= clipX2)
+        w = clipX2 - x;
+    uint8_t* tpfrom = SelectFB(fb);
+    uint8_t* pfrom;
+    int flushw = w;
+    SetGRAM(x, y, x + w - 1, y);
+    pfrom = tpfrom + (y * __scrWidth) + (x << 1);
+    WrGRAMs(pfrom, w);
+    if (frame_buffer == 0)
+        FlushArea(x, x + w, y, y, -1);
 }
 
 /****************************************************************************/
@@ -1720,11 +1805,11 @@ void gfx4desp32_spi_panel::setScrollArea(int x1, int y1, int x2, int y2) {
     scroll_Y2 = y2;
     if (scroll_X1 < 0)
         scroll_X1 = 0;
-    if (scroll_X2 > __width - 1)
+    if (scroll_X2 >= __width)
         scroll_X2 = __width - 1;
     if (scroll_Y1 < 0)
         scroll_Y1 = 0;
-    if (scroll_Y2 > __height - 1)
+    if (scroll_Y2 >= __height)
         scroll_Y2 = __height - 1;
 }
 
@@ -1820,7 +1905,7 @@ void gfx4desp32_spi_panel::Scroll(int steps) {
     y_start = scroll_Y1;
     x_end = scroll_X2;
     y_end = scroll_Y2;
-
+    if (x_start >= __width || x_end < 0 || y_start >= __height || y_end < 0) return;
     uint32_t s_width = x_end - x_start + 1;
     uint32_t s_height = y_end - y_start + 1;
     scrdir =
@@ -1866,7 +1951,8 @@ void gfx4desp32_spi_panel::Scroll(int steps) {
                     to += (__scrWidth - (s_width << 1));
                 }
             }
-            FlushArea(y_start, y_end, -1);
+            FlushArea(scroll_X1, scroll_X2, scroll_Y1, scroll_Y2, -1);
+            //FlushArea(y_start, y_end, -1);
             delay(scroll_speed);
         }
     }
@@ -1897,7 +1983,8 @@ void gfx4desp32_spi_panel::Scroll(int steps) {
                     to -= (__scrWidth + (s_width << 1));
                 }
             }
-            FlushArea(y_start, y_end, -1);
+            FlushArea(scroll_X1, scroll_X2, scroll_Y1, scroll_Y2, -1);
+            //FlushArea(y_start, y_end, -1);
             delay(scroll_speed);
         }
     }
@@ -1919,7 +2006,8 @@ void gfx4desp32_spi_panel::Scroll(int steps) {
                 from += __scrWidth;
                 to += __scrWidth;
             }
-            FlushArea(y_start, y_end, -1);
+            FlushArea(scroll_X1, scroll_X2, scroll_Y1, scroll_Y2, -1);
+            //FlushArea(y_start, y_end, -1);
             delay(scroll_speed);
         }
     }
@@ -1941,7 +2029,8 @@ void gfx4desp32_spi_panel::Scroll(int steps) {
                 from += __scrWidth;
                 to += __scrWidth;
             }
-            FlushArea(y_start, y_end, -1);
+            FlushArea(scroll_X1, scroll_X2, scroll_Y1, scroll_Y2, -1);
+            //FlushArea(y_start, y_end, -1);
             delay(scroll_speed);
         }
     }
@@ -2029,10 +2118,43 @@ uint8_t* gfx4desp32_spi_panel::SelectFB(uint8_t sel) {
         return psRAMbuffer5;
         break;
     case 4:
-        return psRAMbuffer5;
+        return psRAMbuffer6;
         break;
     }
     return fb;
+}
+
+void gfx4desp32_spi_panel::AllocateDRcache(uint32_t cacheSize) {
+    psRAMbuffer2 = (uint8_t*)ps_malloc(cacheSize);
+    cache_Enabled = true;
+}
+
+void gfx4desp32_spi_panel::AllocateFB(uint8_t sel) {
+    if (sel == 0) {
+        psRAMbuffer1 = (uint8_t*)ps_malloc(1024000);
+    }
+    if (sel == 1) {
+        psRAMbuffer3 = (uint8_t*)ps_malloc(__fbSize);
+        framebufferInit1 = true;
+    }
+    if (sel == 2) {
+        psRAMbuffer4 = (uint8_t*)ps_malloc(__fbSize);
+        framebufferInit2 = true;
+    }
+    if (sel == 3) {
+        psRAMbuffer5 = (uint8_t*)ps_malloc(__fbSize);
+        framebufferInit3 = true;
+    }
+    if (sel == 4) {
+        psRAMbuffer6 = (uint8_t*)ps_malloc(__fbSize);
+        framebufferInit4 = true;
+    }
+}
+
+void gfx4desp32_spi_panel::CopyFrameBuffer(uint8_t fbto, uint8_t fbfrom1) {
+    uint8_t* to = SelectFB(fbto);
+    uint8_t* from1 = SelectFB(fbfrom1);
+    memcpy(to, from1, __fbSize);
 }
 
 /****************************************************************************/
@@ -2175,8 +2297,8 @@ void gfx4desp32_spi_panel::Hline(int16_t x, int16_t y, int16_t w,
         w -= clipX1 - x;
         x = clipX1;
     }
-    if ((x + w - 1) >= clipX2)
-        w = clipX2 - x;
+    if ((x + w) > clipX2 - 1)
+        w = clipX2 - x + 1;
     uint8_t* tpto = SelectFB(frame_buffer);
     uint8_t* pto;
     int flushw = w;
@@ -2225,8 +2347,8 @@ void gfx4desp32_spi_panel::Vline(int16_t x, int16_t y, int16_t w,
         w -= clipY1 - y;
         y = clipY1;
     }
-    if ((y + w - 1) >= clipY2)
-        w = clipY2 - y;
+    if ((y + w) > clipY2 - 1)
+        w = clipY2 - y + 1;
     uint8_t* tpto = SelectFB(frame_buffer);
     uint8_t* pto;
     int flushw = w;

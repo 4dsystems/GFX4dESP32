@@ -7,26 +7,74 @@
         b = tab;                                                                \
     }
 
+#define calcAlpha(a, b, c)                                                     \
+    {                                                                          \
+        __alphatemp = c >> 3;                                                  \
+        uint32_t fgu = a;                                                      \
+        uint32_t bgu = b;                                                      \
+        uint32_t fg = (fgu | (fgu << 16)) & 0x07e0f81f;                        \
+        uint32_t bg = (bgu | (bgu << 16)) & 0x07e0f81f;                        \
+        bg += (fg - bg) * __alphatemp >> 5; bg &= 0x07e0f81f;                  \
+        __colour = (uint16_t)(bg | bg >> 16);                                  \
+    }
+
 gfx4desp32::gfx4desp32() {}
 
 gfx4desp32::~gfx4desp32() {}
 
+#ifndef USE_LITTLEFS_FILE_SYSTEM
+#ifndef USE_SDMMC_FILE_SYSTEM
 SdFat gfx4desp32::uSD;
 
 SdFat& gfx4desp32::getSdFatInstance() { return uSD; }
+#else
+#include "SD_MMC.h"   
+#endif
+#endif
 
 /****************************************************************************/
 /*!
   @brief  Begin gfx4desp32.
-  @note sets global variables, orientation and clears the screen.
-    uSD is mounted at this stage and called seperately.
+  @param  ips - sets if ips display is being used IPS_DISPLAY or TN_DISPLAY if not ips
+                Default is TN_DISPLAY
+          pval - sets the value of display clock in Mhz eg 13 = 13000000
+          backLightStartOn, true or false. sets startup behaviour of backlight.
+  @note   sets global variables, orientation and clears the screen.
+          uSD is mounted at this stage and called seperately.
+              begin(); start with default settings
+              begin(IPS_DISPLAY); // use ips display
+              begin(18); // set display clock to 18Mhz
+              begin(false); // start without backlight on
+              begin(IPS_DISPLAY, 18); // start with ips at 18Mhz
+              begin(IPS_DISPLAY, true); // start with ips and backlight on
+              begin(20, false); // start at 20Mhz and backlight off
+              begin(IPS_DISPLAY, 40, false); // start with ips at 40Mhz and backlight off
 */
 /****************************************************************************/
-void gfx4desp32::begin(String ips) {
+void gfx4desp32::begin(String ips) { begin(ips, 0, true); }
+void gfx4desp32::begin(int pval) { begin(DEFAULT_DISPLAY, pval, true); }
+void gfx4desp32::begin(bool backLightStartOn) { begin(DEFAULT_DISPLAY, 0, backLightStartOn); }
+void gfx4desp32::begin(String ips, int pval) { begin(ips, pval, true); }
+void gfx4desp32::begin(String ips, bool backLightStartOn) { begin(ips, 0, backLightStartOn); }
+void gfx4desp32::begin(int pval, bool backLightStartOn) { begin(DEFAULT_DISPLAY, pval, backLightStartOn); }
+
+/****************************************************************************/
+/*!
+  @brief  Begin gfx4desp32.
+  @note   sets global variables, orientation and clears the screen.
+          uSD is mounted at this stage and called seperately.
+*/
+/****************************************************************************/
+void gfx4desp32::begin(String ips, int pval, bool backLightStartOn) {
+    if (pval >= 13) {
+        changePCLK = true;
+        PCLKval = pval * 1000 * 1000;
+    }
     if (ips == IPS_DISPLAY)
         IPS_Display = true;
     if (ips == TN_DISPLAY)
         IPS_Display = false;
+    if (backLightStartOn) bkStartOn = true;
     GCItype = GCI_SYSTEM_USD;
     __begin();            // start panel
     panelOrientation(0);  // set default orientation
@@ -46,13 +94,13 @@ void gfx4desp32::begin(String ips) {
     wrap = true;             // turn on wrap
     fno = 1;                 // set system font 1
     fsh = 8;                 // set font height
-    lastfsh = 8; // match last font height - used by sutoscroll if font changes
+    lastfsh = 8; // match last font height - used by autoscroll if font changes
     // and scroll is needed
     fsw = 5;     // set font width
     scrolled = false; // legacy variable used for hardware scroll
     sEnable = false;  // disable auto scroll
     nl = false;       // set newline needed flag to false
-    ssSpeed = 5; // set default smooth scroll to 5 - maybe we should default to 0,
+    ssSpeed = 0; // set default smooth scroll to 5 - maybe we should default to 0,
     // smooth scroll off
     twcolnum = 13; // set default text window column number
     tchen = true;
@@ -67,6 +115,24 @@ void gfx4desp32::begin(String ips) {
         sdok = false;
     }
 #else
+#ifdef USE_SDMMC_FILE_SYSTEM
+#ifndef SDMMC_4BIT
+    pinMode(sd_cs, OUTPUT);
+    digitalWrite(sd_cs, HIGH);
+    SD_MMC.setPins(sd_sck, sd_mosi, sd_miso);
+    if (SD_MMC.begin("/sdcard", true, 50000))
+#else
+    if (displayBus == DISPLAY_BUS_SPI) SD_MMC.setPins(SPI_SDMMC_4BIT_CLK, SPI_SDMMC_4BIT_CMD, SPI_SDMMC_4BIT_DATA0, SPI_SDMMC_4BIT_DATA1, SPI_SDMMC_4BIT_DATA2, SPI_SDMMC_4BIT_DATA3);
+    if (displayBus == DISPLAY_BUS_QSPI) SD_MMC.setPins(QSPI_SDMMC_4BIT_CLK, QSPI_SDMMC_4BIT_CMD, QSPI_SDMMC_4BIT_DATA0, QSPI_SDMMC_4BIT_DATA1, QSPI_SDMMC_4BIT_DATA2, QSPI_SDMMC_4BIT_DATA3);
+    if (SD_MMC.begin("/sdcard", false, 50000))
+#endif
+    {
+        sdok |= true;
+    }
+    else {
+        sdok |= false;
+    }
+#else
     SPI.begin(sd_sck, sd_miso, sd_mosi);
 
     if (uSD.begin(sd_cs, SD_SCK_MHZ(40))) // initialize SdFat file system
@@ -77,7 +143,12 @@ void gfx4desp32::begin(String ips) {
         sdok |= false;
     }
 #endif
-    psRAMbuffer1 = (uint8_t*)ps_malloc(1024000);
+#endif
+    AllocateFB(0);
+    //psRAMbuffer1 = (uint8_t*)ps_malloc(1024000);
+    if (bkStartOn) {
+        Contrast(BK_LIGHT_STARTUP_LEVEL);
+    }
 }
 
 /****************************************************************************/
@@ -591,14 +662,16 @@ void gfx4desp32::drawChar4Dcmp(int16_t x, int16_t y, unsigned char c,
 void gfx4desp32::MoveTo(int16_t x, int16_t y) {
     cursor_x = x;
     cursor_y = y;
-    if (cursor_y > (height - 1))
-        cursor_y = (height - 1);
-    if (cursor_y < 0)
-        cursor_y = 0;
-    if (cursor_x < 0)
-        cursor_x = 0;
-    if (cursor_x > (width - 1))
-        cursor_x = width - 1;
+    if (wrap == true) {
+        if (cursor_y > (height - 1))
+            cursor_y = height - 1;
+        if (cursor_y < 0)
+            cursor_y = 0;
+        if (cursor_x < 0)
+            cursor_x = 0;
+        if (cursor_x > (width - 1))
+            cursor_x = width - 1;
+    }
     nl = false;
 }
 
@@ -1424,7 +1497,11 @@ void gfx4desp32::_Open4dGFX(String file4d, bool scan) {
     }
 #else
     if (GCItype == GCI_SYSTEM_USD) {
+#ifdef USE_SDMMC_FILE_SYSTEM
+        userDat = SD_MMC.open(dat4d);
+#else
         userDat = uSD.open(dat4d);
+#endif
     }
     if (GCItype == GCI_SYSTEM_PROGMEM) {
         datArrayPos = 0;
@@ -1471,7 +1548,7 @@ void gfx4desp32::_Open4dGFX(String file4d, bool scan) {
         }
         if (GCItype == GCI_SYSTEM_PROGMEM) {
             while (datArrayPos < datArraySize) {
-                c = (char) DATarray[datArrayPos++];
+                c = (char)DATarray[datArrayPos++];
                 if (c != 13 && c != 10) {
                     strpos++;
                     if (c == 34) {
@@ -1518,7 +1595,11 @@ void gfx4desp32::_Open4dGFX(String file4d, bool scan) {
     }
 #else
     if (GCItype == GCI_SYSTEM_USD) {
+#ifdef USE_SDMMC_FILE_SYSTEM
+        userImag = SD_MMC.open((char*)gci4d.c_str());
+#else
         userImag = uSD.open((char*)gci4d.c_str());
+#endif
     }
     if (GCItype == GCI_SYSTEM_PROGMEM) {
         gciArrayPos = 0;
@@ -1549,7 +1630,11 @@ gfx4d_font gfx4desp32::Open4dFont(String font4d) {
     String tstring = "/" + font4d;
     return LittleFS.open((char*)tstring.c_str(), "r");
 #else
+#ifdef USE_SDMMC_FILE_SYSTEM
+    return SD_MMC.open(font4d);
+#else
     return uSD.open(font4d);
+#endif
 #endif
 }
 
@@ -1685,8 +1770,9 @@ void gfx4desp32::DrawWidget(uint32_t Index, int16_t uix, int16_t uiy,
         (!transalpha) && (!WriteFBonly) && (frame_buffer == 0);
     SetGRAM(uix, uiy, x1, y1);
     pos = (isize * frame);
-    GCIreadToBuff(Index + ofst + pos, isize);
+    //GCIreadToBuff(Index + ofst + pos, isize);
     if (GCItype == GCI_SYSTEM_USD) {
+        GCIreadToBuff(Index + ofst + pos, isize);
         if (usePushColors && frame_buffer == 0) {
             pushColors(psRAMbuffer1, isize >> 1);
         }
@@ -1881,7 +1967,11 @@ int16_t gfx4desp32::getLastPointerPos() { return LastLinearPointerPosition; }
 /****************************************************************************/
 void gfx4desp32::DrawImageFile(String Fname) {
 #ifndef USE_LITTLEFS_FILE_SYSTEM
+#ifdef USE_SDMMC_FILE_SYSTEM
+    dataFile = SD_MMC.open((char*)Fname.c_str());
+#else
     dataFile = uSD.open((char*)Fname.c_str());
+#endif
 #else
     Fname = "/" + Fname;
     dataFile = LittleFS.open((char*)Fname.c_str(), "r");
@@ -1910,7 +2000,11 @@ void gfx4desp32::DrawImageFile(String Fname) {
 /****************************************************************************/
 void gfx4desp32::DrawImageFile(const char* Fname) {
 #ifndef USE_LITTLEFS_FILE_SYSTEM
+#ifdef USE_SDMMC_FILE_SYSTEM
+    dataFile = SD_MMC.open(Fname);
+#else
     dataFile = uSD.open(Fname);
+#endif
 #else
     String temp = "/" + String(Fname);
     dataFile = LittleFS.open((char*)temp.c_str(), "r");
@@ -2472,8 +2566,9 @@ void gfx4desp32::UserImageDRcache(uint16_t ui, int16_t uxpos, int16_t uypos,
         (GCItype == GCI_SYSTEM_PROGMEM && (!gcidatArray)))
         return;
     if (!cache_Enabled) {
-        psRAMbuffer2 = (uint8_t*)ps_malloc(DRcache);
-        cache_Enabled = true;
+        AllocateDRcache(DRcache);
+        //psRAMbuffer2 = (uint8_t*)ps_malloc(DRcache);
+        //cache_Enabled = true;
     }
     int32_t bwidth = tuiw[ui] << 1;
     uint32_t slen;
@@ -2558,6 +2653,23 @@ void gfx4desp32::Orbit(int angle, int lngth, int* oxy) {
     float sy = sin((angle - 90) * 0.0174532925);
     oxy[0] = (int)(sx * lngth + cursor_x);
     oxy[1] = (int)(sy * lngth + cursor_y);
+}
+
+/****************************************************************************/
+/*!
+  @brief  calculate float x & y co-ordinate using given angle and length using current
+    x - y origin (MoveTo)
+  @param  angle - Degrees
+  @param  length - Pixels from x - y origin
+  @param  oxy - prefined 2 float array containing x at location 0 and y at
+  location 1
+*/
+/****************************************************************************/
+void gfx4desp32::Orbit(float angle, float lngth, float* oxy) {
+    float sx = cos((angle - 90) * 0.0174532925);
+    float sy = sin((angle - 90) * 0.0174532925);
+    oxy[0] = (sx * lngth + cursor_x);
+    oxy[1] = (sy * lngth + cursor_y);
 }
 
 /****************************************************************************/
@@ -3716,9 +3828,9 @@ void gfx4desp32::GradTriangleFilled(int x0, int y0, int x1, int y1, int x2,
 uint16_t gfx4desp32::Grad(int GraisSunk, int Gstate, int Gglev, int Gh1,
     int Gpos, uint16_t colToAdj) {
     // **** Modified gradients for vertical again ****        *new*
-    uint32_t __alpha;
-    uint32_t __alphatemp;
-    uint16_t __colour;
+    //uint32_t __alpha;
+    //uint32_t __alphatemp;
+    //uint16_t __colour;
     int tgcol = colToAdj;
     int CTAr, CTAg, CTAb;
     int CTALevel;
@@ -4502,10 +4614,18 @@ bool gfx4desp32::ScreenCapture(int16_t x, int16_t y, int16_t w, int16_t h,
     }
     if ((y + h) > height)
         h = height - y;
+
+#ifdef USE_SDMMC_FILE_SYSTEM
+    File tempfile;
+    if (SD_MMC.exists(fname))
+        return false;
+    tempfile = SD_MMC.open(fname, FILE_WRITE);
+#else
     FsFile tempfile;
     if (uSD.exists(fname))
         return false;
     tempfile = uSD.open(fname, FILE_WRITE);
+#endif
     int n, o, wline;
     uint16_t sline[w];
     for (n = 0; n < h; n++) {
@@ -4540,9 +4660,253 @@ void gfx4desp32::FontStyle(uint8_t ctyp) { fstyle = ctyp % 6; }
 
 /****************************************************************************/
 /*!
+  @brief  Get the number of the current frame buffer in use.
+  @note returns current frame buffer number.
+*/
+/****************************************************************************/
+uint8_t gfx4desp32::GetFrameBuffer() {
+    return frame_buffer;
+}
+
+/****************************************************************************/
+/*!
+  @brief  Read the colour value of a pixel within a GCI object.
+  @param  inum - GCI object index.
+  @param  x - The X position that the pixel would be at if the image was drawn on-screen
+  @param  y - The Y position that the pixel would be at if the image was drawn on-screen
+  @note returns 16bit colour value.
+*/
+/****************************************************************************/
+uint16_t gfx4desp32::ReadImagePixel(int inum, int x, int y) {
+    if ((GCItype == GCI_SYSTEM_USD && (!userImag)) ||
+        (GCItype == GCI_SYSTEM_PROGMEM && (!gcidatArray)))
+        return 0;
+    int yc = y - tuiy[inum];
+    int xc = x - tuix[inum];
+    if (y < tuiy[inum] || x < tuix[inum]) return 0;
+    if (y > tuiy[inum] + tuih[inum] - 1 || x > tuix[inum] + tuiw[inum] - 1) return 0;
+    uint32_t ofst = 6;
+    ofst += ((gciobjframes[inum] > 0) << 1);
+    uint32_t pos = ((yc * tuiw[inum]) << 1) + (xc << 1);
+    if (ofst == 8) ofst += (((tuiw[inum] * tuih[inum]) * tuiImageIndex[inum]) << 1);
+    GCIreadToBuff(tuiIndex[inum] + ofst + pos, 2);
+    return psRAMbuffer1[1] + (psRAMbuffer1[0] << 8);
+}
+
+/****************************************************************************/
+/*!
+  @brief  Copies a horizontal line from GCI object to the current frame buffer.
+  @param  inum - GCI object index.
+  @param  x - The X position that the line would start if the image was drawn on-screen
+  @param  y - The Y position that the line would start if the image was drawn on-screen
+  @param  w - The length of the line to be copied
+  @note returns nothing.
+*/
+/****************************************************************************/
+void gfx4desp32::CopyImageLine(int inum, int x, int y, int w) {
+    if (y > tuiy[inum] + tuih[inum] - 1 || y < 0)
+        return;
+    if (x > tuix[inum] + tuiw[inum] - 1 || (x + w - 1) < 0)
+        return;
+    if (w < 0) {
+        x += w;
+        //w *= -1;
+        w = abs(w);
+    }
+    if (x < tuix[inum]) {
+        w += x;
+        x = 0;
+    }
+    //if ((x + w - 1) >= tuix[inum] + tuiw[inum] - 1)
+    //    w = tuiw[inum] - x;
+    int yc = y - tuiy[inum];
+    int xc = x - tuix[inum];
+    if ((GCItype == GCI_SYSTEM_USD && (!userImag)) ||
+        (GCItype == GCI_SYSTEM_PROGMEM && (!gcidatArray)))
+        return;
+    uint32_t ofst = 6;
+    ofst += ((gciobjframes[inum] > 0) << 1);
+    uint32_t pos = ((yc * tuiw[inum]) << 1) + (xc << 1);
+    if (ofst == 8) ofst += (((tuiw[inum] * tuih[inum]) * tuiImageIndex[inum]) << 1);
+    GCIreadToBuff(tuiIndex[inum] + ofst + pos, w << 1);
+    usePushColors = (DisplayType == DISP_INTERFACE_RGB) && (x >= clipx1) &&
+        (y >= clipy1) && (x + w <= clipx2) && (y <= clipy2) &&
+        (!transalpha) && (!WriteFBonly) && (frame_buffer == 0);
+    SetGRAM(x, y, x + w - 1, y);
+    //  if (GCItype == GCI_SYSTEM_USD) {
+    if (usePushColors && frame_buffer == 0) {
+        pushColors(psRAMbuffer1, w);
+    }
+    else {
+        WrGRAMs(psRAMbuffer1, w);
+    }
+}
+
+/****************************************************************************/
+/*!
+  @brief  draws a horizontal line to the current frame buffer with color parameter switch.
+  @param  x - The X position of the start of the line
+  @param  y - The Y position of the start of the line
+  @param  w - The length of the line to be drawn
+  @param  color - can be a 16bit color or a GCI image or a FrameBuffer
+                  HlineX(10, 10, 100, GCI_IMAGE + 3) draws a line at 10, 10 and a length of
+                    100 pixels from GCI image index 3. x and y are relative to objects x and y
+                    position.
+                  HlineX(10, 10, 100, FRAMEBUFFER_IMAGE + 3) draws a line at 10, 10 and a length of
+                    100 pixels from frame buffer 3 at the same x and y position.
+  @note returns nothing.
+*/
+/****************************************************************************/
+void gfx4desp32::HlineX(int x, int y, int w, int32_t color) {
+    if (w < 1) return;
+    uint8_t fB = 0;
+    int16_t imageNum = -1;
+    int gpos = 7 * (gradON == 2);
+    if ((color & 0xffff0000) == 0xf00000) fB = color & 0x000f;
+    if ((color & 0xffff0000) == 0xf0000) imageNum = color & 0xffff;
+    uint16_t fgcol = color;
+    if (fB) {
+        CopyFrameBufferLine(x, y, w, fB);
+    }
+    else if (imageNum != -1) {
+        CopyImageLine(imageNum, x, y, w);
+    }
+    else {
+        if (gradON) {
+            Hline(x, y, w, Grad(grad1[0 + gpos], grad1[1 + gpos], grad1[2 + gpos], grad1[3 + gpos], y - grad1[6 + gpos], fgcol));
+        }
+        else {
+            Hline(x, y, w, fgcol);
+        }
+    }
+}
+
+/****************************************************************************/
+/*!
+  @brief  draws a vertical line to the current frame buffer with color parameter switch.
+  @param  x - The X position of the start of the line
+  @param  y - The Y position of the start of the line
+  @param  w - The length of the line to be drawn
+  @param  color - can be a 16bit color or a GCI image or a FrameBuffer
+                  VlineX(10, 10, 100, GCI_IMAGE + 3) draws a line at 10, 10 and a length of
+                    100 pixels from GCI image index 3. x and y are relative to objects x and y
+                    position.
+                  VlineX(10, 10, 100, FRAMEBUFFER_IMAGE + 3) draws a line at 10, 10 and a length of
+                    100 pixels from frame buffer 3 at the same x and y position.
+  @note returns nothing.
+*/
+/****************************************************************************/
+void gfx4desp32::VlineX(int x, int y, int w, int32_t color) {
+    if (w < 1) return;
+    uint8_t fB = 0;
+    int16_t imageNum = -1;
+    int gpos = 7 * (gradON == 2);
+    if ((color & 0xffff0000) == 0xf00000) fB = color & 0x000f;
+    if ((color & 0xffff0000) == 0xf0000) imageNum = color & 0xffff;
+    uint16_t fgcol = color;
+    if (fB || imageNum != -1 || (gradON && !gradientVert)) {
+        for (int n = 0; n < w; n++) {
+            if (fB) {
+                fgcol = ReadPixelFromFrameBuffer(x, y + n, fB);
+            }
+            else {
+                fgcol = ReadImagePixel(imageNum, x, y + n);
+            }
+            if (gradON) fgcol = Grad(grad1[0 + gpos], grad1[1 + gpos], grad1[2 + gpos], grad1[3 + gpos], (y + n) - grad1[6 + gpos], color);
+            PutPixel(x, y + n, fgcol);
+        }
+    }
+    else {
+        if (gradientVert) fgcol = Grad(grad1[0 + gpos], grad1[1 + gpos], grad1[2 + gpos], grad1[3 + gpos], x - grad1[6 + gpos], color);
+        Vline(x, y, w, fgcol);
+    }
+}
+
+/****************************************************************************/
+/*!
+  @brief  draws a rectangle to the current frame buffer with color parameter switch.
+  @param  x0 - The X position of the top left corner of the rectangle
+  @param  y0 - The Y position of the top left corner of the rectangle
+  @param  x1 - The X position of the bottom right corner of the rectangle
+  @param  y1 - The Y position of the bottom right corner of the rectangle
+  @param  color - can be a 16bit color or a GCI image or a FrameBuffer
+                  RectangleFilledX(10, 10, 100, 100, GCI_IMAGE + 3) draws a rectangle at 10, 10
+                    from GCI image index 3. x and y are relative to objects x and y.
+                  RectangleFilledX(10, 10, 100, 100, FRAMEBUFFER_IMAGE + 3) draws a rectangle at 10, 10
+                    from framebuffer 3 at the same x and y position.
+  @note returns nothing.
+*/
+/****************************************************************************/
+void gfx4desp32::RectangleFilledX(int x0, int y0, int x1, int y1, int32_t color) {
+    uint8_t fB = 0;
+    int16_t imageNum = -1;
+    int w = x1 - x0 + 1;
+    int h = y1 - y0 + 1;
+    if ((color & 0xffff0000) == 0xf00000) fB = color & 0x000f;
+    if ((color & 0xffff0000) == 0xf0000) imageNum = color & 0xffff;
+    uint16_t fgcol = color;
+    if (fB) {
+        DrawFrameBufferArea(fB, x0, y0, x1, y1);
+    }
+    else if (imageNum != -1) {
+        UserImageDR(imageNum, x0, y0, w, h, x0, y0);
+    }
+    else {
+        RectangleFilled(x0, y0, x1, y1, color);
+    }
+}
+
+/****************************************************************************/
+/*!
+  @brief  draws a pixel to the current frame buffer with color parameter switch.
+  @param  x - The X position of the pixel
+  @param  y - The Y position of the pixel
+  @param  color - can be a 16bit color or a GCI image or a FrameBuffer
+                  PutPixelAlpha(10, 10, GCI_IMAGE + 3, 255) draws a pixel at 10, 10
+                    from GCI image index 3 and full alpha level. x and y are relative to objects x and y.
+                  PutPixelAlpha(10, 10, FRAMEBUFFER_IMAGE + 3, 127) draws a pixel at 10, 100
+                    from GCI image index 3 with half alpha at the same x and y position.
+                  PutPixelAlpha(10, 10, RED, 127) draws a RED pixel at 10, 10
+                    with half alpha at the same x and y position.
+  @param  alpha - the level of alpha that the pixel is drawn.
+  @note returns nothing.
+*/
+/****************************************************************************/
+void gfx4desp32::PutPixelAlpha(int x, int y, int32_t color, uint8_t alpha) {
+    uint8_t FB = 0;
+    int16_t imageNum = -1;
+    uint16_t bg;
+    int gpos = 7 * (gradON == 2);
+    if ((color & 0xffff0000) == 0xf00000) FB = color & 0x07;
+    if ((color & 0xffff0000) == 0xf0000) imageNum = color & 0xffff;
+    uint16_t fgcol;
+    if (FB) {
+        fgcol = ReadPixelFromFrameBuffer(x, y, FB);
+    }
+    else if (imageNum != -1) {
+        fgcol = ReadImagePixel(imageNum, x, y);
+    }
+    else {
+        fgcol = color & 0xffff;
+    }
+    bg = ReadPixel(x, y); //swin = true;
+    if (gradON) {
+        if (gradientVert) {
+            fgcol = Grad(grad1[0 + gpos], grad1[1 + gpos], grad1[2 + gpos], grad1[3 + gpos], x - grad1[6 + gpos], fgcol);
+        }
+        else {
+            fgcol = Grad(grad1[0 + gpos], grad1[1 + gpos], grad1[2 + gpos], grad1[3 + gpos], y - grad1[6 + gpos], fgcol);
+        }
+    }
+    calcAlpha(fgcol, bg, (uint8_t)alpha);
+    PutPixel(x, y, __colour);
+}
+
+/****************************************************************************/
+/*!
   @brief  Set the frame buffer for drawing functions.
   @param  fbnum - frame buffer number 0 is main 1 to 3 are additional buffers
-  @note once set, all drawing functions will be sent tio specified frame
+  @note once set, all drawing functions will be sent to specified frame
     buffer. If frame buffer 0 is set (default) all drawing functions will
     appear immediately on the display.
 */
@@ -4555,26 +4919,22 @@ void gfx4desp32::DrawToframebuffer(uint8_t fbnum) {
     case 1:
         frame_buffer = 1;
         if (!framebufferInit1)
-            psRAMbuffer3 = (uint8_t*)ps_malloc(screenArea);
-        framebufferInit1 = true;
+            AllocateFB(1);
         break;
     case 2:
         frame_buffer = 2;
         if (!framebufferInit2)
-            psRAMbuffer4 = (uint8_t*)ps_malloc(screenArea);
-        framebufferInit2 = true;
+            AllocateFB(2);
         break;
     case 3:
         frame_buffer = 3;
         if (!framebufferInit3)
-            psRAMbuffer5 = (uint8_t*)ps_malloc(screenArea);
-        framebufferInit3 = true;
+            AllocateFB(3);
         break;
     case 4:
         frame_buffer = 4;
         if (!framebufferInit4)
-            psRAMbuffer6 = (uint8_t*)ps_malloc(screenArea);
-        framebufferInit4 = true;
+            AllocateFB(4);
         break;
     }
 }
@@ -5014,15 +5374,18 @@ int gfx4desp32::strWidth(char* ts) {
 void gfx4desp32::imageSetWord(uint16_t img, byte controlIndex, int val1,
     int val2) {
     switch (controlIndex) {
-    case 1:
+    case IMAGE_XPOS:
         tuix[img] = val1;
         break;
-    case 2:
+    case IMAGE_YPOS:
         tuiy[img] = val1;
         break;
     case IMAGE_XYPOS:
         tuix[img] = val1;
         tuiy[img] = val2;
+        break;
+    case IMAGE_INDEX:
+        tuiImageIndex[img] = val1;
         break;
     }
 }
@@ -5030,17 +5393,20 @@ void gfx4desp32::imageSetWord(uint16_t img, byte controlIndex, int val1,
 int gfx4desp32::imageGetWord(uint16_t img, byte controlIndex) {
     int retval = -1;
     switch (controlIndex) {
-    case 1:
+    case IMAGE_XPOS:
         retval = tuix[img];
         break;
-    case 2:
+    case IMAGE_YPOS:
         retval = tuiy[img];
         break;
-    case 4:
+    case IMAGE_WIDTH:
         retval = tuiw[img];
         break;
-    case 8:
+    case IMAGE_HEIGHT:
         retval = tuih[img];
+        break;
+    case IMAGE_INDEX:
+        retval = tuiImageIndex[img];
         break;
     }
     return retval;
@@ -5070,7 +5436,11 @@ void gfx4desp32::Download(String Address, uint16_t port, String hfile,
     dlok = false;
     int32_t lens;
     uint8_t buffDL[512] = { 0 };
+#ifdef USE_SDMMC_FILE_SYSTEM
+    File Dwnload;
+#else
     FsFile Dwnload;
+#endif
     HTTPClient http;
     WiFiClient client;
     WiFiClientSecure clientS;
@@ -5105,10 +5475,17 @@ void gfx4desp32::Download(String Address, uint16_t port, String hfile,
             error = true;
             goto skipDownload;
         }
+#ifdef USE_SDMMC_FILE_SYSTEM
+        if (SD_MMC.exists((char*)Fname.c_str())) {
+            SD_MMC.remove((char*)Fname.c_str());
+        }
+        Dwnload = SD_MMC.open((char*)Fname.c_str(), FILE_WRITE);
+#else
         if (uSD.exists((char*)Fname.c_str())) {
             uSD.remove((char*)Fname.c_str());
         }
         Dwnload = uSD.open((char*)Fname.c_str(), FILE_WRITE);
+#endif
         stream = http.getStreamPtr();
         while (http.connected() && (lens > 0 || lens == -1)) {
             size_t size = stream->available();
@@ -5156,9 +5533,15 @@ void gfx4desp32::Download(String Address, uint16_t port, String hfile,
                 println("0 Bytes Rec Error");
             }
             Dwnload.close();
+#ifdef USE_SDMMC_FILE_SYSTEM
+            if (SD_MMC.exists((char*)Fname.c_str())) {
+                SD_MMC.remove((char*)Fname.c_str());
+            }
+#else
             if (uSD.exists((char*)Fname.c_str())) {
                 uSD.remove((char*)Fname.c_str());
             }
+#endif
             delay(500);
             dlok = false;
         }
@@ -5183,7 +5566,11 @@ void gfx4desp32::PrintImageFile(String ifile) {
     if (cursor_y > (height - 1) && (sEnable == false))
         return;
 #ifndef USE_LITTLEFS_FILE_SYSTEM
+#ifdef USE_SDMMC_FILE_SYSTEM
+    dataFile = SD_MMC.open(ifile);
+#else
     dataFile = uSD.open(ifile);
+#endif
 #else
     ifile = "/" + ifile;
     dataFile = LittleFS.open((char*)ifile.c_str(), "r");

@@ -6,6 +6,10 @@
 #include "gfx4desp32.h"
 #include "Wire.h"
 
+#define RGB_LCD_PANEL_MAX_FB_NUM         1 // maximum supported frame buffer number
+#define RGB_LCD_PANEL_BOUNCE_BUF_NUM     2 // bounce buffer number
+#define RGB_LCD_PANEL_DMA_LINKS_REPLICA  2
+
 #define DISPLAY_INTERFACE             DISP_INTERFACE_RGB
 
 #define GFX4d_IO_EXPANDER_ADDR        0x39
@@ -15,6 +19,11 @@
 #define GFX4d_CONFIG_REG              0x03
 #define GFX4d_TOUCH_RESET             0x07
 #define GFX4d_TOUCH_INT               0x06
+
+#define GEN4_RGB_DISPLAY 
+#define GEN4_I2C_SDA              17
+#define GEN4_I2C_SCL              18
+
 
 struct esp_rgb_panel_t {
     esp_lcd_panel_t base;                                         // Base class of generic lcd panel
@@ -30,7 +39,7 @@ struct esp_rgb_panel_t {
     uint8_t* fb;                                                  // Frame buffer
     size_t fb_size;                                               // Size of frame buffer
     int data_gpio_nums[SOC_LCD_RGB_DATA_WIDTH];                   // GPIOs used for data lines, we keep these GPIOs for action like "invert_color"
-    uint32_t src_clk_hz;                                          // Peripheral source clock resolution
+    uint32_t src_clk_hz;                                          // Peripheral source clock resolution    
     esp_lcd_rgb_timing_t timings;                                 // RGB timing parameters (e.g. pclk, sync pulse, porch width)
     gdma_channel_handle_t dma_chan;                               // DMA channel handle
     esp_lcd_rgb_panel_frame_trans_done_cb_t on_frame_trans_done;  // Callback, invoked after frame trans done
@@ -70,9 +79,12 @@ enum {
 
 class gfx4desp32_rgb_panel : virtual public gfx4desp32 {
 private:
+
+    int RGB_InvertFix[16] = { 8, 3, 46, 9, 1, 5, 6, 7, 15, 16, 4, 45, 48, 47, 21, 14 };
     const char* TAG = "gfx4desp32_rgb_panel";
     esp_lcd_rgb_panel_config_t* panel_config = NULL;
     esp_rgb_panel_t* rgb_panel = NULL;
+    int currFB;
     int32_t GRAMx1;
     int32_t GRAMy1;
     int32_t GRAMx2;
@@ -107,7 +119,7 @@ private:
     int32_t scroll_blanking;
     uint8_t scroll_speed;
     bool flush_pending;
-    int backlight;
+    int backlight = 1;
     uint16_t _transparentColor;
     uint8_t _transMSB, _transLSB;
     uint8_t m_inp;
@@ -120,13 +132,13 @@ private:
 
     uint8_t pinNum2bitNum[8] = { 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80 };
 
-    uint8_t scroll_Directions[16] = { 0x00, 0x01, 0x02, 0x03,
-                                     0x01, 0x00, 0x03, 0x02,
-                                     0x02, 0x03, 0x01, 0x00,
-                                     0x03, 0x02, 0x00, 0x01 };
+    uint8_t scroll_Directions[16] = { 0x00, 0x01, 0x03, 0x03,
+                                     0x01, 0x00, 0x02, 0x03,
+                                     0x03, 0x02, 0x01, 0x00,
+                                     0x02, 0x03, 0x00, 0x01 };
 
     void __start_transmission();
-
+    
     void FlushArea(int y1, int y2, int xpos);
     uint8_t RTCread(uint8_t address);                           // read one byte from selected register
     void RTCwrite(uint8_t address, uint8_t data);               // write one byte of data to the register
@@ -205,17 +217,22 @@ public:
     virtual void AlphaBlend(bool alphablend) override;
     virtual void AlphaBlendLevel(uint32_t alphaLevel) override;
     virtual uint16_t ReadPixel(uint16_t xrp, uint16_t yrp) override;
+    virtual uint16_t ReadPixelFromFrameBuffer(uint16_t xrp, uint16_t yrp, uint8_t fb) override;
     virtual uint16_t ReadLine(int16_t x, int16_t y, int16_t w, uint16_t* data) override;
     virtual void WriteLine(int16_t x, int16_t y, int16_t w, uint16_t* data) override;
     virtual void DrawFrameBuffer(uint8_t fbnum) override;
     virtual void DrawFrameBufferArea(uint8_t fbnum, int16_t ui) override;
-    virtual void DrawFrameBufferArea(uint8_t fbnum, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2) override;
+    virtual void DrawFrameBufferArea(uint8_t fbnum, int16_t x1, int16_t y1, int16_t x2, int16_t y2) override;
     virtual void MergeFrameBuffers(uint8_t fbto, uint8_t fbfrom1, uint8_t fbfrom2, uint16_t transColor) override;
     virtual void MergeFrameBuffers(uint8_t fbto, uint8_t fbfrom1, uint8_t fbfrom2, uint8_t fbfrom3, uint16_t transColor, uint16_t transColor1) override;
     // virtual void drawBitmap(int x1, int y1, int x2, int y2, uint16_t* c_data) override;
+    virtual void CopyFrameBuffer(uint8_t fbto, uint8_t fbfrom1) override;
+    virtual void CopyFrameBufferLine(int16_t x, int16_t y, int16_t w, int fb) override;
     virtual void PinMode(byte pin, uint8_t mode) override;
     virtual void DigitalWrite(byte pin, bool state) override;
     virtual int DigitalRead(byte pin) override;
+    virtual void AllocateFB(uint8_t sel) override;
+    virtual void AllocateDRcache(uint32_t cacheSize) override;
     int rotation;
     void* wb = NULL;
     int32_t __scrWidth;
@@ -247,9 +264,9 @@ public:
     bool RTCcheckClockIntegrity();      // check clock integrity
     const char* RTCformatDateTime(uint8_t sytle);
     int calx1, calx2, caly1, caly2;
-    uint32_t __alpha;
-    uint32_t __alphatemp;
-    uint16_t __colour;
+    //uint32_t __alpha;
+    //uint32_t __alphatemp;
+    //uint16_t __colour;
 };
 
 #endif  // __GFX4D_RGB_PANEL__

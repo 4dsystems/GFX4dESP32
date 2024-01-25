@@ -78,6 +78,11 @@
 #define GFX4d_DISPLAY_ILI9341_ST7789  0x00
 #define GFX4d_DISPLAY_ILI9488         0x01
 
+#define GEN4_SPI_DISPLAY 
+#define GEN4_I2C_SDA              10
+#define GEN4_I2C_SCL              9
+
+
 class gfx4desp32_spi_panel : virtual public gfx4desp32 {
 private:
 
@@ -137,7 +142,7 @@ private:
     uint8_t scroll_speed;
     bool flush_pending;
 
-    int backlight;
+    int backlight = 1;
     uint16_t _transparentColor;
     uint8_t _transMSB, _transLSB;
     uint8_t* fb = NULL;
@@ -204,20 +209,26 @@ public:
     virtual void AlphaBlend(bool alphablend) override;
     virtual void AlphaBlendLevel(uint32_t alphaLevel) override;
     virtual uint16_t ReadPixel(uint16_t xrp, uint16_t yrp) override;
+    virtual uint16_t ReadPixelFromFrameBuffer(uint16_t xrp, uint16_t yrp, uint8_t fb) override;
     virtual uint16_t ReadLine(int16_t x, int16_t y, int16_t w, uint16_t* data) override;
     virtual void WriteLine(int16_t x, int16_t y, int16_t w, uint16_t* data) override;
     virtual void DrawFrameBuffer(uint8_t fbnum) override;
     virtual void DrawFrameBufferArea(uint8_t fbnum, int16_t ui) override;
-    virtual void DrawFrameBufferArea(uint8_t fbnum, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2) override;
+    virtual void DrawFrameBufferArea(uint8_t fbnum, int16_t x1, int16_t y1, int16_t x2, int16_t y2) override;
     virtual void MergeFrameBuffers(uint8_t fbto, uint8_t fbfrom1, uint8_t fbfrom2, uint16_t transColor) override;
     virtual void MergeFrameBuffers(uint8_t fbto, uint8_t fbfrom1, uint8_t fbfrom2, uint8_t fbfrom3, uint16_t transColor, uint16_t transColor1) override;
     // virtual void drawBitmap(int x1, int y1, int x2, int y2, uint16_t* c_data) override;
+    virtual void CopyFrameBuffer(uint8_t fbto, uint8_t fbfrom1) override;
+    virtual void CopyFrameBufferLine(int16_t x, int16_t y, int16_t w, int fb) override;
     void drawBitmap(int x1, int y1, int x2, int y2, uint16_t* c_data);
+    void draw_bitmap(int x1, int y1, int x2, int y2, uint16_t* c_data);
     virtual void PinMode(byte pin, uint8_t mode) override;
     virtual void DigitalWrite(byte pin, bool state) override;
     virtual int DigitalRead(byte pin) override;
     virtual void WriteToFrameBuffer(uint32_t offset, uint8_t* data, uint32_t len) override;
     virtual void WriteToFrameBuffer(uint32_t offset, uint16_t* data, uint32_t len) override;
+    virtual void AllocateFB(uint8_t sel) override;
+    virtual void AllocateDRcache(uint32_t cacheSize) override;
     int rotation;
     void* wb = NULL;
     int32_t __scrWidth;
@@ -242,9 +253,9 @@ public:
     uint8_t InitCommandsili[160];
     uint8_t InitCommands9488[160];
     uint8_t DisplayModel;
-    uint32_t __alpha;
-    uint32_t __alphatemp;
-    uint16_t __colour;
+    //uint32_t __alpha;
+    //uint32_t __alphatemp;
+    //uint16_t __colour;
 };
 
 #endif  // __GFX4D_SPI_PANEL__
