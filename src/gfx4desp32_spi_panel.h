@@ -167,6 +167,8 @@ private:
                                      0x03, 0x02, 0x00, 0x01 };
 
     void FlushArea(int y1, int y2, int xpos);
+    void tx_param(int32_t lcd_cmd, const void *param, size_t param_size);
+    void tx_color(int32_t lcd_cmd, const void *param, size_t param_size);
 
 public:
     gfx4desp32_spi_panel(int panel_Pin_CS, int panel_Pin_DC, int panel_Pin_MOSI, int panel_Pin_MISO, int panel_Pin_CLK, int panel_Pin_RST, /*int* configData, */int bk_pin, int bk_on_level, int bk_off_level, int sd_gpio_SCK, int sd_gpio_MISO, int sd_gpio_MOSI, int sd_gpio_CS, int hres, int vres, bool touchXinvert = false);
@@ -175,6 +177,7 @@ public:
     virtual esp_lcd_panel_handle_t __begin() override;
     virtual void FlushArea(int x1, int x2, int y1, int y2, int xpos) override;
     virtual void DisplayControl(uint8_t cmd) override;
+    virtual void DisplayControl(uint8_t cmd, uint32_t val) override;
     virtual void RectangleFilled(int x1, int y1, int x2, int y2, uint16_t color) override;
     virtual void Vline(int16_t x, int16_t y, int16_t w, uint16_t color) override;
     virtual void Hline(int16_t x, int16_t y, int16_t w, uint16_t hcolor) override;

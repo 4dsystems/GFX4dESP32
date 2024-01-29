@@ -29,7 +29,7 @@ void gfx4desp32_spi_panel_t::touch_Set(uint8_t mode) {
     digitalWrite(GFX4d_TOUCH_RESET, HIGH);
     if (mode == TOUCH_ENABLE) {
         if (I2CInit == false) {
-            if (Wire.begin(10, 9)) {
+            if (Wire.begin(10, 9, 400000)) {
                 I2CInit = true;
             }
             else {

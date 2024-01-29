@@ -11,4 +11,5 @@ It is recommended to use Workshop4 IDE to get the most of out the library functi
 ### Notes
 
 1. Workshop4 is a **Windows-only** application.
-2. This is tested against Arduino ESP32 Core version 2.0.13. It might also work with 2.0.14 or higher but if any issues occur, it is recommend to try to set the boards package version to 2.0.13. If the issue persists, please don't hesitate to [write an issue](https://github.com/4dsystems/GFX4dESP32/issues/new) or contact us directly.
+2. This is tested against Arduino ESP32 Core version `3.0.0-alpha3` and is planned to work for the official release of `3.0.0` and higher. In case of any issues, please don't hesitate to [write an issue](https://github.com/4dsystems/GFX4dESP32/issues/new) or contact us directly.
+3. This version is required when using 7-inch and 9-inch variants of 4D Systems' ESP32-S3 product line.

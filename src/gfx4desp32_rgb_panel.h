@@ -26,33 +26,56 @@
 
 
 struct esp_rgb_panel_t {
-    esp_lcd_panel_t base;                                         // Base class of generic lcd panel
-    int panel_id;                                                 // LCD panel ID
-    lcd_hal_context_t hal;                                        // Hal layer object
-    size_t data_width;                                            // Number of data lines (e.g. for RGB565, the data width is 16)
-    size_t sram_trans_align;                                      // Alignment for framebuffer that allocated in SRAM
-    size_t psram_trans_align;                                     // Alignment for framebuffer that allocated in PSRAM
-    int disp_gpio_num;                                            // Display control GPIO, which is used to perform action like "disp_off"
-    intr_handle_t intr;                                           // LCD peripheral interrupt handle
-    esp_pm_lock_handle_t pm_lock;                                 // Power management lock
-    size_t num_dma_nodes;                                         // Number of DMA descriptors that used to carry the frame buffer
-    uint8_t* fb;                                                  // Frame buffer
-    size_t fb_size;                                               // Size of frame buffer
-    int data_gpio_nums[SOC_LCD_RGB_DATA_WIDTH];                   // GPIOs used for data lines, we keep these GPIOs for action like "invert_color"
-    uint32_t src_clk_hz;                                          // Peripheral source clock resolution    
-    esp_lcd_rgb_timing_t timings;                                 // RGB timing parameters (e.g. pclk, sync pulse, porch width)
-    gdma_channel_handle_t dma_chan;                               // DMA channel handle
-    esp_lcd_rgb_panel_frame_trans_done_cb_t on_frame_trans_done;  // Callback, invoked after frame trans done
-    void* user_ctx;                                               // Reserved user's data of callback functions
-    int x_gap;                                                    // Extra gap in x coordinate, it's used when calculate the flush window
-    int y_gap;                                                    // Extra gap in y coordinate, it's used when calculate the flush window
-    int lcd_clk_flags;                                            // LCD clock calculation flag
+    esp_lcd_panel_t base;     // Base class of generic lcd panel
+    int panel_id;             // LCD panel ID
+    lcd_hal_context_t hal;    // Hal layer object
+    size_t data_width;        // Number of data lines
+    size_t fb_bits_per_pixel; // Frame buffer color depth, in bpp
+    size_t num_fbs;           // Number of frame buffers
+    size_t output_bits_per_pixel; // Color depth seen from the output data line. Default to fb_bits_per_pixel, but can be changed by YUV-RGB conversion
+    size_t sram_trans_align;  // Alignment for framebuffer that allocated in SRAM
+    size_t psram_trans_align; // Alignment for framebuffer that allocated in PSRAM
+    int disp_gpio_num;        // Display control GPIO, which is used to perform action like "disp_off"
+    intr_handle_t intr;       // LCD peripheral interrupt handle
+    esp_pm_lock_handle_t pm_lock; // Power management lock
+    size_t num_dma_nodes;     // Number of DMA descriptors that used to carry the frame buffer
+    //uint8_t *fb;
+    uint8_t* fbs[RGB_LCD_PANEL_MAX_FB_NUM]; // Frame buffers
+    size_t dummy1;
+    size_t dummy2;
+    uint8_t cur_fb_index;     // Current frame buffer index
+    uint8_t bb_fb_index;      // Current frame buffer index which used by bounce buffer
+    size_t fb_size;           // Size of frame buffer
+    int data_gpio_nums[16]; // GPIOs used for data lines, we keep these GPIOs for action like "invert_color"
+
+    uint32_t src_clk_hz;      // Peripheral source clock resolution    
+    esp_lcd_rgb_timing_t timings; // RGB timing parameters (e.g. pclk, sync pulse, porch width)
+    size_t bb_size;           // If not-zero, the driver uses two bounce buffers allocated from internal memory
+    int bounce_pos_px;        // Position in whatever source material is used for the bounce buffer, in pixels
+    uint8_t* bounce_buffer[RGB_LCD_PANEL_BOUNCE_BUF_NUM]; // Pointer to the bounce buffers
+    size_t bb_eof_count;      // record the number we received the DMA EOF event, compare with `expect_eof_count` in the VSYNC_END ISR
+    size_t expect_eof_count;  // record the number of DMA EOF event we expected to receive
+    gdma_channel_handle_t dma_chan; // DMA channel handle
+    esp_lcd_rgb_panel_vsync_cb_t on_vsync; // VSYNC event callback
+    esp_lcd_rgb_panel_bounce_buf_fill_cb_t on_bounce_empty; // callback used to fill a bounce buffer rather than copying from the frame buffer
+    esp_lcd_rgb_panel_bounce_buf_finish_cb_t on_bounce_frame_finish; // callback used to notify when the bounce buffer finish copying the entire frame
+    void* user_ctx;           // Reserved user's data of callback functions
+    int x_gap;                // Extra gap in x coordinate, it's used when calculate the flush window
+    int y_gap;                // Extra gap in y coordinate, it's used when calculate the flush window
+    portMUX_TYPE spinlock;    // to protect panel specific resource from concurrent access (e.g. between task and ISR)
+    int lcd_clk_flags;        // LCD clock calculation flags
+    int rotate_mask;          // panel rotate_mask mask, Or'ed of `panel_rotate_mask_t`
     struct {
-        unsigned int disp_en_level : 1;  // The level which can turn on the screen by `disp_gpio_num`
-        unsigned int stream_mode : 1;    // If set, the LCD transfers data continuously, otherwise, it stops refreshing the LCD when transaction done
-        unsigned int fb_in_psram : 1;    // Whether the frame buffer is in PSRAM
+        uint32_t disp_en_level : 1;       // The level which can turn on the screen by `disp_gpio_num`
+        uint32_t stream_mode : 1;         // If set, the LCD transfers data continuously, otherwise, it stops refreshing the LCD when transaction done
+        uint32_t fb_in_psram : 1;         // Whether the frame buffer is in PSRAM
+        uint32_t need_update_pclk : 1;    // Whether to update the PCLK before start a new transaction
+        uint32_t need_restart : 1;        // Whether to restart the LCD controller and the DMA
+        uint32_t bb_invalidate_cache : 1; // Whether to do cache invalidation in bounce buffer mode
     } flags;
-    dma_descriptor_t dma_nodes[];  // DMA descriptor pool of size `num_dma_nodes`
+    dma_descriptor_t* dma_links[RGB_LCD_PANEL_DMA_LINKS_REPLICA]; // fbs[0] <-> dma_links[0], fbs[1] <-> dma_links[1], etc
+    dma_descriptor_t dma_restart_node; // DMA descriptor used to restart the transfer
+    dma_descriptor_t dma_nodes[];      // DMA descriptors pool
 };
 
 struct Time
@@ -129,6 +152,7 @@ private:
     bool IOexpInit;
     int lasttxpos;
     char format[128];
+    bool frameBufferIData;
 
     uint8_t pinNum2bitNum[8] = { 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80 };
 
@@ -138,7 +162,8 @@ private:
                                      0x02, 0x03, 0x00, 0x01 };
 
     void __start_transmission();
-    
+    bool __lcd_rgb_panel_fill_bounce_buffer(uint8_t* buffer);
+
     void FlushArea(int y1, int y2, int xpos);
     uint8_t RTCread(uint8_t address);                           // read one byte from selected register
     void RTCwrite(uint8_t address, uint8_t data);               // write one byte of data to the register
@@ -183,6 +208,7 @@ public:
     virtual void WriteToFrameBuffer(uint32_t offset, uint8_t* data, uint32_t len) override;
     virtual void WriteToFrameBuffer(uint32_t offset, uint16_t* data, uint32_t len) override;
     virtual void DisplayControl(uint8_t cmd) override;
+    virtual void DisplayControl(uint8_t cmd, uint32_t val) override;
     virtual void RectangleFilled(int x1, int y1, int x2, int y2, uint16_t color) override;
     virtual void Vline(int16_t x, int16_t y, int16_t w, uint16_t color) override;
     virtual void Hline(int16_t x, int16_t y, int16_t w, uint16_t hcolor) override;

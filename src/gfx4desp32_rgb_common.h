@@ -29,7 +29,7 @@
 #define GEN4_RGB_PIN_NUM_DISP_EN        -1
 
 #define GEN4_RGB_H_RES                  800
-#define GEN4_RGB_V_RES                  481
+#define GEN4_RGB_V_RES                  480
 
 #define GEN4_RGB_SD_SCK                 12
 #define GEN4_RGB_SD_MISO                13

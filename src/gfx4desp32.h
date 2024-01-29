@@ -618,6 +618,7 @@ public:
 #endif
     virtual esp_lcd_panel_handle_t __begin() = 0;
     virtual void DisplayControl(uint8_t cmd) = 0;
+    virtual void DisplayControl(uint8_t cmd, uint32_t val) = 0;
     virtual void RectangleFilled(int x1, int y1, int x2, int y2,
         uint16_t color) = 0;
     virtual void Vline(int16_t x, int16_t y, int16_t w, uint16_t color) = 0;

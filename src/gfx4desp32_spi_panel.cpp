@@ -60,7 +60,7 @@ gfx4desp32_spi_panel::gfx4desp32_spi_panel(
     sd_miso = sd_gpio_MISO;
     sd_mosi = sd_gpio_MOSI;
     sd_cs = sd_gpio_CS;
-    // backlight = bk_pin;
+    backlight = bk_pin;
     v_res = vres;
     h_res = hres;
     __TImode = touchXinvert;
@@ -68,13 +68,17 @@ gfx4desp32_spi_panel::gfx4desp32_spi_panel(
 
 gfx4desp32_spi_panel::~gfx4desp32_spi_panel() {}
 
+void gfx4desp32_spi_panel::DisplayControl(uint8_t cmd, uint32_t val) {
+
+}
+
 void gfx4desp32_spi_panel::DisplayControl(uint8_t cmd) {
     switch (cmd) {
     case 1:
         esp_lcd_panel_reset(panel_handle);
         break;
     case 8:
-        FlushArea(0, __scrHeight - 1, -1);
+        FlushArea(0, __scrHeight, -1);
         break;
     }
 }
@@ -90,6 +94,7 @@ esp_lcd_panel_handle_t gfx4desp32_spi_panel::__begin() {
 
     ESP_LOGI(TAG, "Install SPI LCD panel driver");
 
+    displayBus = DISPLAY_BUS_SPI;
     spi_bus_config_t bus_config = {};
     bus_config.sclk_io_num = panelPin_CLK;  // CLK
     bus_config.mosi_io_num = panelPin_MOSI; // MOSI
@@ -98,7 +103,7 @@ esp_lcd_panel_handle_t gfx4desp32_spi_panel::__begin() {
     bus_config.quadhd_io_num = -1;          // Not used
 
     if (DisplayModel != GFX4d_DISPLAY_ILI9488) {
-        bus_config.max_transfer_sz = h_res * 50 * 2;
+        bus_config.max_transfer_sz = h_res * 54 * 2;
     }
     else {
         bus_config.max_transfer_sz = h_res * 22 * 3;
@@ -126,7 +131,7 @@ esp_lcd_panel_handle_t gfx4desp32_spi_panel::__begin() {
 
     esp_lcd_panel_dev_config_t panel_config = {};
     panel_config.reset_gpio_num = panelPin_RST;
-    panel_config.color_space = ESP_LCD_COLOR_SPACE_BGR;
+    panel_config.color_space = LCD_RGB_ENDIAN_BGR;
     panel_config.bits_per_pixel = 16;
     esp_lcd_new_panel_st7789(io_handle, &panel_config, &panel_handle);
 
@@ -171,11 +176,10 @@ esp_lcd_panel_handle_t gfx4desp32_spi_panel::__begin() {
                 InitData[n] = InitCommands[ic + 2 + n];
             }
             if (len != 0) {
-                ESP_ERROR_CHECK(
-                    esp_lcd_panel_io_tx_param(io_handle, command, InitData, len));
+                tx_param(command, InitData, len);
             }
             else {
-                ESP_ERROR_CHECK(esp_lcd_panel_io_tx_param(io_handle, command, NULL, 0));
+                tx_param(command, NULL, 0);
             }
             ic += (len + 2);
         }
@@ -200,7 +204,7 @@ esp_lcd_panel_handle_t gfx4desp32_spi_panel::__begin() {
         esp_lcd_panel_mirror(panel_handle, true, false);
     }
     ESP_LOGI(TAG, "Turn on LCD Backlight");
-    gpio_set_level((gpio_num_t)bk_config.pin, bk_config.on_level);
+    //gpio_set_level((gpio_num_t)bk_config.pin, bk_config.on_level);
 
     /*** Set some Initial variables ***/
     clipX1pos = 0;
@@ -222,9 +226,7 @@ esp_lcd_panel_handle_t gfx4desp32_spi_panel::__begin() {
     scroll_Y1 = 0;
     scroll_X2 = __width - 1;
     scroll_Y2 = __height - 1;
-
-    ledcSetup(backlight, 20000, 10);
-    ledcAttachPin(bk_config.pin, 1);
+    ledcAttach(backlight, 25000, 10);
 
     //Contrast(15);
 
@@ -237,6 +239,16 @@ esp_lcd_panel_handle_t gfx4desp32_spi_panel::__begin() {
     }
     DisplayType = DISP_INTERFACE_SPI;
     return panel_handle;
+}
+
+void gfx4desp32_spi_panel::tx_param(int32_t lcd_cmd, const void* param, size_t param_size)
+{
+    esp_lcd_panel_io_tx_param(io_handle, lcd_cmd, param, param_size);
+}
+
+void gfx4desp32_spi_panel::tx_color(int32_t lcd_cmd, const void* param, size_t param_size)
+{
+    esp_lcd_panel_io_tx_color(io_handle, lcd_cmd, param, param_size);
 }
 
 /****************************************************************************/
@@ -2421,7 +2433,25 @@ void gfx4desp32_spi_panel::AlphaBlendLevel(uint32_t alphaLevel) {
 
 void gfx4desp32_spi_panel::drawBitmap(int x1, int y1, int x2, int y2,
     uint16_t* c_data) {
-    esp_lcd_panel_draw_bitmap(panel_handle, x1, y1, x2, y2, &c_data);
+    draw_bitmap(x1, y1, x2, y2, c_data);
+}
+
+void gfx4desp32_spi_panel::draw_bitmap(int x1, int y1, int x2, int y2,
+    uint16_t* c_data) {
+    uint8_t command[10];
+    command[0] = (x1 >> 8) & 0xFF;
+    command[1] = x1 & 0xFF;
+    command[2] = ((x2 - 1) >> 8) & 0xFF;
+    command[3] = (x2 - 1) & 0xFF;
+    tx_param(ILI9488_CMD_COLUMN_ADDRESS_SET, command, 4);
+    command[0] = (y1 >> 8) & 0xFF;
+    command[1] = y1 & 0xFF;
+    command[2] = ((y2 - 1) >> 8) & 0xFF;
+    command[3] = (y2 - 1) & 0xFF;
+    tx_param(ILI9488_CMD_PAGE_ADDRESS_SET, command, 4);
+    // transfer frame buffer
+    size_t len = (x2 - x1) * (y2 - y1) * 2;
+    tx_color(ILI9488_CMD_MEMORY_WRITE, c_data, len);
 }
 
 void gfx4desp32_spi_panel::PinMode(byte pin, uint8_t mode) { pinMode(pin, mode); }

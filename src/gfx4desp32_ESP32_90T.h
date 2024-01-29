@@ -1,9 +1,9 @@
-#ifndef __GFX4D_43T__
-#define __GFX4D_43T__
+#ifndef __GFX4D_90T__
+#define __GFX4D_90T__
 
-#define DISPLAY_TOUCH_TYPE          DISP_TOUCH_RTP
-#define GEN4_43T_PIXEL_CLOCK_HZ     (16 * 1000 * 1000)
-#define GEN4_43T_SWAP_TOUCHY        0
+#define DISPLAY_TOUCH_TYPE DISP_TOUCH_RTP
+#define ESP32_90T_PIXEL_CLOCK_HZ (18 * 1000 * 1000) // was 14, 20 min in datasheet
+#define ESP32_90T_SWAP_TOUCHY 1
 
 #include "gfx4desp32_rgb_common.h"
 #include "gfx4desp32_rgb_panel_rt.h"
@@ -14,10 +14,10 @@
 #include "esp_err.h"
 #include "esp_log.h"
 
-
-class gfx4desp32_gen4_ESP32_43T : public gfx4desp32_rgb_panel_rt {
+class gfx4desp32_ESP32_90T : public gfx4desp32_rgb_panel_rt
+{
 private:
-    const char* TAG = "gfx4desp32_gen4_ESP32_43T";
+    const char* TAG = "gfx4desp32_ESP32_90T";
 
     int bk_pin = GEN4_RGB_PIN_NUM_BK_LIGHT;
     int bk_on_lvl = GEN4_RGB_BK_LIGHT_ON_LEVEL;
@@ -35,19 +35,19 @@ private:
     int touchCaly2 = 3650;
 
     esp_lcd_rgb_panel_config_t panel_config = {
-            .clk_src = LCD_CLK_SRC_PLL160M,//  LCD_CLK_SRC_DEFAULT,
-            .timings = {
-                .pclk_hz = GEN4_43T_PIXEL_CLOCK_HZ,
-                .h_res = GEN4_RGB_H_RES,
-                .v_res = GEN4_RGB_V_RES,
-                // The following parameters should refer to LCD spec
-                .hsync_pulse_width = 4,
-                .hsync_back_porch = 8,
-                .hsync_front_porch = 8,
-                .vsync_pulse_width = 4,
-                .vsync_back_porch = 8,
-                .vsync_front_porch = 8,
-                .flags = {
+        .clk_src = LCD_CLK_SRC_PLL160M,//  LCD_CLK_SRC_DEFAULT,
+        .timings = {
+            .pclk_hz = ESP32_90T_PIXEL_CLOCK_HZ,
+            .h_res = GEN4_RGB_H_RES,
+            .v_res = GEN4_RGB_V_RES,
+            // The following parameters should refer to LCD spec
+            .hsync_pulse_width = 50, //57,
+            .hsync_back_porch = 32, //32,
+            .hsync_front_porch = 1, //1,
+            .vsync_pulse_width = 1,
+            .vsync_back_porch = 33, //33,
+            .vsync_front_porch = 1, //1,
+            .flags = {
             //.hsync_idle_low = true,  //!< The hsync signal is low in IDLE state 
             .vsync_idle_low = true,  //!< The vsync signal is low in IDLE state 
             //.de_idle_high = true,    //!< The de signal is high in IDLE state 
@@ -82,21 +82,21 @@ private:
         GEN4_RGB_PIN_NUM_DATA12,
         GEN4_RGB_PIN_NUM_DATA13,
         GEN4_RGB_PIN_NUM_DATA14,
-        GEN4_RGB_PIN_NUM_DATA15,
+        GEN4_RGB_PIN_NUM_DATA15
     },
     .flags = {
             //.disp_active_low = true,
-            //.stream_mode = false,
             .refresh_on_demand = false,
             .fb_in_psram = true,  // allocate frame buffer in PSRAM
             .double_fb = false,
             //.no_fb = false,
-            //.bb_invalidate_cache = true,
+            .bb_invalidate_cache = true,
         }
     };
+
 public:
-    gfx4desp32_gen4_ESP32_43T();
-    ~gfx4desp32_gen4_ESP32_43T();
+    gfx4desp32_ESP32_90T();
+    ~gfx4desp32_ESP32_90T();
 };
 
-#endif  // __GFX4D_43T__
+#endif // __GFX4D_90T__
