@@ -130,7 +130,7 @@ private:
     int clipY1pos;
     int clipX2pos;
     int clipY2pos;
-    bool clippingON;
+    //bool clippingON;
     uint8_t writeBuffInitial = 1;
     int scroll_X1;
     int scroll_Y1;
@@ -215,7 +215,7 @@ public:
     virtual uint16_t ReadPixelFromFrameBuffer(uint16_t xrp, uint16_t yrp, uint8_t fb) override;
     virtual uint16_t ReadLine(int16_t x, int16_t y, int16_t w, uint16_t* data) override;
     virtual void WriteLine(int16_t x, int16_t y, int16_t w, uint16_t* data) override;
-    virtual void DrawFrameBuffer(uint8_t fbnum) override;
+        virtual void DrawFrameBuffer(uint8_t fbnum) override;
     virtual void DrawFrameBufferArea(uint8_t fbnum, int16_t ui) override;
     virtual void DrawFrameBufferArea(uint8_t fbnum, int16_t x1, int16_t y1, int16_t x2, int16_t y2) override;
     virtual void MergeFrameBuffers(uint8_t fbto, uint8_t fbfrom1, uint8_t fbfrom2, uint16_t transColor) override;
@@ -245,8 +245,8 @@ public:
     uint16_t __height;
     uint32_t __fbSize;
     bool I2CInit;
-    void ClipWindow(int x1, int y1, int x2, int y2);
-    void Clipping(bool clipping);
+    virtual void ClipWindow(int x1, int y1, int x2, int y2) override;
+    virtual void Clipping(bool clipping) override;
     void setScrollArea(int x1, int y1, int x2, int y2);
     void setScrollDirection(uint8_t scrDir);
     uint8_t* SelectFB(uint8_t sel);
@@ -256,6 +256,7 @@ public:
     uint8_t InitCommandsili[160];
     uint8_t InitCommands9488[160];
     uint8_t DisplayModel;
+    //bool clippingON;
     //uint32_t __alpha;
     //uint32_t __alphatemp;
     //uint16_t __colour;

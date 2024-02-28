@@ -640,8 +640,12 @@ void gfx4desp32_spi_panel::DrawFrameBufferArea(uint8_t fbnum, int16_t x1,
         x_end = __width - 1;
     if (y_end >= __height)
         y_end = __height - 1;
-    uint32_t s_width = x_end - x_start + 1;
-    uint32_t s_height = y_end - y_start + 1;
+    if (x_start < 0)
+        x_start = 0;
+    if (y_start < 0)
+        y_start = 0;        
+    int32_t s_width = x_end - x_start + 1;
+    int32_t s_height = y_end - y_start + 1;
     uint32_t pc = (y_start * __scrWidth) + (x_start << 1);
     int twidth;
     to += pc;
@@ -1761,6 +1765,14 @@ void gfx4desp32_spi_panel::ClipWindow(int x1, int y1, int x2, int y2) {
     clipY1pos = y1;
     clipX2pos = x2;
     clipY2pos = y2; // need to add check for out of bounds
+    if(clipX1pos > __width -1) clipX1pos = __width - 1;
+    if(clipX1pos < 0) clipX1pos = 0;
+    if(clipX2pos > __width -1) clipX2pos = __width - 1;
+    if(clipX2pos < 0) clipX2pos = 0;
+    if(clipY1pos > __height -1) clipY1pos = __height - 1;
+    if(clipY1pos < 0) clipY1pos = 0;
+    if(clipY2pos > __height -1) clipY2pos = __height - 1;
+    if(clipY2pos < 0) clipY2pos = 0;
 }
 
 /****************************************************************************/
@@ -2070,6 +2082,8 @@ void gfx4desp32_spi_panel::RectangleFilled(int x1, int y1, int x2, int y2,
         swap(x1, x2);
     if (y1 > y2)
         swap(y1, y2);
+    if (x1 >= __width || x2 < 0 || y1 >= __height || y2 < 0)
+        return;
     if (x1 < 0)
         x1 = 0;
     if (y1 < 0)

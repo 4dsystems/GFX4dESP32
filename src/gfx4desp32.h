@@ -32,6 +32,7 @@
 
 //**** Uncomment below if LittleFS File sysem is used instead of uSD ****
 // #define USE_LITTLEFS_FILE_SYSTEM
+//#define LITTLEFS_FORMAT_ON_FAIL
 
 //**** Uncomment below if SD_MMC File sysem is used instead of SdFat. Note, SPI is not available to user on RGB displays when SDMMC is enabled ****
 //#define USE_SDMMC_FILE_SYSTEM
@@ -43,12 +44,16 @@
 
 #ifdef USE_LITTLEFS_FILE_SYSTEM
 #include <LittleFS.h>
+#include <FS.h>
+#define gfx4d_font      File
 #else
 #ifdef USE_SDMMC_FILE_SYSTEM
 #include "SD_MMC.h"
 #include <FS.h>
+#define gfx4d_font      File
 #else   
 #include <SdFat.h>
+#define gfx4d_font      FsFile
 #endif
 #endif
 
@@ -65,8 +70,6 @@
 #define SPI_SDMMC_4BIT_DATA1    38
 #define SPI_SDMMC_4BIT_DATA3    39
 #define SPI_SDMMC_4BIT_CMD      40
-
-#define gfx4d_font      File
 
 #define SD_BUFF_SIZE    8 * 1024 // 102400
 
@@ -456,7 +459,7 @@ private:
     int16_t lastcacheHeight;
     char empty[2] = { 0, 0 };
     void TWstring2write(String istr);
-    int __gciCharWidth(char ch);
+    int __gciCharWidth(uint16_t ch);
 
     void __tempFont(int8_t f);
     void __tempFont(const uint8_t* f, bool compressed);
@@ -603,11 +606,28 @@ protected:
     };
 
 public:
+
+#ifdef USE_SDMMC_FILE_SYSTEM
     File dataFile;
     File dataFileDI;
     File userImag;
     File userDat;
     File Dwnload;
+#else
+#ifdef USE_LITTLEFS_FILE_SYSTEM
+    File dataFile;
+    File dataFileDI;
+    File userImag;
+    File userDat;
+    File Dwnload;
+#else
+    FsFile dataFile;
+    FsFile dataFileDI;
+    FsFile userImag;
+    FsFile userDat;
+    FsFile Dwnload;
+#endif
+#endif
 
     gfx4desp32();
     ~gfx4desp32();
@@ -657,7 +677,7 @@ public:
     virtual uint16_t ReadPixelFromFrameBuffer(uint16_t xrp, uint16_t yrp, uint8_t fb) = 0;
     virtual uint16_t ReadLine(int16_t x, int16_t y, int16_t w, uint16_t* data) = 0;
     virtual void WriteLine(int16_t x, int16_t y, int16_t w, uint16_t* data) = 0;
-    virtual void DrawFrameBuffer(uint8_t fbnum) = 0;
+        virtual void DrawFrameBuffer(uint8_t fbnum) = 0;
     virtual void DrawFrameBufferArea(uint8_t fbnum, int16_t ui) = 0;
     virtual void DrawFrameBufferArea(uint8_t fbnum, int16_t x1, int16_t y1, int16_t x2, int16_t y2) = 0;
     virtual void MergeFrameBuffers(uint8_t fbto, uint8_t fbfrom1, uint8_t fbfrom2, uint16_t transColor) = 0;
@@ -686,6 +706,8 @@ public:
     void ScrollEnable(bool sEn);
     int16_t getX(void);
     int16_t getY(void);
+    virtual void ClipWindow(int x1, int y1, int x2, int y2) = 0;
+    virtual void Clipping(bool clipping) = 0;
     void PutPixelAlpha(int x, int y, int32_t color, uint8_t alpha);
     void CircleFilled(int16_t xc, int16_t yc, int16_t r, uint16_t color);
     void Circle(int16_t xc, int16_t yc, int16_t r, uint16_t color);
@@ -703,7 +725,9 @@ public:
     void Line(int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint16_t color);
     void setGCIsystem(uint8_t gs);
     uint8_t getGCIsystem();
+    void AllocatePSRAMgciSpace(uint32_t datS, uint32_t gciS);
     virtual void Open4dGFX(String file4d);
+    void Open4dGFXtoPSRAM(String file4d);
     void Open4dGFX(const uint8_t* DATa, uint32_t DATlen, const uint8_t* GCIa, uint32_t GCIlen);
     gfx4d_font Open4dFont(String font4d);
     void SetMaxWidgets(int mw);
@@ -734,8 +758,8 @@ public:
     void newLine(int8_t f1, int8_t ts, uint16_t ux);
     void drawChar1(int16_t x, int16_t y, unsigned char c, uint16_t color, uint16_t bg, uint8_t sizew, uint8_t sizeht);
     void drawChar2(int16_t x, int16_t y, unsigned char c, uint16_t color, uint16_t bg, uint8_t sizew, uint8_t sizeht);
-    void drawChar4D(int16_t x, int16_t y, unsigned char c, uint16_t color, uint16_t bg, uint8_t sizew, uint8_t sizeht);
-    void drawChar4Dcmp(int16_t x, int16_t y, unsigned char c, uint16_t color, uint16_t bg, uint8_t sizew, uint8_t sizeht);
+    void drawChar4D(int16_t x, int16_t y, uint16_t c, uint16_t color, uint16_t bg, uint8_t sizew, uint8_t sizeht);
+    void drawChar4Dcmp(int16_t x, int16_t y, uint16_t c, uint16_t color, uint16_t bg, uint8_t sizew, uint8_t sizeht);
     void MoveTo(int16_t x, int16_t y);
     int8_t Font(void);
     void Font(uint8_t f);
@@ -860,6 +884,7 @@ public:
     bool ScreenCapture(int16_t x, int16_t y, int16_t w, int16_t h, String fname);
     void DrawToframebuffer(uint8_t fbnum);
     void SpriteAreaSet(uint16_t x, uint16_t y, uint16_t x1, uint16_t y1);
+    void SpriteUseFrameBufferBackground(int fbnum);
     void SetSprite(int num, bool active, int x, int y, uint16_t bscolor,
         uint16_t* sdata);
     void UpdateSprites(uint16_t bscolor, uint16_t* sdata);
@@ -889,12 +914,13 @@ public:
     void putstrXY(int xpos, int ypos, const char* strg);
     void putch(char chr);
     void putchXY(int xpos, int ypos, char chr);
-    int charWidth(char ch);
-    int charHeight(char ch);
+    int charWidth(uint16_t ch);
+    int charHeight(uint16_t ch);
     int strWidth(String ts);
     int strWidth(char* ts);
     int imageGetWord(uint16_t img, byte controlIndex);
     void imageSetWord(uint16_t img, byte controlIndex, int val1, int val2 = 0);
+    void imageShow(uint16_t uisnb);
     int16_t imageAutoSlider(uint16_t ui, uint8_t axis, uint16_t uiv,
         uint16_t ming, uint16_t maxg);
     int16_t imageAutoKnob(int hndl, int uix, int uiy, int minarc, int maxarc,
@@ -962,6 +988,8 @@ public:
     int8_t fsw;
     int8_t fno;
     gfx4d_font gciFont;
+    uint32_t utf8codepoint;
+    uint8_t utf8expLen;
     const uint8_t* fontPtr = NULL;
     const uint8_t* fntWidths = NULL;
     const uint8_t* fntData = NULL;
@@ -1001,6 +1029,12 @@ public:
     uint8_t* psRAMbuffer5;
     uint8_t* psRAMbuffer6;
     uint8_t* workbuffer;
+    uint8_t* cache_DAT;
+    uint8_t* cache_GCI;
+    uint32_t cache_DAT_size;
+    uint32_t cache_GCI_size;
+    uint32_t DAT_PSRAM_allocated = 0;
+    uint32_t GCI_PSRAM_allocated = 0;
     uint32_t screenArea;
     bool cache_Enabled;
     uint32_t cache_Start;
@@ -1034,11 +1068,13 @@ public:
     uint32_t __alpha;
     uint32_t __alphatemp;
     uint16_t __colour;
-    uint16_t lbuff[800];
     int grad1[21];
     int grad2[7];
     uint8_t gradON;
     bool gradientVert;
+    int SpriteBKGfbNUM;
+    bool clippingON;
+    uint16_t lbuff[800];
 };
 
 #endif
