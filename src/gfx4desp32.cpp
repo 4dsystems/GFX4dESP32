@@ -107,7 +107,11 @@ void gfx4desp32::begin(String ips, int pval, bool backLightStartOn) {
     twcurson = true; // set default text window cursor on
 
 #ifdef USE_LITTLEFS_FILE_SYSTEM // resolve File system method
+#ifdef LITTLEFS_FORMAT_ON_FAIL
+    if (LittleFS.begin(true))         // init flash file system
+#else
     if (LittleFS.begin())         // init flash file system
+#endif
     {
         sdok = true;
     }
@@ -175,18 +179,73 @@ size_t gfx4desp32::write(uint8_t c) {
         newLine(tempScroll, 1, 0);
         cursor_y -= tempScroll;
     }
+
     if (c != 10 && c != 13) {
         if (fno == 0 || fno == -1) {
+            uint16_t u16chr;
+
+            // First we build the Utf8 character
+            if (utf8expLen) {
+                // If we already started building the utf-8, we continue
+                // we can check this by checking expected length
+                if ((c & 0xC0) != 0x80) {
+                    // Invalid UTF-8 sequence, handle error or ignore
+                    utf8expLen = 0;
+                    utf8codepoint = 0;
+                    return 0; // Indicate failure
+                }
+                utf8codepoint = (utf8codepoint << 6) | (c & 0x3F);
+                utf8expLen--;
+                if (utf8expLen != 0) return 0; // not yet complete
+                u16chr = static_cast<uint16_t>(utf8codepoint);
+            }
+            else {
+                // Otherwise, let's figure out how many bytes to expect
+                if ((c & 0x80) == 0) {
+                    // If the character is ASCII, directly write its Unicode value
+                    u16chr = static_cast<uint16_t>(c);
+                }
+                else if ((c & 0xE0) == 0xC0) {
+                    utf8codepoint = c & 0x1F;
+                    utf8expLen = 1;
+                    return 0;
+                }
+                else if ((c & 0xF0) == 0xE0) {
+                    utf8codepoint = c & 0x0F;
+                    utf8expLen = 2;
+                    return 0;
+                }
+                else if ((c & 0xF8) == 0xF0) {
+                    utf8codepoint = c & 0x07;
+                    utf8expLen = 3;
+                    return 0;
+                }
+                else {
+                    // Invalid UTF-8 sequence, handle error or ignore
+                    return 0; // Indicate failure
+                }
+            }
+
+            if (wrap && (cursor_x > (width - textsize * (__gciCharWidth(u16chr) + 1)))) {
+                newLine(fsh, textsizeht, 0);
+            }
+
+            // draw character here
             if ((fno == -1) && fntCmprs) {
-                drawChar4Dcmp(cursor_x, cursor_y, c, textcolor, textbgcolor, textsize,
+                drawChar4Dcmp(cursor_x, cursor_y, u16chr, textcolor, textbgcolor, textsize,
                     textsizeht);
             }
             else {
-                drawChar4D(cursor_x, cursor_y, c, textcolor, textbgcolor, textsize,
+                drawChar4D(cursor_x, cursor_y, u16chr, textcolor, textbgcolor, textsize,
                     textsizeht);
             }
         }
         else if (c > 31 && c < 128) {
+
+            if (wrap && (cursor_x > (width - textsize * (charWidth(c) + 1)))) {
+                newLine(fsh, textsizeht, 0);
+            }
+
             if (fno == 1) {
                 drawChar1(cursor_x, cursor_y, c - 32, textcolor, textbgcolor, textsize,
                     textsizeht);
@@ -199,9 +258,9 @@ size_t gfx4desp32::write(uint8_t c) {
             cursor_x += textsize * (fsw + 1);
         }
 
-        if (wrap && (cursor_x > (width - textsize * (fsw + 1)))) {
-            newLine(fsh, textsizeht, 0);
-        }
+        // if (wrap && (cursor_x > (width - textsize * (fsw + 1)))) {
+        //     newLine(fsh, textsizeht, 0);
+        // }
     }
     return 1;
 }
@@ -461,7 +520,7 @@ void gfx4desp32::drawChar2(int16_t x, int16_t y, unsigned char c,
       function.
 */
 /****************************************************************************/
-void gfx4desp32::drawChar4D(int16_t x, int16_t y, unsigned char c,
+void gfx4desp32::drawChar4D(int16_t x, int16_t y, uint16_t c,
     uint16_t color, uint16_t bg, uint8_t sizew,
     uint8_t sizeht) {
 
@@ -504,7 +563,7 @@ void gfx4desp32::drawChar4D(int16_t x, int16_t y, unsigned char c,
         data = &fontPtr[offset + 2];
     }
 
-    if (cursor_x + _width > getWidth()) {
+    if (wrap && cursor_x + _width > getWidth()) {
         // if next character overflows, move to next line
         cursor_y += fsh;
         cursor_x = 0;
@@ -560,7 +619,7 @@ void gfx4desp32::drawChar4D(int16_t x, int16_t y, unsigned char c,
       function.
 */
 /****************************************************************************/
-void gfx4desp32::drawChar4Dcmp(int16_t x, int16_t y, unsigned char c,
+void gfx4desp32::drawChar4Dcmp(int16_t x, int16_t y, uint16_t c,
     uint16_t color, uint16_t bg, uint8_t sizew,
     uint8_t sizeht) {
 
@@ -600,7 +659,7 @@ void gfx4desp32::drawChar4Dcmp(int16_t x, int16_t y, unsigned char c,
         data++;
     }
 
-    if (cursor_x + width > getWidth()) {
+    if (wrap && cursor_x + width > getWidth()) {
         // if next character overflows, move to next line
         cursor_y += fsh;
         cursor_x = 0;
@@ -945,10 +1004,10 @@ void gfx4desp32::Rectangle(int16_t x, int16_t y, int16_t x1, int16_t y1,
         swap(x, x1);
     if (y > y1)
         swap(y, y1);
-    if (x < 0)
-        x = 0;
-    if (y < 0)
-        y = 0;
+    //if (x < 0)
+    //    x = 0;
+    //if (y < 0)
+    //    y = 0;
     int w = x1 - x + 1;
     int h = y1 - y + 1;
     Hline(x, y, w, color);
@@ -1034,11 +1093,11 @@ void gfx4desp32::CircleFilled(int16_t xc, int16_t yc, int16_t r,
 /****************************************************************************/
 void gfx4desp32::Ellipse(int16_t xe, int16_t ye, int16_t radx, int16_t rady,
     uint16_t color) {
-    bool needsEndWrite = StartWrite();
     if (radx < 2)
         return;
     if (rady < 2)
         return;
+    bool needsEndWrite = StartWrite();
     int16_t x, y;
     int32_t es;
     int32_t radxx = radx * radx;
@@ -1086,11 +1145,11 @@ void gfx4desp32::Ellipse(int16_t xe, int16_t ye, int16_t radx, int16_t rady,
 /****************************************************************************/
 void gfx4desp32::EllipseFilled(int16_t xe, int16_t ye, int16_t radx,
     int16_t rady, uint16_t color) {
-    bool needsEndWrite = StartWrite();
     if (radx < 2)
         return;
     if (rady < 2)
         return;
+    bool needsEndWrite = StartWrite();
     int16_t x, y;
     int32_t es;
     int32_t radxx = radx * radx;
@@ -1362,7 +1421,6 @@ void gfx4desp32::Triangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
 /****************************************************************************/
 void gfx4desp32::TriangleFilled(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
     int16_t x2, int16_t y2, uint16_t color) {
-    bool needsEndWrite = StartWrite();
     int16_t p0, p1, y, last;
     if (y0 > y1) {
         swap(y0, y1);
@@ -1389,6 +1447,7 @@ void gfx4desp32::TriangleFilled(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
         Hline(p0, y0, p1 - p0 + 1, color);
         return;
     }
+    bool needsEndWrite = StartWrite();
     int16_t xx01 = x1 - x0, yy01 = y1 - y0, xx02 = x2 - x0, yy02 = y2 - y0;
     int16_t xx12 = x2 - x1, yy12 = y2 - y1;
     int32_t z1 = 0, z2 = 0;
@@ -1432,6 +1491,80 @@ void gfx4desp32::TriangleFilled(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
 */
 /****************************************************************************/
 void gfx4desp32::SetMaxWidgets(int mw) { MAX_WIDGETS = mw; }
+
+/****************************************************************************/
+/*!
+  @brief  Allocate custom PSRAM space for gci & dat laoded into PSRAM.
+  @param  datS - size of dat file
+  @param  gciS - size of gci file
+  @note Open4DGFXtoPSRAM will automatically allocate the correct size of PSRAM
+        but if the gci & dat files are expected to change in the sketch progmatically
+        then it would be necessary to create space for the expected largest
+*/
+/****************************************************************************/
+void gfx4desp32::AllocatePSRAMgciSpace(uint32_t datS, uint32_t gciS) {
+    DAT_PSRAM_allocated = datS;
+    GCI_PSRAM_allocated = gciS;
+}
+
+/****************************************************************************/
+/*!
+  @brief  Open4dGFXtoPSRAM helper function to load uSD gci & dat to PSRAM
+  @param  file4d - previously selected filename
+  @note using this method for displaying uSD is very fast but care needs to taken
+        that gci & dat does not exceed available PSRAM. The project can still be
+        edited as normal in WS4 and graphics need to be saved to uSD. a 320 x 240
+        display can have as much as 6mB free PSRAM space wheras an 800 x 480 display
+        would have between 4 and 5 mB free.
+*/
+/****************************************************************************/
+void gfx4desp32::Open4dGFXtoPSRAM(String file4d) {
+    dat4d = file4d + ".dat";
+    gci4d = file4d + ".gci";
+#ifdef USE_LITTLEFS_FILE_SYSTEM
+    dat4d = "/" + dat4d;
+    gci4d = "/" + gci4d;
+    userDat = LittleFS.open((char*)dat4d.c_str(), "r");
+#else
+#ifdef USE_SDMMC_FILE_SYSTEM
+    userDat = SD_MMC.open(dat4d);
+#else
+    userDat = uSD.open(dat4d);
+#endif
+#endif
+    cache_DAT_size = userDat.size();
+    if (cache_DAT_size > 0) {
+        if (DAT_PSRAM_allocated > 0) {
+            cache_DAT = (uint8_t*)ps_malloc(DAT_PSRAM_allocated); // Create PSRAM cache space
+        }
+        else {
+            cache_DAT = (uint8_t*)ps_malloc(cache_DAT_size); // Create PSRAM cache space
+        }
+        userDat.read(cache_DAT, cache_DAT_size);
+    }
+    userDat.close();
+#ifdef USE_LITTLEFS_FILE_SYSTEM
+    userImag = LittleFS.open((char*)gci4d.c_str(), "r");
+#else
+#ifdef USE_SDMMC_FILE_SYSTEM
+    userImag = SD_MMC.open(gci4d);
+#else
+    userImag = uSD.open(gci4d);
+#endif
+#endif
+    cache_GCI_size = userImag.size();
+    if (cache_GCI_size > 0) {
+        if (GCI_PSRAM_allocated > 0) {
+            cache_GCI = (uint8_t*)ps_malloc(GCI_PSRAM_allocated); // Create PSRAM cache space
+        }
+        else {
+            cache_GCI = (uint8_t*)ps_malloc(cache_GCI_size); // Create PSRAM cache space
+        }
+        userImag.read(cache_GCI, cache_GCI_size);
+    }
+    userImag.close();
+    Open4dGFX(cache_DAT, cache_DAT_size, cache_GCI, cache_GCI_size);
+}
 
 /****************************************************************************/
 /*!
@@ -2112,6 +2245,20 @@ void gfx4desp32::UserImages(uint16_t uisnb, int16_t framenb) {
     else {
         DrawWidget(tuiIndex[uisnb], tuix[uisnb], tuiy[uisnb], tuiw[uisnb], tuih[uisnb], framenb, 0,
             true, cdv[uisnb]);
+    }
+    ScrollEnable(setemp);
+}
+
+void gfx4desp32::imageShow(uint16_t uisnb) {
+    boolean setemp = sEnable;
+    ScrollEnable(false);
+    if (gciobjframes[uisnb] > 0) {
+        DrawWidget(tuiIndex[uisnb], tuix[uisnb], tuiy[uisnb], tuiw[uisnb], tuih[uisnb], tuiImageIndex[uisnb], 0,
+            true, cdv[uisnb]);
+    }
+    else {
+        DrawWidget(tuiIndex[uisnb], tuix[uisnb], tuiy[uisnb], tuiw[uisnb], tuih[uisnb], 0, 0,
+            false, cdv[uisnb]);
     }
     ScrollEnable(setemp);
 }
@@ -4639,8 +4786,14 @@ bool gfx4desp32::ScreenCapture(int16_t x, int16_t y, int16_t w, int16_t h,
             tempfile.write(n);
         }
         for (o = 0; o < wline; o++) {
-            tempfile.write(sline[o] >> 8);
-            tempfile.write(sline[o]);
+            if (DisplayType == DISP_INTERFACE_RGB) {
+                tempfile.write(sline[o] >> 8);
+                tempfile.write(sline[o]);
+            }
+            else {
+                tempfile.write(sline[o]);
+                tempfile.write(sline[o] >> 8);
+            }
         }
     }
     tempfile.close();
@@ -4849,7 +5002,16 @@ void gfx4desp32::RectangleFilledX(int x0, int y0, int x1, int y1, int32_t color)
         DrawFrameBufferArea(fB, x0, y0, x1, y1);
     }
     else if (imageNum != -1) {
-        UserImageDR(imageNum, x0, y0, w, h, x0, y0);
+        ClipWindow(x0, y0, x1, y1);
+        int tclipx1, tclipy1, tclipx2, tclipy2;
+        bool tclippingON = clippingON;
+        tclipx1 = clipx1; tclipy1 = clipy1; tclipx2 = clipx2; tclipy2 = clipy2;
+        Clipping(ON);
+        imageShow(imageNum);
+        //UserImage(imageNum/*, imageGetWord(imageNum, IMAGE_INDEX)*/);
+        if (!tclippingON) Clipping(OFF);
+        clipx1 = tclipx1; clipy1 = tclipy1; clipx2 = tclipx2; clipy2 = tclipy2;
+        //UserImageDR(imageNum, x0, y0, w, h, x0, y0);
     }
     else {
         RectangleFilled(x0, y0, x1, y1, color);
@@ -4994,6 +5156,11 @@ void gfx4desp32::SpriteAreaSet(uint16_t x, uint16_t y, uint16_t x1,
     spriteArea[2] = x1;
     spriteArea[3] = y1;
     saSet = true;
+    if (SpriteBKGfbNUM) DrawFrameBufferArea(SpriteBKGfbNUM, x, y, x1, y1);
+}
+
+void gfx4desp32::SpriteUseFrameBufferBackground(int fbnum) {
+    SpriteBKGfbNUM = fbnum;
 }
 
 void gfx4desp32::SetSprite(int num, bool active, int x, int y, uint16_t bscolor,
@@ -5106,7 +5273,12 @@ void gfx4desp32::UpdateSprites(uint16_t bscolor, uint16_t* sdata) {
     for (int y = 0; y < spriteArea[3] - spriteArea[1] + 1; y++) {
         count = 0;
         for (int x = 0; x < spriteArea[2] - spriteArea[0] + 1; x++) {
-            wscolor = bscolor;
+            if (SpriteBKGfbNUM) {
+                wscolor = ReadPixelFromFrameBuffer(spriteArea[0] + x, spriteArea[1] + y, SpriteBKGfbNUM);
+            }
+            else {
+                wscolor = bscolor;
+            }
             collide = -1;
             for (int chk = 0; chk < numSprites; chk++) {
                 xo = spriteArea[0] + x;
@@ -5318,7 +5490,7 @@ void gfx4desp32::putchXY(int xpos, int ypos, char chr) {
     write(chr);
 }
 
-int gfx4desp32::__gciCharWidth(char ch) {
+int gfx4desp32::__gciCharWidth(uint16_t ch) {
     if (fno == 0) {
         gciFont.seek(ch * fsb + 8); // character offset 
         // (number of bytes per character * character value) +  8-byte header
@@ -5341,13 +5513,13 @@ int gfx4desp32::__gciCharWidth(char ch) {
     return fsw;
 }
 
-int gfx4desp32::charWidth(char ch) {
+int gfx4desp32::charWidth(uint16_t ch) {
     if (fno != 0 && fno != -1)
         return (fsw + 1) * textsize;
     return __gciCharWidth(ch);
 }
 
-int gfx4desp32::charHeight(char ch) { return fsh * textsize; }
+int gfx4desp32::charHeight(uint16_t ch) { return fsh * textsize; }
 
 int gfx4desp32::strWidth(String ts) {
     size_t len = ts.length();
