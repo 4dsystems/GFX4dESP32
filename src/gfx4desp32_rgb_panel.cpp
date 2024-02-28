@@ -815,14 +815,6 @@ void gfx4desp32_rgb_panel::WrGRAMs(uint8_t* color_data, uint32_t len) {
         wrGRAM = false;
         // CPU writes data to PSRAM through DCache, data in PSRAM might not get
         // updated, so write back
-        if (rotation == LANDSCAPE)
-            FlushArea(GRAMy1, GRAMy2, -1);
-        if (rotation == LANDSCAPE_R)
-            FlushArea(__scrHeight - GRAMy2 - 1, __scrHeight - GRAMy1 - 1, -1);
-        if (rotation == PORTRAIT_R)
-            FlushArea(GRAMx1, GRAMx2, -1);
-        if (rotation == PORTRAIT)
-            FlushArea(__scrHeight - GRAMx2 - 1, __scrHeight - GRAMx1 - 1, -1);
     }
 }
 
@@ -999,18 +991,6 @@ void gfx4desp32_rgb_panel::WrGRAMs(const uint8_t* color_data, uint32_t len) {
             }
         }
     }
-    if (GRAMypos > GRAMy2 && frame_buffer == 0) {
-        // CPU writes data to PSRAM through DCache, data in PSRAM might not get
-        // updated, so write back
-        if (rotation == LANDSCAPE)
-            FlushArea(GRAMy1, GRAMy2, -1);
-        if (rotation == LANDSCAPE_R)
-            FlushArea(__scrHeight - GRAMy2 - 1, __scrHeight - GRAMy1 - 1, -1);
-        if (rotation == PORTRAIT_R)
-            FlushArea(GRAMx1, GRAMx2, -1);
-        if (rotation == PORTRAIT)
-            FlushArea(__scrHeight - GRAMx2 - 1, __scrHeight - GRAMx1 - 1, -1);
-    }
 }
 
 /****************************************************************************/
@@ -1044,38 +1024,7 @@ void gfx4desp32_rgb_panel::FlushArea(int y1, int y2, int xpos) {
 */
 /****************************************************************************/
 void gfx4desp32_rgb_panel::FlushArea(int x1, int x2, int y1, int y2, int xpos) {
-    if (y1 < 0)
-        y1 = 0;
-    if (y2 > (__scrHeight - 1))
-        y2 = __scrHeight - 1;
-    if (x1 < 0)
-        x1 = 0;
-    if (x2 > ((__scrWidth >> 1) - 1))
-        x2 = (__scrWidth >> 1) - 1;
-    if (writeFBonly) { // just update flush area
-        if (y1 < low_Y)
-            low_Y = y1;
-        if (y2 > high_Y)
-            high_Y = y2;
-        if (x1 < low_X)
-            low_X = x1;
-        if (x2 > high_X)
-            high_X = x2;
-        flush_pending = true;
-        return;
-    }
-    if (y1 > y2)
-        swap(y1, y2);
-    if (y1 > (__height - 1) || x1 > (__width - 1)) {
-        flush_pending = false;
-        return;
-    }
-    int h = y2 - y1 + 1;
-    int w = x2 - x1 + 1;
-    uint32_t pc = (y1 * __scrWidth) + (x1 << 1);
-    uint8_t* pto = fb;
-    pto += pc;
-    flush_pending = false;
+    return; // left in for compatibility
 }
 
 /****************************************************************************/
@@ -1249,14 +1198,6 @@ void gfx4desp32_rgb_panel::WrGRAMs(uint16_t* color_data, uint32_t len) {
     if (pixelPos >= pixelCount &&
         frame_buffer == 0) { // if GRAM area is written to flush the area.
         wrGRAM = false;
-        if (rotation == LANDSCAPE)
-            FlushArea(GRAMy1, GRAMy2, -1);
-        if (rotation == LANDSCAPE_R)
-            FlushArea(__scrHeight - GRAMy2 - 1, __scrHeight - GRAMy1 - 1, -1);
-        if (rotation == PORTRAIT_R)
-            FlushArea(GRAMx1, GRAMx2, -1);
-        if (rotation == PORTRAIT)
-            FlushArea(__scrHeight - GRAMx2 - 1, __scrHeight - GRAMx1 - 1, -1);
     }
 }
 
@@ -1450,14 +1391,6 @@ void gfx4desp32_rgb_panel::WrGRAMs(uint32_t* color_data, uint16_t len) {
     if (pixelPos >= pixelCount &&
         frame_buffer == 0) { // if GRAM area is written to flush the area.
         wrGRAM = false;
-        if (rotation == LANDSCAPE)
-            FlushArea(GRAMy1, GRAMy2, -1);
-        if (rotation == LANDSCAPE_R)
-            FlushArea(__scrHeight - GRAMy2 - 1, __scrHeight - GRAMy1 - 1, -1);
-        if (rotation == PORTRAIT_R)
-            FlushArea(GRAMx1, GRAMx2, -1);
-        if (rotation == PORTRAIT)
-            FlushArea(__scrHeight - GRAMx2 - 1, __scrHeight - GRAMx1 - 1, -1);
     }
 }
 
@@ -1547,18 +1480,7 @@ void gfx4desp32_rgb_panel::pushColors(uint16_t* color_data, uint32_t len) {
             pixelPos++;
         }
     }
-    if (pixelPos >= pixelCount &&
-        frame_buffer == 0) { // if GRAM area fully written to, flush area
-        wrGRAM = false;
-        if (rotation == LANDSCAPE)
-            FlushArea(GRAMy1, GRAMy2, -1);
-        if (rotation == LANDSCAPE_R)
-            FlushArea(__scrHeight - GRAMy2 - 1, __scrHeight - GRAMy1 - 1, -1);
-        if (rotation == PORTRAIT_R)
-            FlushArea(GRAMx1, GRAMx2, -1);
-        if (rotation == PORTRAIT)
-            FlushArea(__scrHeight - GRAMx2 - 1, __scrHeight - GRAMx1 - 1, -1);
-    }
+    wrGRAM = false;
 }
 
 /****************************************************************************/
@@ -1646,18 +1568,7 @@ void gfx4desp32_rgb_panel::pushColors(uint8_t* color_data, uint32_t len) {
             pixelPos++;
         }
     }
-    if (pixelPos >= pixelCount &&
-        frame_buffer == 0) { // if GRAM area fully written to, flush area
-        wrGRAM = false;
-        if (rotation == LANDSCAPE)
-            FlushArea(GRAMy1, GRAMy2, -1);
-        if (rotation == LANDSCAPE_R)
-            FlushArea(__scrHeight - GRAMy2 - 1, __scrHeight - GRAMy1 - 1, -1);
-        if (rotation == PORTRAIT_R)
-            FlushArea(GRAMx1, GRAMx2, -1);
-        if (rotation == PORTRAIT)
-            FlushArea(__scrHeight - GRAMx2 - 1, __scrHeight - GRAMx1 - 1, -1);
-    }
+    wrGRAM = false;
 }
 
 void gfx4desp32_rgb_panel::pushColors(const uint8_t* color_data, uint32_t len) {
@@ -1731,14 +1642,6 @@ void gfx4desp32_rgb_panel::pushColors(const uint8_t* color_data, uint32_t len) {
     }
     if (GRAMypos > GRAMy2 && frame_buffer == 0) {
         wrGRAM = false;
-        if (rotation == LANDSCAPE)
-            FlushArea(GRAMy1, GRAMy2, -1);
-        if (rotation == LANDSCAPE_R)
-            FlushArea(__scrHeight - GRAMy2 - 1, __scrHeight - GRAMy1 - 1, -1);
-        if (rotation == PORTRAIT_R)
-            FlushArea(GRAMx1, GRAMx2, -1);
-        if (rotation == PORTRAIT)
-            FlushArea(__scrHeight - GRAMx2 - 1, __scrHeight - GRAMx1 - 1, -1);
     }
 }
 
@@ -1839,14 +1742,6 @@ void gfx4desp32_rgb_panel::WrGRAM(uint16_t color) {
     if (pixelPos >= pixelCount &&
         frame_buffer == 0) { // if GRAM area is written to flush the area.
         wrGRAM = false;
-        if (rotation == LANDSCAPE)
-            FlushArea(GRAMy1, GRAMy2, -1);
-        if (rotation == LANDSCAPE_R)
-            FlushArea(__scrHeight - GRAMy2 - 1, __scrHeight - GRAMy1 - 1, -1);
-        if (rotation == PORTRAIT_R)
-            FlushArea(GRAMx1, GRAMx2, -1);
-        if (rotation == PORTRAIT)
-            FlushArea(__scrHeight - GRAMx2 - 1, __scrHeight - GRAMx1 - 1, -1);
     }
 }
 
