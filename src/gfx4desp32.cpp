@@ -226,7 +226,8 @@ size_t gfx4desp32::write(uint8_t c) {
                 }
             }
 
-            if (wrap && (cursor_x > (width - textsize * (__gciCharWidth(u16chr) + 1)))) {
+            if (wrap && (cursor_x > (width - ((__gciCharWidth(u16chr) + 1))))) {
+            // if (wrap && (cursor_x > (width - (textsize * (__gciCharWidth(u16chr) + 1))))) {
                 newLine(fsh, textsizeht, 0);
             }
 
@@ -241,8 +242,8 @@ size_t gfx4desp32::write(uint8_t c) {
             }
         }
         else if (c > 31 && c < 128) {
-
-            if (wrap && (cursor_x > (width - textsize * (charWidth(c) + 1)))) {
+            //if (wrap && (cursor_x > (width - (textsize * (charWidth(c) + 1))))) {
+			if (wrap && (cursor_x > (width - charWidth(c)))) {
                 newLine(fsh, textsizeht, 0);
             }
 
@@ -5494,23 +5495,23 @@ int gfx4desp32::__gciCharWidth(uint16_t ch) {
     if (fno == 0) {
         gciFont.seek(ch * fsb + 8); // character offset 
         // (number of bytes per character * character value) +  8-byte header
-        return gciFont.read() << 8 | gciFont.read();
+        return textsize * (gciFont.read() << 8 | gciFont.read());
     }
     else if (fno == -1) {
         if (fntCmprs) {
             if (fontPtr[FONT_TYPE]) {
-                return fntData[(ch - fso) * fsb];
+                return textsize * fntData[(ch - fso) * fsb];
             }
             else {
-                return fsw;
+                return textsize * fsw;
             }
         }
         else {
             int i = ch * fsb + 8;
-            return fontPtr[i] << 8 | fontPtr[i + 1];
+            return textsize * (fontPtr[i] << 8 | fontPtr[i + 1]);
         }
     }
-    return fsw;
+    return textsize * fsw;
 }
 
 int gfx4desp32::charWidth(uint16_t ch) {
@@ -5522,27 +5523,83 @@ int gfx4desp32::charWidth(uint16_t ch) {
 int gfx4desp32::charHeight(uint16_t ch) { return fsh * textsize; }
 
 int gfx4desp32::strWidth(String ts) {
-    size_t len = ts.length();
-    if (fno != 0 && fno != -1)
-        return len * ((fsw + 1) * textsize);
-    int width = 0;
-    for (size_t i = 0; i < len; i++) {
-        width += __gciCharWidth(ts.charAt(i));
-    }
-    return width;
+    // size_t len = ts.length();
+    // if (fno != 0 && fno != -1)
+    //     return len * ((fsw + 1) * textsize);
+    // int width = 0;
+    // for (size_t i = 0; i < len; i++) {
+    //     width += __gciCharWidth(ts.charAt(i));
+    // }
+    // return width;
+    return strWidth(ts.c_str());
 }
 
-int gfx4desp32::strWidth(char* ts) {
+int gfx4desp32::strWidth(const char* ts) {
+    
+    // Serial0.printf("Getting width of \"%s\"\n", ts);
+
     size_t len = strlen(ts);
     if (fno != 0 && fno != -1)
         return len * ((fsw + 1) * textsize);
     int width = 0;
+    uint32_t utf8cp = 0;
+    uint8_t utf8len = 0;
+
+
     for (size_t i = 0; i < len; i++) {
-        width += __gciCharWidth(ts[i]);
+
+        char c = ts[i];
+        
+        uint16_t u16chr;
+        // First we build the Utf8 character
+        if (utf8len) {
+            // If we already started building the utf-8, we continue
+            // we can check this by checking expected length
+            if ((c & 0xC0) != 0x80) {
+                // Invalid UTF-8 sequence, handle error or ignore
+                utf8len = 0;
+                utf8cp = 0;
+                // return 0; // Indicate failure
+                continue;
+            }
+            utf8cp = (utf8cp << 6) | (c & 0x3F);
+            utf8len--;
+            if (utf8len != 0) continue; // not yet complete
+            u16chr = static_cast<uint16_t>(utf8cp);
+        }
+        else {
+            // Otherwise, let's figure out how many bytes to expect
+            if ((c & 0x80) == 0) {
+                // If the character is ASCII, directly write its Unicode value
+                u16chr = static_cast<uint16_t>(c);
+            }
+            else if ((c & 0xE0) == 0xC0) {
+                utf8cp = c & 0x1F;
+                utf8len = 1;
+                continue;
+            }
+            else if ((c & 0xF0) == 0xE0) {
+                utf8cp = c & 0x0F;
+                utf8len = 2;
+                continue;
+            }
+            else if ((c & 0xF8) == 0xF0) {
+                utf8cp = c & 0x07;
+                utf8len = 3;
+                continue;
+            }
+            else {
+                // Invalid UTF-8 sequence, handle error or ignore
+                // return 0; // Indicate failure
+                continue;
+            }
+        }
+
+        // draw character here
+        width += __gciCharWidth(u16chr);
     }
     return width;
 }
-
 void gfx4desp32::imageSetWord(uint16_t img, byte controlIndex, int val1,
     int val2) {
     switch (controlIndex) {

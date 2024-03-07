@@ -914,9 +914,9 @@ public:
     void putch(char chr);
     void putchXY(int xpos, int ypos, char chr);
     int charWidth(uint16_t ch);
-    int charHeight(uint16_t ch);
+    int charHeight(uint16_t ch = 0);
     int strWidth(String ts);
-    int strWidth(char* ts);
+    int strWidth(const char* ts);
     int imageGetWord(uint16_t img, byte controlIndex);
     void imageSetWord(uint16_t img, byte controlIndex, int val1, int val2 = 0);
     void imageShow(uint16_t uisnb);
