@@ -4,7 +4,7 @@
 #include "gfx4desp32_spi_panel_t.h"
 
 #define DISPLAY_TOUCH_TYPE DISP_TOUCH_CTP
-#define GEN4_24CT_SWAP_TOUCHX     0
+#define GEN4_24CT_SWAP_TOUCHX     1
 
 #define DISP_ILI9341
 
