@@ -54,7 +54,7 @@ private:
         .data_width = 16,  // RGB565 in parallel mode, thus 16bit in width
         .bits_per_pixel = 16,
         .num_fbs = 0,
-        .bounce_buffer_size_px = 20 * GEN4_RGB_H_RES,
+        .bounce_buffer_size_px = 10 * GEN4_RGB_H_RES,
         .sram_trans_align = 4,
         .psram_trans_align = 64,
         .hsync_gpio_num = GEN4_RGB_PIN_NUM_HSYNC,
