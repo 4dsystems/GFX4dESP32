@@ -9,7 +9,6 @@
 class gfx4desp32_qspi_panel_t : public gfx4desp32_spi_panel, public gfx4desp32_touch {
 private:
   const char* TAG = "gfx4desp32_qspi_panel_t";
-  bool touchFirstEnable = true;
 
 public:
   gfx4desp32_qspi_panel_t(int panel_Pin_CS, int panel_Pin_DC, int panel_Pin_MOSI,

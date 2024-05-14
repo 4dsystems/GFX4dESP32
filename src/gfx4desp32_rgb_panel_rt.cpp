@@ -4,8 +4,6 @@
 #define READSPLUS       READS + 10
 #define PRESS_TRIP      60000
 
-Preferences preferences;
-
 gfx4desp32_rgb_panel_rt::gfx4desp32_rgb_panel_rt(
     esp_lcd_rgb_panel_config_t* panel_config, int bk_pin, int bk_on_level,
     int bk_off_level, int sd_gpio_sck, int sd_gpio_miso, int sd_gpio_mosi,

@@ -3,6 +3,8 @@
 
 #include "gfx4desp32.h"
 
+#include <Preferences.h>
+
 class gfx4desp32_touch : virtual public gfx4desp32 {
 protected:
     long touchTime;
@@ -24,6 +26,10 @@ protected:
 
     bool touchYswap;
     bool touchXswap;
+
+    bool touchFirstEnable = true;
+
+    Preferences preferences;
 
 public:
     gfx4desp32_touch();

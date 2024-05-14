@@ -4,10 +4,6 @@
 #define READSPLUS       READS + 10
 #define PRESS_TRIP      60000
 
-#include <Preferences.h>
-
-Preferences preferences;
-
 gfx4desp32_qspi_panel_rt::gfx4desp32_qspi_panel_rt(
     int panel_Pin_CS, int panel_Pin_DC, int panel_Pin_MOSI, int panel_Pin_MISO,
     int panel_Pin_CLK, int panel_pin_QSPI, int panel_Pin_RST, int bk_pin, int bk_on_level,

@@ -1,9 +1,5 @@
 #include "gfx4desp32_qspi_panel_t.h"
 
-#include <Preferences.h>
-
-Preferences preferences;
-
 gfx4desp32_qspi_panel_t::gfx4desp32_qspi_panel_t(
     int panel_Pin_CS, int panel_Pin_DC, int panel_Pin_MOSI, int panel_Pin_MISO,
     int panel_Pin_CLK, int panel_pin_QSPI, int panel_Pin_RST, int bk_pin, int bk_on_level,
