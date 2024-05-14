@@ -4,10 +4,12 @@
 #define READSPLUS       READS + 10
 #define PRESS_TRIP      60000
 
+#include <Preferences.h>
+
 Preferences preferences;
 
 gfx4desp32_qspi_panel_rt::gfx4desp32_qspi_panel_rt(
-   int panel_Pin_CS, int panel_Pin_DC, int panel_Pin_MOSI, int panel_Pin_MISO,
+    int panel_Pin_CS, int panel_Pin_DC, int panel_Pin_MOSI, int panel_Pin_MISO,
     int panel_Pin_CLK, int panel_pin_QSPI, int panel_Pin_RST, int bk_pin, int bk_on_level,
     int bk_off_level, int sd_gpio_SCK, int sd_gpio_MISO, int sd_gpio_MOSI,
     int sd_gpio_CS, int hres, int vres, bool touchXinvert)
@@ -21,13 +23,53 @@ gfx4desp32_qspi_panel_rt::~gfx4desp32_qspi_panel_rt() {}
 
 /****************************************************************************/
 /*!
+  @brief  Enable / disable touch functions
+  @param  mode - TOUCH_ENABLE / TOUCH_DISABLE
+  @note   experimental
+*/
+/****************************************************************************/
+void gfx4desp32_qspi_panel_rt::touch_Set(uint8_t mode) {
+    if (mode == TOUCH_ENABLE) {
+        if (touchFirstEnable) {
+            pinMode(GFX4d_QSPI_TOUCH_RESET, OUTPUT);
+            pinMode(GFX4d_QSPI_TOUCH_INT, INPUT);
+            digitalWrite(GFX4d_QSPI_TOUCH_RESET, LOW);
+            delay(100);
+            digitalWrite(GFX4d_QSPI_TOUCH_RESET, HIGH);
+            if (I2CInit == false) {
+                if (Wire.begin(17, 18, 400000)) {
+                    I2CInit = true;
+                }
+                else {
+                }
+            }
+            preferences.begin("touchCal", false);
+            int testp = preferences.getShort("calibx1", 0);
+            if (testp != 0) {
+                calx1 = testp;
+                calx2 = preferences.getShort("calibx2", 0);
+                caly1 = preferences.getShort("caliby1", 0);
+                caly2 = preferences.getShort("caliby2", 0);
+            }
+            preferences.end();
+            touchFirstEnable = false;
+        }
+        _TouchEnable = true;
+    }
+    else {
+        _TouchEnable = false;
+    }
+}
+
+/****************************************************************************/
+/*!
   @brief  Update touch controller
   @note   if a touch event has occurred pen, xpos, ypos and images touched
           will be updated.
 */
 /****************************************************************************/
 bool gfx4desp32_qspi_panel_rt::touch_Update() {
-    bool intStatus = digitalRead(42);
+    bool intStatus = digitalRead(GFX4d_QSPI_TOUCH_INT);
     // *** if touch is not enable and no touch int or touch status is not no touch
     // then just return ***
     // *** need to create touch release state before no touch ***
@@ -449,10 +491,13 @@ void gfx4desp32_qspi_panel_rt::touchCalibration() {
             }
         }
         if (calsteps == 1) { // Exit or Redo
+            preferences.begin("touchCal", false);
+            preferences.clear();
             preferences.putShort("calibx1", calx1);
             preferences.putShort("calibx2", calx2);
             preferences.putShort("caliby1", caly1);
             preferences.putShort("caliby2", caly2);
+            preferences.end();
             return;
         }
     }

@@ -74,13 +74,15 @@
 
 #define GFX4d_TOUCH_RESET         0x0b
 #define GFX4d_TOUCH_INT           0x06
+#define GFX4d_QSPI_TOUCH_RESET    41
+#define GFX4d_QSPI_TOUCH_INT      42
 
 #define GFX4d_DISPLAY_ILI9341_ST7789  0x00
 #define GFX4d_DISPLAY_ILI9488         0x01
 
 #define GEN4_SPI_DISPLAY 
-#define GEN4_I2C_SDA			  10
-#define GEN4_I2C_SCL			  9
+#define GEN4_I2C_SDA              10
+#define GEN4_I2C_SCL              9
 
 #define LCD_OPCODE_WRITE_CMD      (0x02ULL)
 #define LCD_OPCODE_READ_CMD       (0x0BULL)
@@ -90,21 +92,21 @@
 
 struct lcd_init_cmd_t {
     uint8_t cmd;            // Command byte.
-    const uint8_t *param;   // Pointer to parameters.
+    const uint8_t* param;   // Pointer to parameters.
     uint8_t param_bytes;    // Bytes of parameters.
     uint16_t delay_ms;      // Delay in milliseconds after this command.
 };
 
 struct /*st7789_*/vendor_config_t {
-	const lcd_init_cmd_t* init_cmds;    ///*!< Pointer to initialization commands array.
+    const lcd_init_cmd_t* init_cmds;    ///*!< Pointer to initialization commands array.
     //                                             *   The array should be declared as `static const` and positioned outside the function.
     //                                             *   Please refer to `vendor_specific_init_default` in source file
     //                                             */
     uint16_t init_cmds_size;    /*<! Number of commands in above array */
     struct {
-        unsigned int quad_mode: 1;              // Set to 1 if use quad mode (4 data line).
-        unsigned int use_external_init_cmds: 1; // Set to 1 if use external initialization commands instead of internal default commands.
-		unsigned int use_qspi_interface: 1;     /*<! Set to 1 if use QSPI interface, default is SPI interface */
+        unsigned int quad_mode : 1;              // Set to 1 if use quad mode (4 data line).
+        unsigned int use_external_init_cmds : 1; // Set to 1 if use external initialization commands instead of internal default commands.
+        unsigned int use_qspi_interface : 1;     /*<! Set to 1 if use QSPI interface, default is SPI interface */
     } flags;
 };
 
@@ -146,17 +148,17 @@ private:
     int panel_VRES;
     int touchPin_SDA;
     int touchPin_SCL;
-	int panelPin_DATA0;
-	int panelPin_DATA1;
-	int panelPin_DATA2;
-	int panelPin_DATA3;
-	
-	uint8_t* init_cmds = NULL;
+    int panelPin_DATA0;
+    int panelPin_DATA1;
+    int panelPin_DATA2;
+    int panelPin_DATA3;
+
+    uint8_t* init_cmds = NULL;
 
     esp_lcd_panel_io_spi_config_t* io_config = NULL;
     esp_lcd_panel_dev_config_t* panel_config = NULL;
     spi_bus_config_t* bus_config = NULL;
-	vendor_config_t* vendor_config = NULL;
+    vendor_config_t* vendor_config = NULL;
 
     esp_lcd_panel_io_handle_t io_handle = NULL;
     esp_lcd_panel_handle_t panel_handle = NULL;
@@ -187,12 +189,7 @@ private:
     int clipY2pos;
     bool clippingON;
     uint8_t writeBuffInitial = 1;
-    int scroll_X1;
-    int scroll_Y1;
-    int scroll_X2;
-    int scroll_Y2;
     bool scroll_Enable;
-    uint8_t scroll_Direction;
     int32_t scroll_blanking;
     uint8_t scroll_speed;
     bool flush_pending;
@@ -215,22 +212,23 @@ private:
     uint8_t dispID[21];
     bool dispST7789;
     uint8_t dData[2];
-	
-	bool QSPI_Display;
-	uint8_t madctl_val;
-	char format[128];
 
-    uint8_t scroll_Directions[16] = { 0x00, 0x01, 0x02, 0x03,
-                                     0x01, 0x00, 0x03, 0x02,
+    bool QSPI_Display;
+    uint8_t madctl_val;
+    char format[128];
+    bool useRAM;
+
+    uint8_t scroll_Directions[16] = { 0x00, 0x01, 0x03, 0x02,
+                                     0x01, 0x00, 0x02, 0x03,
                                      0x02, 0x03, 0x01, 0x00,
                                      0x03, 0x02, 0x00, 0x01 };
 
     void FlushArea(int y1, int y2, int xpos);
-	void tx_param(int32_t lcd_cmd, const void *param, size_t param_size);
-	void tx_color(int32_t lcd_cmd, const void *param, size_t param_size);
-	void QSPI_mirror(bool mirror_x, bool mirror_y);
+    void tx_param(int32_t lcd_cmd, const void* param, size_t param_size);
+    void tx_color(int32_t lcd_cmd, const void* param, size_t param_size);
+    void QSPI_mirror(bool mirror_x, bool mirror_y);
     void QSPI_swap_xy(bool swap_axes);
-	uint8_t RTCread(uint8_t address);                           // read one byte from selected register
+    uint8_t RTCread(uint8_t address);                           // read one byte from selected register
     void RTCwrite(uint8_t address, uint8_t data);               // write one byte of data to the register
     void RTCwrite_OR(uint8_t address, uint8_t data);            // write data to the register using OR operations
     void RTCwrite_AND(uint8_t address, uint8_t data);           // write data to the register using AND operation
@@ -257,9 +255,8 @@ private:
         Timer_control = 0x0E,
         Timer = 0x0F,
     };
-	
+
 protected:
-    // uint8_t touchType;
     int touchXraw;
     int touchYraw;
 
@@ -270,7 +267,7 @@ public:
     virtual esp_lcd_panel_handle_t __begin() override;
     virtual void FlushArea(int x1, int x2, int y1, int y2, int xpos) override;
     virtual void DisplayControl(uint8_t cmd) override;
-	virtual void DisplayControl(uint8_t cmd, uint32_t val) override;
+    virtual void DisplayControl(uint8_t cmd, uint32_t val) override;
     virtual void RectangleFilled(int x1, int y1, int x2, int y2, uint16_t color) override;
     virtual void Vline(int16_t x, int16_t y, int16_t w, uint16_t color) override;
     virtual void Hline(int16_t x, int16_t y, int16_t w, uint16_t hcolor) override;
@@ -305,7 +302,7 @@ public:
     virtual void AlphaBlend(bool alphablend) override;
     virtual void AlphaBlendLevel(uint32_t alphaLevel) override;
     virtual uint16_t ReadPixel(uint16_t xrp, uint16_t yrp) override;
-	virtual uint16_t ReadPixelFromFrameBuffer(uint16_t xrp, uint16_t yrp, uint8_t fb) override;
+    virtual uint16_t ReadPixelFromFrameBuffer(uint16_t xrp, uint16_t yrp, uint8_t fb) override;
     virtual uint16_t ReadLine(int16_t x, int16_t y, int16_t w, uint16_t* data) override;
     virtual void WriteLine(int16_t x, int16_t y, int16_t w, uint16_t* data) override;
     virtual void DrawFrameBuffer(uint8_t fbnum) override;
@@ -315,16 +312,16 @@ public:
     virtual void MergeFrameBuffers(uint8_t fbto, uint8_t fbfrom1, uint8_t fbfrom2, uint8_t fbfrom3, uint16_t transColor, uint16_t transColor1) override;
     // virtual void drawBitmap(int x1, int y1, int x2, int y2, uint16_t* c_data) override;
     virtual void CopyFrameBuffer(uint8_t fbto, uint8_t fbfrom1) override;
-	virtual void CopyFrameBufferLine(int16_t x, int16_t y, int16_t w, int fb) override;
+    virtual void CopyFrameBufferLine(int16_t x, int16_t y, int16_t w, int fb) override;
     void drawBitmap(int x1, int y1, int x2, int y2, uint16_t* c_data);
-	void draw_bitmap(int x1, int y1, int x2, int y2, uint16_t* c_data);
+    void draw_bitmap(int x1, int y1, int x2, int y2, uint16_t* c_data);
     virtual void PinMode(byte pin, uint8_t mode) override;
     virtual void DigitalWrite(byte pin, bool state) override;
     virtual int DigitalRead(byte pin) override;
     virtual void WriteToFrameBuffer(uint32_t offset, uint8_t* data, uint32_t len) override;
     virtual void WriteToFrameBuffer(uint32_t offset, uint16_t* data, uint32_t len) override;
-	virtual void AllocateFB(uint8_t sel) override;
-	virtual void AllocateDRcache(uint32_t cacheSize) override;
+    virtual void AllocateFB(uint8_t sel) override;
+    virtual void AllocateDRcache(uint32_t cacheSize) override;
     int rotation;
     void* wb = NULL;
     int32_t __scrWidth;
@@ -344,7 +341,7 @@ public:
     void setScrollDirection(uint8_t scrDir);
     uint8_t* SelectFB(uint8_t sel);
     virtual uint8_t* SelectINIT(bool sel) = 0;
-	void RTCinit();                     // initialize the chip
+    void RTCinit();                     // initialize the chip
     void RTCstopClock();                // stop the clock
     void RTCstartClock();               // start the clock
     void RTCsetYear(uint16_t year);     // set year
@@ -360,12 +357,12 @@ public:
     uint8_t InitCommandsST[160];
     uint8_t InitCommandsili[160];
     uint8_t InitCommands9488[160];
-	uint8_t InitCommandsNV[320];
+    uint8_t InitCommandsNV[320];
     uint8_t DisplayModel;
     //uint32_t __alpha;
     //uint32_t __alphatemp;
     //uint16_t __colour;
-	int calx1, calx2, caly1, caly2;
+    int calx1, calx2, caly1, caly2;
 };
 
 #endif  // __GFX4D_SPI_PANEL__

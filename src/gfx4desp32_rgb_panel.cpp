@@ -2,7 +2,7 @@
 
 #define swap(a, b)                                                             \
     {                                                                          \
-        int16_t tab = a;                                                       \
+        int32_t tab = a;                                                       \
         a = b;                                                                 \
         b = tab;                                                               \
     }
@@ -30,10 +30,11 @@
 #include "rom/cache.h"
 #include "esp_rom_gpio.h"
 
+
 gfx4desp32_rgb_panel::gfx4desp32_rgb_panel(
     esp_lcd_rgb_panel_config_t* panel_config, int bk_pin, int bk_on_level,
     int bk_off_level, int sd_gpio_sck, int sd_gpio_miso, int sd_gpio_mosi,
-    int sd_gpio_cs, bool touchYinvert, uint8_t tType)
+    int sd_gpio_cs, bool touchYinvert)
     : gfx4desp32() {
 
     this->panel_config = panel_config;
@@ -57,6 +58,9 @@ void gfx4desp32_rgb_panel::DisplayControl(uint8_t cmd, uint32_t val) {
         rgb_panel->flags.need_update_pclk = true;
         rgb_panel->timings.pclk_hz = val;
         portEXIT_CRITICAL(&rgb_panel->spinlock);
+        break;
+    case DISP_CTRL_BOUNCE_BUFFER_SIZE: // setting to OPTIMAL or MAX improves Wifi compatibility
+        BB_Size = val;
         break;
     }
 }
@@ -128,7 +132,9 @@ void gfx4desp32_rgb_panel::DisplayControl(uint8_t cmd) {
 
 
 esp_lcd_panel_handle_t gfx4desp32_rgb_panel::__begin() {
-
+    if (BB_Size != -1) {
+        panel_config->bounce_buffer_size_px = BB_Size;
+    }
     digitalWrite(bk_config.pin, LOW);
     ESP_LOGI(TAG, "Install RGB LCD panel driver");
 
@@ -183,6 +189,7 @@ esp_lcd_panel_handle_t gfx4desp32_rgb_panel::__begin() {
     PinMode(GFX4d_TOUCH_INT, INPUT);
     IOexpInit = true;
     DisplayType = DISP_INTERFACE_RGB;
+
     return panel_handle;
 }
 
@@ -280,14 +287,14 @@ void gfx4desp32_rgb_panel::panelOrientation(uint8_t r) {
         Clipping(1);
         Clipping(0);
         __width = rgb_panel->timings.h_res;
-        __height = rgb_panel->timings.v_res - 1;
+        __height = rgb_panel->timings.v_res;
     }
     else {
         ClipWindow(0, 0, (int)rgb_panel->timings.v_res - 1,
             (int)rgb_panel->timings.h_res - 1);
         Clipping(1);
         Clipping(0);
-        __width = rgb_panel->timings.v_res - 1;
+        __width = rgb_panel->timings.v_res;
         __height = rgb_panel->timings.h_res;
     }
     clippingON = false;
@@ -296,6 +303,8 @@ void gfx4desp32_rgb_panel::panelOrientation(uint8_t r) {
     scroll_Y1 = 0;
     scroll_X2 = __width - 1;
     scroll_Y2 = __height - 1;
+    textXmin = scroll_X1;
+    textXmax = scroll_X2;
 }
 
 /**********************************************************************/
@@ -1884,9 +1893,9 @@ void gfx4desp32_rgb_panel::CopyFrameBufferLine(int16_t x, int16_t y, int16_t w,
         w = clipX2 - x;
     uint8_t cb = GetFrameBuffer();
     DrawToframebuffer(Fb);
-    ReadLine(x, y, w, lbuff);
+    ReadLine(x, y, w, linebuff);
     DrawToframebuffer(cb);
-    WriteLine(x, y, w, lbuff);
+    WriteLine(x, y, w, linebuff);
 }
 
 
@@ -1909,8 +1918,8 @@ void gfx4desp32_rgb_panel::WriteLine(int16_t x, int16_t y, int16_t w,
         w -= clipX1 - x;
         x = clipX1;
     }
-    if ((x + w - 1) >= clipX2)
-        w = clipX2 - x;
+    if ((x + w - 1) > clipX2)
+        w = clipX2 - x + 1;
     uint8_t* tpto = SelectFB(frame_buffer);
     uint8_t* pto;
     uint8_t colM, colL;
@@ -2103,14 +2112,30 @@ void gfx4desp32_rgb_panel::setScrollArea(int x1, int y1, int x2, int y2) {
     scroll_Y1 = y1;
     scroll_X2 = x2;
     scroll_Y2 = y2;
-    if (scroll_X1 < 0)
-        scroll_X1 = 0;
-    if (scroll_X2 > __width - 1)
-        scroll_X2 = __width - 1;
-    if (scroll_Y1 < 0)
-        scroll_Y1 = 0;
-    if (scroll_Y2 > __height - 1)
-        scroll_Y2 = __height - 1;
+    if (rotation < 2) {
+        if (scroll_X1 < 0)
+            scroll_X1 = 0;
+        if (scroll_X2 > (int)rgb_panel->timings.h_res - 1)
+            scroll_X2 = (int)rgb_panel->timings.h_res - 1;
+        if (scroll_Y1 < 0)
+            scroll_Y1 = 0;
+        if (scroll_Y2 > (int)rgb_panel->timings.v_res - 1)
+            scroll_Y2 = (int)rgb_panel->timings.v_res - 1;
+    }
+    else {
+        if (scroll_X1 < 0)
+            scroll_X1 = 0;
+        if (scroll_X2 > (int)rgb_panel->timings.v_res - 1)
+            scroll_X2 = (int)rgb_panel->timings.v_res - 1;
+        if (scroll_Y1 < 0)
+            scroll_Y1 = 0;
+        if (scroll_Y2 > (int)rgb_panel->timings.h_res - 1)
+            scroll_Y2 = (int)rgb_panel->timings.h_res - 1;
+    }
+    textXmin = scroll_X1;
+    textXmax = scroll_X2;
+    cursor_x = scroll_X1;
+    cursor_y = scroll_Y1;
 }
 
 /****************************************************************************/
@@ -2136,6 +2161,8 @@ void gfx4desp32_rgb_panel::setScrollArea(int y1, int y2) {
         scroll_Y1 = 0;
     if (scroll_Y2 > __height - 1)
         scroll_Y2 = __height - 1;
+    textXmin = scroll_X1;
+    textXmax = scroll_X2;
 }
 
 /****************************************************************************/

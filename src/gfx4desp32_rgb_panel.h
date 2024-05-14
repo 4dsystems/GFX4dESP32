@@ -133,12 +133,8 @@ private:
     int clipY2pos;
     //bool clippingON;
     uint8_t writeBuffInitial = 1;
-    int scroll_X1;
-    int scroll_Y1;
-    int scroll_X2;
-    int scroll_Y2;
     bool scroll_Enable;
-    uint8_t scroll_Direction;
+    //uint8_t scroll_Direction;
     int32_t scroll_blanking;
     uint8_t scroll_speed;
     bool flush_pending;
@@ -156,7 +152,7 @@ private:
 
     uint8_t pinNum2bitNum[8] = { 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80 };
 
-    uint8_t scroll_Directions[16] = { 0x00, 0x01, 0x03, 0x03,
+    uint8_t scroll_Directions[16] = { 0x00, 0x01, 0x03, 0x02,
                                      0x01, 0x00, 0x02, 0x03,
                                      0x03, 0x02, 0x01, 0x00,
                                      0x02, 0x03, 0x00, 0x01 };
@@ -194,13 +190,12 @@ private:
     };
 
 protected:
-    // uint8_t touchType;
     int touchXraw;
     int touchYraw;
 
 
 public:
-    gfx4desp32_rgb_panel(esp_lcd_rgb_panel_config_t* panel_config, int bk_pin = DEFAULT_PIN_NUM_BK_LIGHT, int bk_on_level = DEFAULT_BK_LIGHT_ON_LEVEL, int bk_off_level = DEFAULT_BK_LIGHT_OFF_LEVEL, int sd_gpio_SCK = DEFAULT_SD_SCK, int sd_gpio_MISO = DEFAULT_SD_MISO, int sd_gpio_MOSI = DEFAULT_SD_MOSI, int sd_gpio_CS = DEFAULT_SD_CS, bool touchYinvert = false, uint8_t tType = DISP_TOUCH_CTP);
+    gfx4desp32_rgb_panel(esp_lcd_rgb_panel_config_t* panel_config, int bk_pin = DEFAULT_PIN_NUM_BK_LIGHT, int bk_on_level = DEFAULT_BK_LIGHT_ON_LEVEL, int bk_off_level = DEFAULT_BK_LIGHT_OFF_LEVEL, int sd_gpio_SCK = DEFAULT_SD_SCK, int sd_gpio_MISO = DEFAULT_SD_MISO, int sd_gpio_MOSI = DEFAULT_SD_MOSI, int sd_gpio_CS = DEFAULT_SD_CS, bool touchYinvert = false);
     ~gfx4desp32_rgb_panel();
     //esp_lcd_panel_handle_t begin();
     virtual esp_lcd_panel_handle_t __begin() override;
@@ -246,7 +241,7 @@ public:
     virtual uint16_t ReadPixelFromFrameBuffer(uint16_t xrp, uint16_t yrp, uint8_t fb) override;
     virtual uint16_t ReadLine(int16_t x, int16_t y, int16_t w, uint16_t* data) override;
     virtual void WriteLine(int16_t x, int16_t y, int16_t w, uint16_t* data) override;
-        virtual void DrawFrameBuffer(uint8_t fbnum) override;
+    virtual void DrawFrameBuffer(uint8_t fbnum) override;
     virtual void DrawFrameBufferArea(uint8_t fbnum, int16_t ui) override;
     virtual void DrawFrameBufferArea(uint8_t fbnum, int16_t x1, int16_t y1, int16_t x2, int16_t y2) override;
     virtual void MergeFrameBuffers(uint8_t fbto, uint8_t fbfrom1, uint8_t fbfrom2, uint16_t transColor) override;
@@ -290,6 +285,7 @@ public:
     bool RTCcheckClockIntegrity();      // check clock integrity
     const char* RTCformatDateTime(uint8_t sytle);
     int calx1, calx2, caly1, caly2;
+    int touchType;
     //bool clippingON;
     //uint32_t __alpha;
     //uint32_t __alphatemp;

@@ -2,7 +2,7 @@
 
 #define swap(a, b)                                                              \
     {                                                                           \
-        int16_t tab = a;                                                        \
+        int32_t tab = a;                                                        \
         a = b;                                                                  \
         b = tab;                                                                \
     }
@@ -84,6 +84,8 @@ void gfx4desp32::begin(String ips, int pval, bool backLightStartOn) {
     scrollAreaY0 = 0; // set initial scroll area to maximum height - used for auto
     // scroll if enabled
     scrollAreaY1 = height - 1;
+    textXmin = 0;
+    textXmax = width - 1;
     _nlh = height; // set newline cut-off point for autoscroll to maximum height
     Cls();         // clear the screen
     rotation = 0;  // set rotation variable to match initial orientation
@@ -164,7 +166,7 @@ void gfx4desp32::begin(String ips, int pval, bool backLightStartOn) {
 /****************************************************************************/
 size_t gfx4desp32::write(uint8_t c) {
     if (nl)
-        newLine(lastfsh, lastsizeht, 0);
+        newLine(lastfsh, lastsizeht, textXmin);
     if (c == 10) {
         nl = true;
         lastfsh = fsh;
@@ -172,11 +174,14 @@ size_t gfx4desp32::write(uint8_t c) {
         lastsizeht = textsizeht;
     }
     if (c == 13) {
-        cursor_x = 0;
+        cursor_x = textXmin;
     }
-    if ((cursor_y + (fsh * textsizeht)) > getScrollareaY1() && sEnable) {
-        int tempScroll = (cursor_y + (fsh * textsizeht)) - getScrollareaY1();
-        newLine(tempScroll, 1, 0);
+    int tw;
+    int tempHeight = fsh * textsizeht;
+
+    if ((cursor_y + tempHeight) > getScrollareaY1() && sEnable) {
+        int tempScroll = (cursor_y + tempHeight) - getScrollareaY1();
+        newLine(tempScroll, 1, textXmin);
         cursor_y -= tempScroll;
     }
 
@@ -225,12 +230,10 @@ size_t gfx4desp32::write(uint8_t c) {
                     return 0; // Indicate failure
                 }
             }
-
-            if (wrap && (cursor_x > (width - ((__gciCharWidth(u16chr) + 1))))) {
-            // if (wrap && (cursor_x > (width - (textsize * (__gciCharWidth(u16chr) + 1))))) {
-                newLine(fsh, textsizeht, 0);
+            tw = __gciCharWidth(u16chr) + 1;
+            if (wrap && (cursor_x > (textXmax - tw))) {
+                newLine(fsh, textsizeht, textXmin);
             }
-
             // draw character here
             if ((fno == -1) && fntCmprs) {
                 drawChar4Dcmp(cursor_x, cursor_y, u16chr, textcolor, textbgcolor, textsize,
@@ -242,11 +245,10 @@ size_t gfx4desp32::write(uint8_t c) {
             }
         }
         else if (c > 31 && c < 128) {
-            //if (wrap && (cursor_x > (width - (textsize * (charWidth(c) + 1))))) {
-			if (wrap && (cursor_x > (width - charWidth(c)))) {
-                newLine(fsh, textsizeht, 0);
+            tw = charWidth(c) + 1;
+            if (wrap && (cursor_x > (textXmax - tw))) {
+                newLine(fsh, textsizeht, textXmin);
             }
-
             if (fno == 1) {
                 drawChar1(cursor_x, cursor_y, c - 32, textcolor, textbgcolor, textsize,
                     textsizeht);
@@ -259,9 +261,9 @@ size_t gfx4desp32::write(uint8_t c) {
             cursor_x += textsize * (fsw + 1);
         }
 
-        // if (wrap && (cursor_x > (width - textsize * (fsw + 1)))) {
-        //     newLine(fsh, textsizeht, 0);
-        // }
+        //if (wrap && (cursor_x > (width - tw))) {
+        //    newLine(fsh, textsizeht, textXmax);
+        //}
     }
     return 1;
 }
@@ -277,13 +279,13 @@ size_t gfx4desp32::write(uint8_t c) {
     character occupies the last line.
 */
 /****************************************************************************/
-void gfx4desp32::newLine(int8_t f1, int8_t ts, uint16_t ux) {
+void gfx4desp32::newLine(int f1, int ts, int ux) {
     fsh1 = f1;
     int ScrollDist;
     nl = false;
-    uint16_t remspc = ts * fsh1;
+    int remspc = ts * fsh1;
     cursor_y += remspc;
-    if (sEnable) {
+    if (sEnable && scroll_Direction == 0) {
         if (cursor_y + remspc > getScrollareaY1()) {
             ScrollDist = (cursor_y + remspc) - getScrollareaY1();
             if (ScrollDist > 0)
@@ -292,6 +294,7 @@ void gfx4desp32::newLine(int8_t f1, int8_t ts, uint16_t ux) {
             cursor_y = getScrollareaY1() - remspc;
         }
     }
+
     cursor_x = ux;
     lastfsh = remspc;
 }
@@ -693,7 +696,7 @@ void gfx4desp32::drawChar4Dcmp(int16_t x, int16_t y, uint16_t c,
                         PutPixel(_x, _y, bg);
                     }
                     else {
-                        RectangleFilled(_x, _y, x + sizew - 1, y + sizeht - 1, bg);
+                        RectangleFilled(_x, _y, _x + sizew - 1, _y + sizeht - 1, bg);
                     }
                 }
             }
@@ -963,7 +966,7 @@ void gfx4desp32::TextWrap(boolean w) { wrap = w; }
   @brief  Return height of current selected font
 */
 /****************************************************************************/
-int8_t gfx4desp32::FontHeight(void) { return fsh; }
+int gfx4desp32::FontHeight(void) { return fsh; }
 
 /****************************************************************************/
 /*!
@@ -1386,7 +1389,7 @@ void gfx4desp32::Line(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
 
 /****************************************************************************/
 /*!
-  @brief  Draw Rounded rectangle (filled).
+  @brief  Draw triangle.
   @param  x0 - first X position in pixels
   @param  y0 - first Y position in pixels
   @param  x1 - second X position in pixels
@@ -1409,7 +1412,7 @@ void gfx4desp32::Triangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
 
 /****************************************************************************/
 /*!
-  @brief  Draw Rounded rectangle (filled).
+  @brief  Draw triangle (filled).
   @param  x0 - first X position in pixels
   @param  y0 - first Y position in pixels
   @param  x1 - second X position in pixels
@@ -2590,7 +2593,7 @@ void gfx4desp32::PrintImage(uint16_t ui) {
     if (nl) {
         cursor_x = 0;
         tempnl = true;
-        newLine(lastfsh, textsizeht, 0);
+        newLine(lastfsh, textsizeht, textXmin);
     }
     if (cursor_y > (height - 1))
         return;
@@ -5517,7 +5520,7 @@ int gfx4desp32::__gciCharWidth(uint16_t ch) {
 int gfx4desp32::charWidth(uint16_t ch) {
     if (fno != 0 && fno != -1)
         return (fsw + 1) * textsize;
-    return __gciCharWidth(ch);
+    //return __gciCharWidth(ch);
 }
 
 int gfx4desp32::charHeight(uint16_t ch) { return fsh * textsize; }
@@ -5535,7 +5538,7 @@ int gfx4desp32::strWidth(String ts) {
 }
 
 int gfx4desp32::strWidth(const char* ts) {
-    
+
     // Serial0.printf("Getting width of \"%s\"\n", ts);
 
     size_t len = strlen(ts);
@@ -5549,7 +5552,7 @@ int gfx4desp32::strWidth(const char* ts) {
     for (size_t i = 0; i < len; i++) {
 
         char c = ts[i];
-        
+
         uint16_t u16chr;
         // First we build the Utf8 character
         if (utf8len) {
@@ -5790,7 +5793,7 @@ void gfx4desp32::PrintImageFile(String ifile) {
     boolean tempnl = false;
     if (nl) {
         tempnl = true;
-        newLine(lastfsh, textsizeht, 0);
+        newLine(lastfsh, textsizeht, textXmin);
     }
     if (cursor_y > (height - 1) && (sEnable == false))
         return;
@@ -6177,4 +6180,205 @@ void gfx4desp32::UserImageHideBG(int hndl, int objBG) {
             UserImageDR(objBG, tuix[n], tuiy[n], tuiw[n], tuih[n], tuix[n], tuiy[n]);
         }
     }
+}
+
+/****************************************************************************/
+/*!
+  @brief  Draw smooth line between 2 points with different radius at each end
+  @param  xpos1 - start X as a floating point position
+  @param  ypos1 - start Y as a floating point position
+  @param  xpos2 - end X as a floating point position
+  @param  ypos2 - end Y as a floating point position
+  @param  xy1r - width of start of line as a floating point width
+  @param  xy2r - width of end of line as a floating point width
+  @param  fg_color - RGB565 colour
+*/
+/****************************************************************************/
+void gfx4desp32::LineAA(float xpos1, float ypos1, float xpos2, float ypos2, float xy1r, float xy2r, int32_t fg_color) {
+    if ((xy1r < 0.0) || (xy2r < 0.0))return;
+    if ((fabsf(xpos1 - xpos2) < 0.01f) && (fabsf(ypos1 - ypos2) < 0.01f)) xpos2 += 0.01f;
+    bool ex;
+    float h, dx, dy;
+    int32_t x0 = (int32_t)floorf(fminf(xpos1 - xy1r, xpos2 - xy2r));
+    int32_t x1 = (int32_t)ceilf(fmaxf(xpos1 + xy1r, xpos2 + xy2r));
+    int32_t y0 = (int32_t)floorf(fminf(ypos1 - xy1r, ypos2 - xy2r));
+    int32_t y1 = (int32_t)ceilf(fmaxf(ypos1 + xy1r, ypos2 + xy2r));
+    int32_t ys = ypos1;
+    if ((xpos1 - xy1r) > (xpos2 - xy2r)) ys = ypos2;
+    float dr = xy1r - xy2r;
+    float alpha = 1.0f;
+    xy1r += 0.5;
+    float xx, yy;
+    float bax = xpos2 - xpos1;
+    float bay = ypos2 - ypos1;
+    uint8_t FB = 0;
+    int16_t imageNum = -1;
+    uint16_t fgcol;
+    bool needsEndWrite = StartWrite();
+    int32_t xs = x0;
+    int srtCount, Count;
+    int32_t cy, cx, cxofst;
+    if ((fg_color & 0xffff0000) == 0xf00000) FB = fg_color & 0x07;
+    if ((fg_color & 0xffff0000) == 0xf0000) imageNum = fg_color & 0xffff;
+    cy = ys;
+    while (cy <= y1) {
+        ex = false; yy = cy - ypos1;
+        srtCount = 0xffff;
+        Count = 0;
+        cxofst = 0;
+        cx = xs;
+        while (cx <= x1) {
+            if (FB) {
+                fgcol = ReadPixelFromFrameBuffer(cx, cy, FB);
+            }
+            else if (imageNum != -1) {
+                fgcol = ReadImagePixel(imageNum, cx, cy);
+            }
+            else {
+                fgcol = fg_color & 0xffff;
+            }
+            if (ex && alpha <= lineAAparam1) break;
+            xx = cx - xpos1;
+            h = fmaxf(fminf((xx * bax + yy * bay) / (bax * bax + bay * bay), 1.0f), 0.0f);
+            dx = xx - bax * h, dy = yy - bay * h;
+            alpha = xy1r - (sqrt(dx * dx + dy * dy) + h * dr);
+            if (!(alpha <= lineAAparam1)) {
+                if (!ex) {
+                    ex = true; xs = cx;
+                }
+                if (srtCount == 0xffff) srtCount = cx;
+                if (cx >= 0 && cx < width) {
+                    if (alpha > lineAAparam2) {
+                        linebuff[Count++] = fgcol;
+                    }
+                    else {
+                        calcAlpha(fgcol, ReadPixel(cx, cy), (uint8_t)(alpha * lineAAparam0));
+                        linebuff[Count++] = __colour;
+                    }
+                }
+                else {
+                    if (cx < 0) cxofst++;
+                }
+            }
+            cx++;
+        }
+        if (Count > 0) {
+            if (Count == 1 && cxofst == 0) {
+                PutPixelAlpha(srtCount, cy, fgcol, 255);
+            }
+            else {
+                WriteLine(srtCount + cxofst, cy, Count, linebuff);
+            }
+        }
+        cy++;
+    }
+    xs = x0;
+    cy = ys - 1;
+    while (cy >= y0) {
+        ex = false; yy = cy - ypos1;
+        srtCount = 0xffff;
+        Count = 0;
+        cxofst = 0;
+        cx = xs;
+        while (cx <= x1) {
+            if (FB) {
+                fgcol = ReadPixelFromFrameBuffer(cx, cy, FB);
+            }
+            else if (imageNum != -1) {
+                fgcol = ReadImagePixel(imageNum, cx, cy);
+            }
+            else {
+                fgcol = fg_color & 0xffff;
+            }
+            if (ex && alpha <= lineAAparam1) break;
+            xx = cx - xpos1;
+            h = fmaxf(fminf((xx * bax + yy * bay) / (bax * bax + bay * bay), 1.0f), 0.0f);
+            dx = xx - bax * h, dy = yy - bay * h;
+            alpha = xy1r - (sqrt(dx * dx + dy * dy) + h * dr);
+            if (!(alpha <= lineAAparam1)) {
+                if (!ex) {
+                    ex = true; xs = cx;
+                }
+                if (srtCount == 0xffff) srtCount = cx;
+                if (cx >= 0 && cx < width) {
+                    if (alpha > lineAAparam2) {
+                        linebuff[Count++] = fgcol;
+                    }
+                    else {
+                        calcAlpha(fgcol, ReadPixel(cx, cy), (uint8_t)(alpha * lineAAparam0));
+                        linebuff[Count++] = __colour;
+                    }
+                }
+                else {
+                    if (cx < 0) cxofst++;
+                }
+            }
+            cx++;
+        }
+        if (Count > 0) {
+            if (Count == 1 && cxofst == 0) {
+                PutPixelAlpha(srtCount, cy, fgcol, 255);
+            }
+            else {
+                WriteLine(srtCount + cxofst, cy, Count, linebuff);
+            }
+        }
+        cy--;
+    }
+    if (needsEndWrite)
+        EndWrite();
+}
+
+/****************************************************************************/
+/*!
+  @brief  Draw smooth filled circle using radii of LineAA function
+  @param  x - left X as a floating point position
+  @param  y - top Y as a floating point position
+  @param  r - radius of circle
+  @param  color - RGB565 colour
+*/
+/****************************************************************************/
+void gfx4desp32::CircleFilledAA(float x, float y, float r, uint32_t color)
+{
+    LineAA(x, y, x, y, r, r, color);
+}
+
+/****************************************************************************/
+/*!
+  @brief  Draw smooth line between 2 points
+  @param  x - start X as a floating point position
+  @param  y - start Y as a floating point position
+  @param  x1 - end X as a floating point position
+  @param  y1 - end Y as a floating point position
+  @param  w - width of line as a floating point width
+  @param  color - RGB565 colour
+*/
+/****************************************************************************/
+void gfx4desp32::LineAA(float x, float y, float x1, float y1, float w, uint32_t color)
+{
+    LineAA(x, y, x1, y1, w / 2.0, w / 2.0, color);
+}
+
+/****************************************************************************/
+/*!
+  @brief  Draw smooth triangle.
+  @param  x0 - first X position in pixels
+  @param  y0 - first Y position in pixels
+  @param  x1 - second X position in pixels
+  @param  y1 - second Y position in pixels
+  @param  x2 - third X position in pixels
+  @param  y2 - third Y position in pixels
+  @param  w  - width of lines
+  @param  color - RGB565 colour
+  @note clipping is handled by Line function
+*/
+/****************************************************************************/
+void gfx4desp32::TriangleAA(float x0, float y0, float x1, float y1,
+    float x2, float y2, int w, uint16_t color) {
+    bool needsEndWrite = StartWrite();
+    LineAA(x0, y0, x1, y1, w, color);
+    LineAA(x1, y1, x2, y2, w, color);
+    LineAA(x2, y2, x0, y0, w, color);
+    if (needsEndWrite)
+        EndWrite();
 }

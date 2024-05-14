@@ -1,5 +1,9 @@
 #include "gfx4desp32_qspi_panel_t.h"
 
+#include <Preferences.h>
+
+Preferences preferences;
+
 gfx4desp32_qspi_panel_t::gfx4desp32_qspi_panel_t(
     int panel_Pin_CS, int panel_Pin_DC, int panel_Pin_MOSI, int panel_Pin_MISO,
     int panel_Pin_CLK, int panel_pin_QSPI, int panel_Pin_RST, int bk_pin, int bk_on_level,
@@ -22,18 +26,21 @@ gfx4desp32_qspi_panel_t::~gfx4desp32_qspi_panel_t() {}
 */
 /****************************************************************************/
 void gfx4desp32_qspi_panel_t::touch_Set(uint8_t mode) {
-	pinMode(41, OUTPUT);
-    pinMode(42, INPUT);
-    digitalWrite(41, LOW);
-    delay(100);
-    digitalWrite(41, HIGH);
     if (mode == TOUCH_ENABLE) {
-        if (I2CInit == false) {
-            if (Wire.begin(17, 18, 400000)) {
-                I2CInit = true;
+        if (touchFirstEnable) {
+            pinMode(GFX4d_QSPI_TOUCH_RESET, OUTPUT);
+            pinMode(GFX4d_QSPI_TOUCH_INT, INPUT);
+            digitalWrite(GFX4d_QSPI_TOUCH_RESET, LOW);
+            delay(100);
+            digitalWrite(GFX4d_QSPI_TOUCH_RESET, HIGH);
+            if (I2CInit == false) {
+                if (Wire.begin(17, 18, 400000)) {
+                    I2CInit = true;
+                }
+                else {
+                }
             }
-            else {
-            }
+            touchFirstEnable = false;
         }
         _TouchEnable = true;
     }
@@ -50,7 +57,7 @@ void gfx4desp32_qspi_panel_t::touch_Set(uint8_t mode) {
 */
 /****************************************************************************/
 bool gfx4desp32_qspi_panel_t::touch_Update() {
-    if (!_TouchEnable || digitalRead(42))
+    if (!_TouchEnable || digitalRead(GFX4d_QSPI_TOUCH_INT))
         return false;
     bool update = false;
     //int n = -1;

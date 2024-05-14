@@ -374,6 +374,13 @@
 #define DISP_CTRL_SET_CLOCK         0x0b
 #define DISP_CTRL_RESTART_DISPLAY   0x0c
 #define DISP_CTRL_FILL_BOUNCE_BUFFER 0x0d
+#define DISP_CTRL_BOUNCE_BUFFER_SIZE 0x0e
+#define DISP_CTRL_USE_RAM_FRAME_BUFFER 0x0f
+
+#define BOUNCE_BUFF_MIN             4000
+#define BOUNCE_BUFF_DEFAULT         8000
+#define BOUNCE_BUFF_OPTIMAL         12800
+#define BOUNCE_BUFF_MAX             16000
 
 #define DISPLAY_BUS_SPI             0x01
 #define DISPLAY_BUS_QSPI            0x02
@@ -441,8 +448,8 @@ private:
     int16_t scrollAreaX1;
     int16_t scrollAreaY1;
     uint8_t ssSpeed;
-    int8_t lastfsh;
-    int8_t lastfsw;
+    int lastfsh;
+    int lastfsw;
     uint16_t tdark;
     uint16_t tlight;
     bool DISPtype = false;
@@ -457,6 +464,9 @@ private:
     int16_t lastcacheYpos;
     int16_t lastcachedYpos;
     int16_t lastcacheHeight;
+    float lineAAparam0 = 255.0;
+    float lineAAparam1 = 1.0 / 16.0;
+    float lineAAparam2 = 1.0 - lineAAparam1;
     char empty[2] = { 0, 0 };
     void TWstring2write(String istr);
     int __gciCharWidth(uint16_t ch);
@@ -527,12 +537,12 @@ protected:
     int16_t h, l, s;
     uint8_t fstyle;
     uint8_t rotation;
-    uint8_t textsizeht;
-    uint8_t textsize;
-    uint8_t lastsizeht;
+    int textsizeht;
+    int textsize;
+    int lastsizeht;
     bool nl;
     bool scrolled;
-    int16_t cursor_x, cursor_y;
+    //int16_t cursor_x, cursor_y;
     uint16_t textcolor, textbgcolor;
     bool opacitystate;
     uint16_t savedbgcolor;
@@ -677,7 +687,7 @@ public:
     virtual uint16_t ReadPixelFromFrameBuffer(uint16_t xrp, uint16_t yrp, uint8_t fb) = 0;
     virtual uint16_t ReadLine(int16_t x, int16_t y, int16_t w, uint16_t* data) = 0;
     virtual void WriteLine(int16_t x, int16_t y, int16_t w, uint16_t* data) = 0;
-        virtual void DrawFrameBuffer(uint8_t fbnum) = 0;
+    virtual void DrawFrameBuffer(uint8_t fbnum) = 0;
     virtual void DrawFrameBufferArea(uint8_t fbnum, int16_t ui) = 0;
     virtual void DrawFrameBufferArea(uint8_t fbnum, int16_t x1, int16_t y1, int16_t x2, int16_t y2) = 0;
     virtual void MergeFrameBuffers(uint8_t fbto, uint8_t fbfrom1, uint8_t fbfrom2, uint16_t transColor) = 0;
@@ -721,6 +731,7 @@ public:
     void RoundRect(int16_t x, int16_t y, int16_t w, int16_t h, int16_t r, uint16_t color);
     void Arc(int16_t x0, int16_t y0, int16_t r, uint16_t sa, uint16_t color);
     void Triangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t color);
+    void TriangleAA(float x0, float y0, float x1, float y1, float x2, float y2, int w, uint16_t color);
     void TriangleFilled(int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t x3, int16_t y3, uint16_t c);
     void Line(int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint16_t color);
     void setGCIsystem(uint8_t gs);
@@ -755,7 +766,7 @@ public:
     void UserImageDR(uint16_t ui, int16_t uxpos, int16_t uypos, int16_t uwidth, int16_t uheight, int16_t uix, int16_t uiy);
     void UserImageDRcache(uint16_t ui, int16_t uxpos, int16_t uypos, int16_t uwidth, int16_t uheight, int16_t uix, int16_t uiy);
     virtual size_t write(uint8_t) override;
-    void newLine(int8_t f1, int8_t ts, uint16_t ux);
+    void newLine(int f1, int ts, int ux);
     void drawChar1(int16_t x, int16_t y, unsigned char c, uint16_t color, uint16_t bg, uint8_t sizew, uint8_t sizeht);
     void drawChar2(int16_t x, int16_t y, unsigned char c, uint16_t color, uint16_t bg, uint8_t sizew, uint8_t sizeht);
     void drawChar4D(int16_t x, int16_t y, uint16_t c, uint16_t color, uint16_t bg, uint8_t sizew, uint8_t sizeht);
@@ -777,7 +788,7 @@ public:
     void TextColor(uint16_t c);
     void TextColor(uint16_t c, uint16_t b);
     void TextWrap(boolean w);
-    int8_t FontHeight(void);
+    int FontHeight(void);
     void ButtonXstyle(byte bs);
     void drawButton(uint8_t updn, int16_t x, int16_t y, int16_t w, int16_t h,
         uint16_t colorb, String btext, int8_t tfont, int8_t tfontsize,
@@ -967,6 +978,9 @@ public:
     void HlineX(int x, int y, int w, int32_t color);
     void VlineX(int x, int y, int w, int32_t color);
     void RectangleFilledX(int x0, int y0, int x1, int y1, int32_t color);
+    void LineAA(float xpos1, float ypos1, float xpos2, float ypos2, float xy1r, float xy2r, int32_t fg_color);
+    void CircleFilledAA(float x, float y, float r, uint32_t color);
+    void LineAA(float x, float y, float x1, float y1, float w, uint32_t color);
 
     uint8_t GFX4dESP32_RED;
     uint8_t GFX4dESP32_BLUE;
@@ -980,12 +994,12 @@ public:
     bool ctrl;
     bool ddos;
     bool twen;
-    int8_t fsh;
-    int8_t fsh1;
+    int fsh;
+    int fsh1;
     uint16_t fsb; // number of bytes per GCI character
     uint16_t fsc; // last character in GCI font
     uint8_t fso;
-    int8_t fsw;
+    int fsw;
     int8_t fno;
     gfx4d_font gciFont;
     uint32_t utf8codepoint;
@@ -1074,7 +1088,15 @@ public:
     bool gradientVert;
     int SpriteBKGfbNUM;
     bool clippingON;
-    uint16_t lbuff[800];
+    uint16_t linebuff[1024];
+    int BB_Size = -1;
+    int textXmin, textXmax;
+    int16_t cursor_x, cursor_y;
+    uint8_t scroll_Direction;
+    int scroll_X1;
+    int scroll_Y1;
+    int scroll_X2;
+    int scroll_Y2;
 };
 
 #endif

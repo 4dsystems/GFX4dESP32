@@ -9,12 +9,41 @@ Preferences preferences;
 gfx4desp32_rgb_panel_rt::gfx4desp32_rgb_panel_rt(
     esp_lcd_rgb_panel_config_t* panel_config, int bk_pin, int bk_on_level,
     int bk_off_level, int sd_gpio_sck, int sd_gpio_miso, int sd_gpio_mosi,
-    int sd_gpio_cs, bool touchYinvert, uint8_t tType)
+    int sd_gpio_cs, bool touchYinvert)
     : gfx4desp32_rgb_panel_t(panel_config, bk_pin, bk_on_level, bk_off_level,
         sd_gpio_sck, sd_gpio_miso, sd_gpio_mosi,
-        sd_gpio_cs, touchYinvert, tType) {}
+        sd_gpio_cs, touchYinvert) {}
 
 gfx4desp32_rgb_panel_rt::~gfx4desp32_rgb_panel_rt() {}
+
+/****************************************************************************/
+/*!
+  @brief  Enable / disable touch functions
+  @param  mode - TOUCH_ENABLE / TOUCH_DISABLE
+  @note   experimental
+*/
+/****************************************************************************/
+void gfx4desp32_rgb_panel_rt::touch_Set(uint8_t mode) {
+    delay(100);
+    if (mode == TOUCH_ENABLE) {
+        _TouchEnable = true;
+        if (touchFirstEnable) {
+            preferences.begin("touchCal", false);
+            int testp = preferences.getShort("calibx1", 0);
+            if (testp != 0) {
+                calx1 = testp;
+                calx2 = preferences.getShort("calibx2", 0);
+                caly1 = preferences.getShort("caliby1", 0);
+                caly2 = preferences.getShort("caliby2", 0);
+            }
+            preferences.end();
+            touchFirstEnable = false;
+        }
+    }
+    else {
+        _TouchEnable = false;
+    }
+}
 
 /****************************************************************************/
 /*!
@@ -446,10 +475,13 @@ void gfx4desp32_rgb_panel_rt::touchCalibration() {
             }
         }
         if (calsteps == 1) { // Exit or Redo
+            preferences.begin("touchCal", false);
+            preferences.clear();
             preferences.putShort("calibx1", calx1);
             preferences.putShort("calibx2", calx2);
             preferences.putShort("caliby1", caly1);
             preferences.putShort("caliby2", caly2);
+            preferences.end();
             return;
         }
     }

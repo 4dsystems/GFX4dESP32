@@ -6,10 +6,10 @@
 
 class gfx4desp32_rgb_panel_t : public gfx4desp32_rgb_panel, public gfx4desp32_touch {
 private:
-  const char *TAG = "gfx4desp32_rgb_panel_t";
-
+  const char* TAG = "gfx4desp32_rgb_panel_t";
+  bool touchFirstEnable = true;
 public:
-  gfx4desp32_rgb_panel_t(esp_lcd_rgb_panel_config_t *panel_config, int bk_pin, int bk_on_level, int bk_off_level, int sd_gpio_sck, int sd_gpio_miso, int sd_gpio_mosi, int sd_gpio_cs, bool touchYinvert, uint8_t tType);
+  gfx4desp32_rgb_panel_t(esp_lcd_rgb_panel_config_t* panel_config, int bk_pin, int bk_on_level, int bk_off_level, int sd_gpio_sck, int sd_gpio_miso, int sd_gpio_mosi, int sd_gpio_cs, bool touchYinvert);
   ~gfx4desp32_rgb_panel_t();
 
   virtual void touch_Set(uint8_t mode) override;

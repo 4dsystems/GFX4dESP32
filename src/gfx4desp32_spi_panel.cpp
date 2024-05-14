@@ -2,7 +2,7 @@
 
 #define swap(a, b)                                                            \
     {                                                                         \
-        int16_t tab = a;                                                      \
+        int32_t tab = a;                                                      \
         a = b;                                                                \
         b = tab;                                                              \
     }
@@ -34,8 +34,6 @@
 #include "hal/lcd_hal.h"
 #include "hal/lcd_ll.h"
 #include "Wire.h"
-
-
 
 
 gfx4desp32_spi_panel::gfx4desp32_spi_panel(
@@ -90,7 +88,11 @@ void gfx4desp32_spi_panel::DisplayControl(uint8_t cmd) {
             FlushArea(0, __scrHeight, -1);
         }
         break;
+    case DISP_CTRL_USE_RAM_FRAME_BUFFER:
+        useRAM = true;
+        break;
     }
+
 }
 
 esp_lcd_panel_handle_t gfx4desp32_spi_panel::__begin() {
@@ -290,7 +292,7 @@ esp_lcd_panel_handle_t gfx4desp32_spi_panel::__begin() {
 
     __scrWidth = (int)h_res << 1;
     __scrHeight = (int)v_res;
-    __fbSize = v_res * __scrWidth;
+    __fbSize = (int32_t)__scrHeight * (int32_t)__scrWidth;
     __width = h_res;
     __height = v_res;
 
@@ -304,13 +306,19 @@ esp_lcd_panel_handle_t gfx4desp32_spi_panel::__begin() {
     //Contrast(15);
 
     /*** Initiaize main frame buffer ***/
-    fb = (uint8_t*)ps_malloc(__fbSize);
+    if (useRAM) {
+        fb = (uint8_t*)malloc(__fbSize);
+    }
+    else {
+        fb = (uint8_t*)ps_malloc(__fbSize);
+    }
     /*** if ILI9488 Initialize 18bit buffer ***/
     if (DisplayModel == GFX4d_DISPLAY_ILI9488) {
         fb35 = (uint8_t*)ps_malloc(460800);
         lvglBufferInit = true;
     }
     DisplayType = DISP_INTERFACE_SPI;
+
     return panel_handle;
 }
 
@@ -445,11 +453,11 @@ void gfx4desp32_spi_panel::panelOrientation(uint8_t r) {
                 esp_lcd_panel_swap_xy(panel_handle, true);
             }
         }
+        __width = h_res;
+        __height = v_res;
         ClipWindow(0, 0, (int)h_res - 1, (int)v_res - 1);
         Clipping(1);
         Clipping(0);
-        __width = h_res;
-        __height = v_res;
     }
     else {
         if (QSPI_Display) {
@@ -472,11 +480,11 @@ void gfx4desp32_spi_panel::panelOrientation(uint8_t r) {
                 esp_lcd_panel_swap_xy(panel_handle, false);
             }
         }
+        __width = v_res;
+        __height = h_res;
         ClipWindow(0, 0, (int)v_res - 1, (int)h_res - 1);
         Clipping(1);
         Clipping(0);
-        __width = v_res;
-        __height = h_res;
     }
     clippingON = false;
     wrGRAM = 0;
@@ -484,6 +492,8 @@ void gfx4desp32_spi_panel::panelOrientation(uint8_t r) {
     scroll_Y1 = 0;
     scroll_X2 = __width - 1;
     scroll_Y2 = __height - 1;
+    textXmin = scroll_X1;
+    textXmax = scroll_X2;
     __scrWidth = __width << 1;
     __scrHeight = __height;
 }
@@ -773,7 +783,7 @@ void gfx4desp32_spi_panel::DrawFrameBufferArea(uint8_t fbnum, int16_t x1,
     if (x_start < 0)
         x_start = 0;
     if (y_start < 0)
-        y_start = 0;        
+        y_start = 0;
     int32_t s_width = x_end - x_start + 1;
     int32_t s_height = y_end - y_start + 1;
     uint32_t pc = (y_start * __scrWidth) + (x_start << 1);
@@ -1870,7 +1880,7 @@ uint16_t gfx4desp32_spi_panel::ReadLine(int16_t x, int16_t y, int16_t w,
     int readw = w;
     pto = tpto + (y * __scrWidth) + (x << 1);
     while (w--) {
-        data[pc++] = pto[0] + (pto[1] << 8);
+        data[pc++] = pto[1] + (pto[0] << 8);
         pto += 2;
     }
     return readw;
@@ -1927,23 +1937,47 @@ void gfx4desp32_spi_panel::WriteLine(int16_t x, int16_t y, int16_t w,
     if (x > clipX2 || (x + w - 1) < clipX1)
         return;
     if (x < clipX1) {
-        w -= clipX1 - x;
+        w -= (clipX1 - x);
         x = clipX1;
     }
-    if ((x + w - 1) >= clipX2)
-        w = clipX2 - x;
+    if ((x + w - 1) > clipX2)
+        w = clipX2 - x + 1;
     uint8_t* tpto = SelectFB(frame_buffer);
     uint8_t* pto;
+    uint8_t colM, colL;
+    uint16_t tcol;
+    int flushw = w;
     int pc = 0;
     pto = tpto + (y * __scrWidth) + (x << 1);
     while (w--) {
-        pto[0] = data[pc];
-        pto[1] = data[pc] >> 8;
+        tcol = data[pc++];
+        colM = tcol >> 8;
+        colL = tcol & 0xff;
+        if (!transalpha) {
+            pto[0] = colM;
+            pto[1] = colL;
+        }
+        else {
+            if (!(transparency && (colM == _transMSB && colL == _transLSB))) {
+                if (alpha) {
+                    calcAlpha(/*colL + (colM << 8),*/tcol, pto[1] | (pto[0] << 8), __alpha);
+                    pto[1] = __colour;
+                    pto[0] = __colour >> 8;
+                }
+                else {
+                    pto[0] = colM;
+                    pto[1] = colL;
+                }
+            }
+        }
+
+        //pto[1] = data[pc];
+            //pto[0] = data[pc] >> 8;
         pto += 2;
-        pc++;
+        //pc++;
     }
     if (frame_buffer == 0)
-        FlushArea(x, x + w, y, y, -1);
+        FlushArea(x, x + flushw, y, y, -1);
 }
 
 /****************************************************************************/
@@ -1962,14 +1996,14 @@ void gfx4desp32_spi_panel::ClipWindow(int x1, int y1, int x2, int y2) {
     clipY1pos = y1;
     clipX2pos = x2;
     clipY2pos = y2; // need to add check for out of bounds
-    if(clipX1pos > __width -1) clipX1pos = __width - 1;
-    if(clipX1pos < 0) clipX1pos = 0;
-    if(clipX2pos > __width -1) clipX2pos = __width - 1;
-    if(clipX2pos < 0) clipX2pos = 0;
-    if(clipY1pos > __height -1) clipY1pos = __height - 1;
-    if(clipY1pos < 0) clipY1pos = 0;
-    if(clipY2pos > __height -1) clipY2pos = __height - 1;
-    if(clipY2pos < 0) clipY2pos = 0;
+    if (clipX1pos > __width - 1) clipX1pos = __width - 1;
+    if (clipX1pos < 0) clipX1pos = 0;
+    if (clipX2pos > __width - 1) clipX2pos = __width - 1;
+    if (clipX2pos < 0) clipX2pos = 0;
+    if (clipY1pos > __height - 1) clipY1pos = __height - 1;
+    if (clipY1pos < 0) clipY1pos = 0;
+    if (clipY2pos > __height - 1) clipY2pos = __height - 1;
+    if (clipY2pos < 0) clipY2pos = 0;
 }
 
 /****************************************************************************/
@@ -2032,6 +2066,10 @@ void gfx4desp32_spi_panel::setScrollArea(int x1, int y1, int x2, int y2) {
         scroll_Y1 = 0;
     if (scroll_Y2 >= __height)
         scroll_Y2 = __height - 1;
+    textXmin = scroll_X1;
+    textXmax = scroll_X2;
+    cursor_x = scroll_X1;
+    cursor_y = scroll_Y1;
 }
 
 /****************************************************************************/
@@ -2057,6 +2095,8 @@ void gfx4desp32_spi_panel::setScrollArea(int y1, int y2) {
         scroll_Y1 = 0;
     if (scroll_Y2 > __height - 1)
         scroll_Y2 = __height - 1;
+    textXmin = scroll_X1;
+    textXmax = scroll_X2;
 }
 
 /****************************************************************************/
@@ -2498,7 +2538,7 @@ void gfx4desp32_spi_panel::PutPixel(int16_t x, int16_t y, uint16_t color) {
         pto[0] = color >> 8;
     }
     else {
-        calcAlpha(color, pto[1] | (pto[0] << 8), __alpha);
+        calcAlpha(color, pto[1] + (pto[0] << 8), __alpha);
         pto[1] = __colour;
         pto[0] = __colour >> 8;
     }

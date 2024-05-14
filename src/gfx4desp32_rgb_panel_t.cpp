@@ -1,12 +1,16 @@
 #include "gfx4desp32_rgb_panel_t.h"
 
+#include <Preferences.h>
+
+Preferences preferences;
+
 gfx4desp32_rgb_panel_t::gfx4desp32_rgb_panel_t(
     esp_lcd_rgb_panel_config_t* panel_config, int bk_pin, int bk_on_level,
     int bk_off_level, int sd_gpio_sck, int sd_gpio_miso, int sd_gpio_mosi,
-    int sd_gpio_cs, bool touchYinvert, uint8_t tType)
+    int sd_gpio_cs, bool touchYinvert)
     : gfx4desp32_rgb_panel(panel_config, bk_pin, bk_on_level, bk_off_level,
         sd_gpio_sck, sd_gpio_miso, sd_gpio_mosi, sd_gpio_cs,
-        touchYinvert, tType),
+        touchYinvert),
     gfx4desp32_touch() {
     touchYswap = touchYinvert;
 }
@@ -24,6 +28,9 @@ void gfx4desp32_rgb_panel_t::touch_Set(uint8_t mode) {
     delay(100);
     if (mode == TOUCH_ENABLE) {
         _TouchEnable = true;
+        if (touchFirstEnable) {
+            touchFirstEnable = false;
+        }
     }
     else {
         _TouchEnable = false;
