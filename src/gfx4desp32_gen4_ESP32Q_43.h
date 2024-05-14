@@ -25,8 +25,8 @@ private:
     int sd_gpio_MISO = GEN4_QSPI_SD_MISO;
     int sd_gpio_MOSI = GEN4_QSPI_SD_MOSI;
     int sd_gpio_CS = GEN4_QSPI_SD_CS;
-	
-	int touchCalx1 = 186;
+        
+    int touchCalx1 = 186;
     int touchCalx2 = 3912;
     int touchCaly1 = 245;
     int touchCaly2 = 3650;
