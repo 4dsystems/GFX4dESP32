@@ -1,6 +1,6 @@
-#include "gfx4desp32_spi_panel_t.h"
+#include "gfx4desp32_qspi_panel_t.h"
 
-gfx4desp32_spi_panel_t::gfx4desp32_spi_panel_t(
+gfx4desp32_qspi_panel_t::gfx4desp32_qspi_panel_t(
     int panel_Pin_CS, int panel_Pin_DC, int panel_Pin_MOSI, int panel_Pin_MISO,
     int panel_Pin_CLK, int panel_pin_QSPI, int panel_Pin_RST, int bk_pin, int bk_on_level,
     int bk_off_level, int sd_gpio_SCK, int sd_gpio_MISO, int sd_gpio_MOSI,
@@ -12,7 +12,7 @@ gfx4desp32_spi_panel_t::gfx4desp32_spi_panel_t(
     gfx4desp32_touch() {
     touchXswap = touchXinvert;
 }
-gfx4desp32_spi_panel_t::~gfx4desp32_spi_panel_t() {}
+gfx4desp32_qspi_panel_t::~gfx4desp32_qspi_panel_t() {}
 
 /****************************************************************************/
 /*!
@@ -21,15 +21,15 @@ gfx4desp32_spi_panel_t::~gfx4desp32_spi_panel_t() {}
   @note   experimental
 */
 /****************************************************************************/
-void gfx4desp32_spi_panel_t::touch_Set(uint8_t mode) {
-    pinMode(GFX4d_TOUCH_RESET, OUTPUT);
-    pinMode(GFX4d_TOUCH_INT, INPUT);
-    digitalWrite(GFX4d_TOUCH_RESET, LOW);
+void gfx4desp32_qspi_panel_t::touch_Set(uint8_t mode) {
+	pinMode(41, OUTPUT);
+    pinMode(42, INPUT);
+    digitalWrite(41, LOW);
     delay(100);
-    digitalWrite(GFX4d_TOUCH_RESET, HIGH);
+    digitalWrite(41, HIGH);
     if (mode == TOUCH_ENABLE) {
         if (I2CInit == false) {
-            if (Wire.begin(10, 9, 400000)) {
+            if (Wire.begin(17, 18, 400000)) {
                 I2CInit = true;
             }
             else {
@@ -49,8 +49,8 @@ void gfx4desp32_spi_panel_t::touch_Set(uint8_t mode) {
           will be updated.
 */
 /****************************************************************************/
-bool gfx4desp32_spi_panel_t::touch_Update() {
-    if (!_TouchEnable || digitalRead(GFX4d_TOUCH_INT))
+bool gfx4desp32_qspi_panel_t::touch_Update() {
+    if (!_TouchEnable || digitalRead(42))
         return false;
     bool update = false;
     //int n = -1;
@@ -67,7 +67,7 @@ bool gfx4desp32_spi_panel_t::touch_Update() {
         tPen = tps;
         if (tPen == 1) {
             switch (rotation) {
-            case LANDSCAPE_R:
+            case LANDSCAPE:
                 lasttouchYpos = touchYpos;
                 lasttouchXpos = touchXpos;
                 touchYpos = ((gCTPData[1 + i * 6] & 0x0f) << 8) + gCTPData[2 + i * 6];
@@ -80,7 +80,7 @@ bool gfx4desp32_spi_panel_t::touch_Update() {
                     touchXpos = ((gCTPData[3 + i * 6] & 0x0f) << 8) + gCTPData[4 + i * 6];
                 }
                 break;
-            case LANDSCAPE:
+            case LANDSCAPE_R:
                 lasttouchYpos = touchYpos;
                 lasttouchXpos = touchXpos;
                 touchYpos =
@@ -95,7 +95,7 @@ bool gfx4desp32_spi_panel_t::touch_Update() {
                         (((gCTPData[3 + i * 6] & 0x0f) << 8) + gCTPData[4 + i * 6]) - 1;
                 }
                 break;
-            case PORTRAIT:
+            case PORTRAIT_R:
                 lasttouchYpos = touchYpos;
                 lasttouchXpos = touchXpos;
                 touchXpos = ((gCTPData[1 + i * 6] & 0x0f) << 8) + gCTPData[2 + i * 6];
@@ -108,7 +108,7 @@ bool gfx4desp32_spi_panel_t::touch_Update() {
                         (((gCTPData[3 + i * 6] & 0x0f) << 8) + gCTPData[4 + i * 6]) - 1;
                 }
                 break;
-            case PORTRAIT_R:
+            case PORTRAIT:
                 lasttouchYpos = touchYpos;
                 lasttouchXpos = touchXpos;
                 touchXpos =

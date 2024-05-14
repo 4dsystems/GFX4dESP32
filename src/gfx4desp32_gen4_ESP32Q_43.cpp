@@ -1,0 +1,17 @@
+#include "gfx4desp32_gen4_ESP32Q_43.h"
+
+
+gfx4desp32_gen4_ESP32Q_43::gfx4desp32_gen4_ESP32Q_43()
+    : gfx4desp32_spi_panel(GEN4_QSPI_PIN_NUM_CS, GEN4_QSPI_PIN_NUM_DATA0, GEN4_QSPI_PIN_NUM_DATA1, GEN4_QSPI_PIN_NUM_DATA2, GEN4_QSPI_PIN_NUM_CLK, GEN4_QSPI_PIN_NUM_DATA3, GEN4_QSPI_PIN_NUM_RST, /*configData, */GEN4_QSPI_PIN_NUM_BCKL, GEN4_SPI_BCKL_ON_LEVEL, GEN4_SPI_BCKL_OFF_LEVEL, GEN4_QSPI_SD_SCK, GEN4_QSPI_SD_MISO, GEN4_QSPI_SD_MOSI, GEN4_QSPI_SD_CS, GEN4_SPI_HRES, GEN4_SPI_VRES, GEN4_43T_SWAP_TOUCHX) {
+
+	memcpy(InitCommandsNV, Init_CommandNV, 320);
+    IPS_Display = true;
+}
+
+gfx4desp32_gen4_ESP32Q_43::~gfx4desp32_gen4_ESP32Q_43() {
+}
+
+uint8_t* gfx4desp32_gen4_ESP32Q_43::SelectINIT(bool sel)
+{
+    return InitCommandsNV;
+}

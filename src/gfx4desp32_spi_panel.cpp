@@ -40,7 +40,7 @@
 
 gfx4desp32_spi_panel::gfx4desp32_spi_panel(
     int panel_Pin_CS, int panel_Pin_DC, int panel_Pin_MOSI, int panel_Pin_MISO,
-    int panel_Pin_CLK, int panel_Pin_RST, int bk_pin,
+    int panel_Pin_CLK, int panel_pin_QSPI, int panel_Pin_RST, int bk_pin,
     int bk_on_level, int bk_off_level, int sd_gpio_SCK, int sd_gpio_MISO,
     int sd_gpio_MOSI, int sd_gpio_CS, int hres, int vres, bool touchXinvert)
     : gfx4desp32() {
@@ -49,9 +49,14 @@ gfx4desp32_spi_panel::gfx4desp32_spi_panel(
     panelPin_MOSI = panel_Pin_MOSI;
     panelPin_MISO = panel_Pin_MISO;
     panelPin_CLK = panel_Pin_CLK;
+    panelPin_DATA0 = panel_Pin_DC;
+    panelPin_DATA1 = panel_Pin_MOSI;
+    panelPin_DATA2 = panel_Pin_MISO;
+    panelPin_DATA3 = panel_pin_QSPI;
     panel_HRES = hres;
     panel_VRES = vres;
     panelPin_RST = panel_Pin_RST;
+    if (panel_pin_QSPI != -1) QSPI_Display = true;
 
     this->bk_config.pin = bk_pin;
     this->bk_config.on_level = bk_on_level;
@@ -78,7 +83,12 @@ void gfx4desp32_spi_panel::DisplayControl(uint8_t cmd) {
         esp_lcd_panel_reset(panel_handle);
         break;
     case 8:
-        FlushArea(0, __scrHeight, -1);
+        if (QSPI_Display) {
+            FlushArea(0, __scrWidth - 1, 0, __scrHeight, -1);
+        }
+        else {
+            FlushArea(0, __scrHeight, -1);
+        }
         break;
     }
 }
@@ -94,52 +104,115 @@ esp_lcd_panel_handle_t gfx4desp32_spi_panel::__begin() {
 
     ESP_LOGI(TAG, "Install SPI LCD panel driver");
 
-    displayBus = DISPLAY_BUS_SPI;
-    spi_bus_config_t bus_config = {};
-    bus_config.sclk_io_num = panelPin_CLK;  // CLK
-    bus_config.mosi_io_num = panelPin_MOSI; // MOSI
-    bus_config.miso_io_num = panelPin_MISO; // MISO
-    bus_config.quadwp_io_num = -1;          // Not used
-    bus_config.quadhd_io_num = -1;          // Not used
+    if (!QSPI_Display) {
+        displayBus = DISPLAY_BUS_SPI;
+        spi_bus_config_t bus_config = {};
+        bus_config.sclk_io_num = panelPin_CLK;  // CLK
+        bus_config.mosi_io_num = panelPin_MOSI; // MOSI
+        bus_config.miso_io_num = panelPin_MISO; // MISO
+        bus_config.quadwp_io_num = -1;          // Not used
+        bus_config.quadhd_io_num = -1;          // Not used
 
-    if (DisplayModel != GFX4d_DISPLAY_ILI9488) {
-        bus_config.max_transfer_sz = h_res * 54 * 2;
+        if (DisplayModel != GFX4d_DISPLAY_ILI9488) {
+            bus_config.max_transfer_sz = h_res * 54 * 2;
+        }
+        else {
+            bus_config.max_transfer_sz = h_res * 22 * 3;
+        }
+        spi_bus_initialize(GEN4_35CT_SPI_HOST, &bus_config, SPI_DMA_CH_AUTO);
+
+        esp_lcd_panel_io_spi_config_t io_config = {};
+        io_config.dc_gpio_num = panelPin_DC;
+        io_config.cs_gpio_num = panelPin_CS;
+        if (changePCLK) {
+            io_config.pclk_hz = PCLKval;
+            changePCLK = false;
+        }
+        else {
+            io_config.pclk_hz = 40 * 1000 * 1000; // maximum spi dislay clock speed
+        }
+        io_config.lcd_cmd_bits = 8;
+        io_config.lcd_param_bits = 8;
+        io_config.spi_mode = 0;
+        io_config.trans_queue_depth = 7;
+        esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)GEN4_35CT_SPI_HOST,
+            &io_config, &io_handle);
+
+        delay(100);
+
+        esp_lcd_panel_dev_config_t panel_config = {};
+        panel_config.reset_gpio_num = panelPin_RST;
+        panel_config.color_space = LCD_RGB_ENDIAN_BGR;
+        panel_config.bits_per_pixel = 16;
+        esp_lcd_new_panel_st7789(io_handle, &panel_config, &panel_handle);
+
+        esp_lcd_panel_reset(panel_handle);
+
+        delay(120);
+
     }
     else {
-        bus_config.max_transfer_sz = h_res * 22 * 3;
+        displayBus = DISPLAY_BUS_QSPI;
+        vendor_config_t vendor_config = {};
+        vendor_config.flags.use_qspi_interface = 1;
+        vendor_config.flags.use_external_init_cmds = 1; // Set to 1 if use external initialization commands instead of internal default commands.
+
+        spi_bus_config_t bus_config = {};
+        bus_config.data0_io_num = panelPin_DATA0;
+        bus_config.data1_io_num = panelPin_DATA1;
+        bus_config.sclk_io_num = panelPin_CLK;
+        bus_config.data2_io_num = panelPin_DATA2;
+        bus_config.data3_io_num = panelPin_DATA3;
+        bus_config.max_transfer_sz = h_res * 36 * 2;
+
+        ESP_ERROR_CHECK(spi_bus_initialize(GEN4_35CT_SPI_HOST, &bus_config, SPI_DMA_CH_AUTO));
+
+        esp_lcd_panel_io_spi_config_t io_config = {};
+        io_config.dc_gpio_num = -1/*panelPin_DC*/;
+        io_config.cs_gpio_num = panelPin_CS;
+        if (changePCLK) {
+            io_config.pclk_hz = PCLKval;
+            changePCLK = false;
+        }
+        else {
+            io_config.pclk_hz = 30 * 1000 * 1000; // maximum spi dislay clock speed
+        }
+        io_config.lcd_cmd_bits = 32;
+        io_config.lcd_param_bits = 8;
+        io_config.spi_mode = 0;
+        io_config.trans_queue_depth = 10;
+        io_config.flags.quad_mode = true;
+
+        ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)GEN4_35CT_SPI_HOST,
+            &io_config, &io_handle));
+
+        esp_lcd_panel_dev_config_t panel_config = {};
+        panel_config.reset_gpio_num = panelPin_RST;
+        panel_config.color_space = /*ESP_LCD_COLOR_SPACE_BGR*/LCD_RGB_ENDIAN_BGR;
+        panel_config.bits_per_pixel = 16;
+        panel_config.vendor_config = (vendor_config_t*)&vendor_config;
+
+        //delay(400);
+        ESP_ERROR_CHECK(esp_lcd_new_panel_st7789(io_handle, &panel_config, &panel_handle));
+
+        delay(100);
+
+        ESP_ERROR_CHECK(esp_lcd_panel_reset(panel_handle));
+
+        delay(100);
+        //ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(panel_handle, true));
+
+        tx_param(ILI9488_CMD_SLEEP_OUT, NULL, 0);
+        delay(200);
+        tx_param(ILI9488_CMD_DISPLAY_ON, NULL, 0);
+        delay(200);
+        tx_param(ILI9488_CMD_DISP_INVERSION_ON, NULL, 0);
+        tx_param(0x20, NULL, 0);
+        delay(200);
+
     }
-    spi_bus_initialize(GEN4_35CT_SPI_HOST, &bus_config, SPI_DMA_CH_AUTO);
 
-    esp_lcd_panel_io_spi_config_t io_config = {};
-    io_config.dc_gpio_num = panelPin_DC;
-    io_config.cs_gpio_num = panelPin_CS;
-    if (changePCLK) {
-        io_config.pclk_hz = PCLKval;
-        changePCLK = false;
-    }
-    else {
-        io_config.pclk_hz = 40 * 1000 * 1000; // maximum spi dislay clock speed
-    }
-    io_config.lcd_cmd_bits = 8;
-    io_config.lcd_param_bits = 8;
-    io_config.spi_mode = 0;
-    io_config.trans_queue_depth = 7;
-    esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)GEN4_35CT_SPI_HOST,
-        &io_config, &io_handle);
-
-    delay(100);
-
-    esp_lcd_panel_dev_config_t panel_config = {};
-    panel_config.reset_gpio_num = panelPin_RST;
-    panel_config.color_space = LCD_RGB_ENDIAN_BGR;
-    panel_config.bits_per_pixel = 16;
-    esp_lcd_new_panel_st7789(io_handle, &panel_config, &panel_handle);
-
-    esp_lcd_panel_reset(panel_handle);
-
-    delay(120);
-
-    if (DisplayModel != GFX4d_DISPLAY_ILI9488) {
+    if (DisplayModel != GFX4d_DISPLAY_ILI9488 && !QSPI_Display) {
         int regcount;
         // Autodetect IlI9341 v ST7789
         for (regcount = 0; regcount < 4; regcount++) {
@@ -243,11 +316,21 @@ esp_lcd_panel_handle_t gfx4desp32_spi_panel::__begin() {
 
 void gfx4desp32_spi_panel::tx_param(int32_t lcd_cmd, const void* param, size_t param_size)
 {
+    if (QSPI_Display) {
+        lcd_cmd &= 0xff;
+        lcd_cmd <<= 8;
+        lcd_cmd |= LCD_OPCODE_WRITE_CMD << 24;
+    }
     esp_lcd_panel_io_tx_param(io_handle, lcd_cmd, param, param_size);
 }
 
 void gfx4desp32_spi_panel::tx_color(int32_t lcd_cmd, const void* param, size_t param_size)
 {
+    if (QSPI_Display) {
+        lcd_cmd &= 0xff;
+        lcd_cmd <<= 8;
+        lcd_cmd |= LCD_OPCODE_WRITE_COLOR << 24;
+    }
     esp_lcd_panel_io_tx_color(io_handle, lcd_cmd, param, param_size);
 }
 
@@ -342,13 +425,25 @@ void gfx4desp32_spi_panel::panelOrientation(uint8_t r) {
     rotation = r % 4;
     // rotation = 0;
     if (rotation < 2) {
-        if (rotation == LANDSCAPE_R) {
-            esp_lcd_panel_mirror(panel_handle, true, true);
-            esp_lcd_panel_swap_xy(panel_handle, true);
+        if (QSPI_Display) {
+            if (rotation == LANDSCAPE_R) {
+                QSPI_mirror(true, true);
+                QSPI_swap_xy(false);
+            }
+            if (rotation == LANDSCAPE) {
+                QSPI_mirror(false, false);
+                QSPI_swap_xy(false);
+            }
         }
-        if (rotation == LANDSCAPE) {
-            esp_lcd_panel_mirror(panel_handle, false, false);
-            esp_lcd_panel_swap_xy(panel_handle, true);
+        else {
+            if (rotation == LANDSCAPE_R) {
+                esp_lcd_panel_mirror(panel_handle, true, true);
+                esp_lcd_panel_swap_xy(panel_handle, true);
+            }
+            if (rotation == LANDSCAPE) {
+                esp_lcd_panel_mirror(panel_handle, false, false);
+                esp_lcd_panel_swap_xy(panel_handle, true);
+            }
         }
         ClipWindow(0, 0, (int)h_res - 1, (int)v_res - 1);
         Clipping(1);
@@ -357,13 +452,25 @@ void gfx4desp32_spi_panel::panelOrientation(uint8_t r) {
         __height = v_res;
     }
     else {
-        if (rotation == PORTRAIT) {
-            esp_lcd_panel_mirror(panel_handle, true, false);
-            esp_lcd_panel_swap_xy(panel_handle, false);
+        if (QSPI_Display) {
+            if (rotation == PORTRAIT) {
+                QSPI_mirror(false, true);
+                QSPI_swap_xy(true);
+            }
+            if (rotation == PORTRAIT_R) {
+                QSPI_mirror(true, false);
+                QSPI_swap_xy(true);
+            }
         }
-        if (rotation == PORTRAIT_R) {
-            esp_lcd_panel_mirror(panel_handle, false, true);
-            esp_lcd_panel_swap_xy(panel_handle, false);
+        else {
+            if (rotation == PORTRAIT) {
+                esp_lcd_panel_mirror(panel_handle, true, false);
+                esp_lcd_panel_swap_xy(panel_handle, false);
+            }
+            if (rotation == PORTRAIT_R) {
+                esp_lcd_panel_mirror(panel_handle, false, true);
+                esp_lcd_panel_swap_xy(panel_handle, false);
+            }
         }
         ClipWindow(0, 0, (int)v_res - 1, (int)h_res - 1);
         Clipping(1);
@@ -422,29 +529,40 @@ uint8_t gfx4desp32_spi_panel::getPanelOrientation(void) { return rotation; }
 */
 /****************************************************************************/
 void gfx4desp32_spi_panel::Invert(bool Inv) {
-    if (DisplayModel == GFX4d_DISPLAY_ILI9488) {
+    /*** Not sure how to deal with this on RGB displays ***/
+    if (QSPI_Display) {
         if (Inv) {
-            esp_lcd_panel_io_tx_param(io_handle, ILI9488_CMD_DISP_INVERSION_OFF, NULL, 0);
+            tx_param(ILI9488_CMD_DISP_INVERSION_ON, NULL, 0);
         }
         else {
-            esp_lcd_panel_io_tx_param(io_handle, ILI9488_CMD_DISP_INVERSION_ON, NULL, 0);
+            tx_param(ILI9488_CMD_DISP_INVERSION_OFF, NULL, 0);
         }
     }
     else {
-        if (IPS_Display) {
+        if (DisplayModel == GFX4d_DISPLAY_ILI9488) {
             if (Inv) {
-                esp_lcd_panel_invert_color(panel_handle, false);
+                esp_lcd_panel_io_tx_param(io_handle, ILI9488_CMD_DISP_INVERSION_OFF, NULL, 0);
             }
             else {
-                esp_lcd_panel_invert_color(panel_handle, true);
+                esp_lcd_panel_io_tx_param(io_handle, ILI9488_CMD_DISP_INVERSION_ON, NULL, 0);
             }
         }
         else {
-            if (Inv) {
-                esp_lcd_panel_invert_color(panel_handle, true);
+            if (IPS_Display) {
+                if (Inv) {
+                    esp_lcd_panel_invert_color(panel_handle, false);
+                }
+                else {
+                    esp_lcd_panel_invert_color(panel_handle, true);
+                }
             }
             else {
-                esp_lcd_panel_invert_color(panel_handle, false);
+                if (Inv) {
+                    esp_lcd_panel_invert_color(panel_handle, true);
+                }
+                else {
+                    esp_lcd_panel_invert_color(panel_handle, false);
+                }
             }
         }
     }
@@ -573,8 +691,14 @@ void gfx4desp32_spi_panel::EndWrite() {
             pc++;
             pto += __scrWidth;
         }
-        esp_lcd_panel_draw_bitmap(panel_handle, low_X, low_Y, high_X + 1,
-            high_Y + 1, psRAMlvglBuffer);
+        if (QSPI_Display) {
+            /*esp_lcd_panel_*/draw_bitmap(/*panel_handle, */low_X, low_Y, high_X + 1,
+                high_Y/* + 1*/, psRAMlvglBuffer);
+        }
+        else {
+            esp_lcd_panel_draw_bitmap(panel_handle, low_X, low_Y, high_X + 1,
+                high_Y + 1, psRAMlvglBuffer);
+        }
     }
 }
 
@@ -593,7 +717,13 @@ void gfx4desp32_spi_panel::FillScreen(uint16_t color) {
         pto += 2;
     }
     if (frame_buffer == 0)
-        FlushArea(0, __scrHeight, -1);
+        if (QSPI_Display) {
+            //delayMicroseconds(100);
+            FlushArea(0, __scrWidth - 1, 0, __scrHeight - 1, -1);
+        }
+        else {
+            FlushArea(0, __scrHeight, -1);
+        }
 }
 
 /****************************************************************************/
@@ -693,7 +823,12 @@ void gfx4desp32_spi_panel::DrawFrameBuffer(uint8_t fbnum) {
     uint8_t* tfrom = SelectFB(fbnum);
     uint8_t* to = fb;
     memcpy(to, tfrom, __fbSize);
-    FlushArea(0, __scrHeight, -1);
+    if (QSPI_Display) {
+        FlushArea(0, __scrWidth - 1, 0, __scrHeight, -1);
+    }
+    else {
+        FlushArea(0, __scrHeight, -1);
+    }
 }
 
 /****************************************************************************/
@@ -930,12 +1065,22 @@ void gfx4desp32_spi_panel::FlushArea(int y1, int y2, int xpos) {
     command[1] = x0 & 0xff;
     command[2] = (x1 >> 8) & 0xff;
     command[3] = x1 & 0xff;
-    esp_lcd_panel_io_tx_param(io_handle, 0x2a, command, 4);
+    if (!QSPI_Display) {
+        esp_lcd_panel_io_tx_param(io_handle, 0x2a, command, 4);
+    }
+    else {
+        tx_param(0x2a, command, 4);
+    }
     command[0] = (y1 >> 8) & 0xff;
     command[1] = y1 & 0xff;
     command[2] = (y2 >> 8) & 0xff;
     command[3] = y2 & 0xff;
-    esp_lcd_panel_io_tx_param(io_handle, 0x2b, command, 4);
+    if (!QSPI_Display) {
+        esp_lcd_panel_io_tx_param(io_handle, 0x2b, command, 4);
+    }
+    else {
+        tx_param(0x2b, command, 4);
+    }
     if (DisplayModel == GFX4d_DISPLAY_ILI9488) {
         uint32_t pc = 0;
         uint8_t* pto = fb + ((uint32_t)((uint32_t)y1 * __scrWidth));
@@ -962,13 +1107,23 @@ void gfx4desp32_spi_panel::FlushArea(int y1, int y2, int xpos) {
 
     }
     else {
-        esp_lcd_panel_io_tx_color(io_handle, ILI9488_CMD_MEMORY_WRITE,
-            fb + (y1 * __scrWidth), __scrWidth);
+        if (!QSPI_Display) {
+            esp_lcd_panel_io_tx_color(io_handle, ILI9488_CMD_MEMORY_WRITE, fb + (y1 * __scrWidth), __scrWidth);
+        }
+        else {
+            tx_color(ILI9488_CMD_MEMORY_WRITE,
+                fb + (y1 * __scrWidth), __scrWidth);
+        }
         h--;
         y1++;
         while (h--) {
-            esp_lcd_panel_io_tx_color(io_handle, -1, fb + (y1 * __scrWidth),
-                __scrWidth);
+            if (!QSPI_Display) {
+                esp_lcd_panel_io_tx_color(io_handle, -1, fb + (y1 * __scrWidth), __scrWidth);
+            }
+            else {
+                tx_color(-1, fb + (y1 * __scrWidth),
+                    __scrWidth);
+            }
             y1++;
         }
     }
@@ -1074,8 +1229,14 @@ void gfx4desp32_spi_panel::FlushArea(int x1, int x2, int y1, int y2, int xpos) {
             pc++;
             pto += __scrWidth;
         }
-        esp_lcd_panel_draw_bitmap(panel_handle, x1, y1, x2 + 1, y2 + 1,
-            psRAMlvglBuffer);
+        if (QSPI_Display) {
+            /*esp_lcd_panel_*/draw_bitmap(/*panel_handle, */x1, y1, x2 + 1, y2 + 1,
+                psRAMlvglBuffer);
+        }
+        else {
+            esp_lcd_panel_draw_bitmap(panel_handle, x1, y1, x2 + 1, y2 + 1,
+                psRAMlvglBuffer);
+        }
     }
     flush_pending = false;
 }
@@ -1243,8 +1404,14 @@ void gfx4desp32_spi_panel::pushColors(uint16_t* color_data, uint32_t len) {
         h = GRAMy2 - GRAMy1 + 1;
         if (DisplayModel != GFX4d_DISPLAY_ILI9488) {
             memcpy(psRAMlvglBuffer, color_data, (w * h) << 1);
-            esp_lcd_panel_draw_bitmap(panel_handle, GRAMx1, GRAMy1, GRAMx2 + 1,
-                GRAMy2 + 1, psRAMlvglBuffer);
+            if (QSPI_Display) {
+                /*esp_lcd_panel_*/draw_bitmap(/*panel_handle, */GRAMx1, GRAMy1, GRAMx2 + 1,
+                    GRAMy2 + 1, psRAMlvglBuffer);
+            }
+            else {
+                esp_lcd_panel_draw_bitmap(panel_handle, GRAMx1, GRAMy1, GRAMx2 + 1,
+                    GRAMy2 + 1, psRAMlvglBuffer);
+            }
         }
         else {
             uint32_t pixSize = w * h;
@@ -1285,8 +1452,14 @@ void gfx4desp32_spi_panel::pushColors(uint16_t* color_data, uint32_t len) {
         h = GRAMy2 - GRAMy1 + 1;
         if (DisplayModel != GFX4d_DISPLAY_ILI9488) {
             memcpy(psRAMlvglBuffer2, color_data, (w * h) << 1);
-            esp_lcd_panel_draw_bitmap(panel_handle, GRAMx1, GRAMy1, GRAMx2 + 1,
-                GRAMy2 + 1, psRAMlvglBuffer2);
+            if (QSPI_Display) {
+                /*esp_lcd_panel_*/draw_bitmap(/*panel_handle, */GRAMx1, GRAMy1, GRAMx2 + 1,
+                    GRAMy2 + 1, psRAMlvglBuffer2);
+            }
+            else {
+                esp_lcd_panel_draw_bitmap(panel_handle, GRAMx1, GRAMy1, GRAMx2 + 1,
+                    GRAMy2 + 1, psRAMlvglBuffer2);
+            }
         }
         else {
             uint32_t pixSize = w * h;
@@ -1348,8 +1521,14 @@ void gfx4desp32_spi_panel::pushColors(uint8_t* color_data, uint32_t len) {
         h = GRAMy2 - GRAMy1 + 1;
         if (DisplayModel != GFX4d_DISPLAY_ILI9488) {
             memcpy(psRAMlvglBuffer, color_data, (w * h) << 1);
-            esp_lcd_panel_draw_bitmap(panel_handle, GRAMx1, GRAMy1, GRAMx2 + 1,
-                GRAMy2 + 1, psRAMlvglBuffer);
+            if (QSPI_Display) {
+                /*esp_lcd_panel_*/draw_bitmap(/*panel_handle, */GRAMx1, GRAMy1, GRAMx2 + 1,
+                    GRAMy2 + 1, psRAMlvglBuffer);
+            }
+            else {
+                esp_lcd_panel_draw_bitmap(panel_handle, GRAMx1, GRAMy1, GRAMx2 + 1,
+                    GRAMy2 + 1, psRAMlvglBuffer);
+            }
         }
         else {
             uint32_t pixSize = w * h;
@@ -1398,8 +1577,14 @@ void gfx4desp32_spi_panel::pushColors(uint8_t* color_data, uint32_t len) {
         h = GRAMy2 - GRAMy1 + 1;
         if (DisplayModel != GFX4d_DISPLAY_ILI9488) {
             memcpy(psRAMlvglBuffer2, color_data, (w * h) << 1);
-            esp_lcd_panel_draw_bitmap(panel_handle, GRAMx1, GRAMy1, GRAMx2 + 1,
-                GRAMy2 + 1, psRAMlvglBuffer2);
+            if (QSPI_Display) {
+                /*esp_lcd_panel_*/draw_bitmap(/*panel_handle, */GRAMx1, GRAMy1, GRAMx2 + 1,
+                    GRAMy2 + 1, psRAMlvglBuffer2);
+            }
+            else {
+                esp_lcd_panel_draw_bitmap(panel_handle, GRAMx1, GRAMy1, GRAMx2 + 1,
+                    GRAMy2 + 1, psRAMlvglBuffer2);
+            }
         }
         else {
             uint32_t pixSize = w * h;
@@ -1469,8 +1654,14 @@ void gfx4desp32_spi_panel::pushColors(const uint8_t* color_data, uint32_t len) {
         h = GRAMy2 - GRAMy1 + 1;
         if (DisplayModel != GFX4d_DISPLAY_ILI9488) {
             memcpy(psRAMlvglBuffer, color_data, (w * h) << 1);
-            esp_lcd_panel_draw_bitmap(panel_handle, GRAMx1, GRAMy1, GRAMx2 + 1,
-                GRAMy2 + 1, psRAMlvglBuffer);
+            if (QSPI_Display) {
+                /*esp_lcd_panel_*/draw_bitmap(/*panel_handle, */GRAMx1, GRAMy1, GRAMx2 + 1,
+                    GRAMy2 + 1, psRAMlvglBuffer);
+            }
+            else {
+                esp_lcd_panel_draw_bitmap(panel_handle, GRAMx1, GRAMy1, GRAMx2 + 1,
+                    GRAMy2 + 1, psRAMlvglBuffer);
+            }
         }
         else {
             uint32_t pixSize = w * h;
@@ -1519,8 +1710,14 @@ void gfx4desp32_spi_panel::pushColors(const uint8_t* color_data, uint32_t len) {
         h = GRAMy2 - GRAMy1 + 1;
         if (DisplayModel != GFX4d_DISPLAY_ILI9488) {
             memcpy(psRAMlvglBuffer2, color_data, (w * h) << 1);
-            esp_lcd_panel_draw_bitmap(panel_handle, GRAMx1, GRAMy1, GRAMx2 + 1,
-                GRAMy2 + 1, psRAMlvglBuffer2);
+            if (QSPI_Display) {
+                /*esp_lcd_panel_*/draw_bitmap(/*panel_handle, */GRAMx1, GRAMy1, GRAMx2 + 1,
+                    GRAMy2 + 1, psRAMlvglBuffer2);
+            }
+            else {
+                esp_lcd_panel_draw_bitmap(panel_handle, GRAMx1, GRAMy1, GRAMx2 + 1,
+                    GRAMy2 + 1, psRAMlvglBuffer2);
+            }
         }
         else {
             uint32_t pixSize = w * h;
@@ -2215,7 +2412,14 @@ void gfx4desp32_spi_panel::MergeFrameBuffers(uint8_t fbto, uint8_t fbfrom1,
         from2 += 2;
     }
     if (fbto == 0)
-        FlushArea(0, __scrHeight, -1);
+    {
+        if (QSPI_Display) {
+            FlushArea(0, __scrWidth - 1, 0, __scrHeight, -1);
+        }
+        else {
+            FlushArea(0, __scrHeight, -1);
+        }
+    }
 }
 
 /****************************************************************************/
@@ -2259,7 +2463,14 @@ void gfx4desp32_spi_panel::MergeFrameBuffers(uint8_t fbto, uint8_t fbfrom1,
         from3 += 2;
     }
     if (fbto == 0)
-        FlushArea(0, __scrHeight, -1);
+    {
+        if (QSPI_Display) {
+            FlushArea(0, __scrWidth - 1, 0, __scrHeight, -1);
+        }
+        else {
+            FlushArea(0, __scrHeight, -1);
+        }
+    }
 }
 
 /****************************************************************************/
@@ -2475,3 +2686,342 @@ void gfx4desp32_spi_panel::DigitalWrite(byte pin, bool state) {
 }
 
 int gfx4desp32_spi_panel::DigitalRead(byte pin) { return digitalRead(pin); }
+
+void gfx4desp32_spi_panel::QSPI_mirror(bool mirror_x, bool mirror_y) {
+    if (mirror_x) {
+        madctl_val |= BIT(6);
+    }
+    else {
+        madctl_val &= ~BIT(6);
+    }
+    if (mirror_y) {
+        madctl_val |= BIT(7);
+    }
+    else {
+        madctl_val &= ~BIT(7);
+    }
+    uint8_t command[1];
+    command[0] = madctl_val;
+    tx_param(LCD_CMD_MADCTL, command, 1);
+}
+
+void gfx4desp32_spi_panel::QSPI_swap_xy(bool swap_axes) {
+    if (swap_axes) {
+        madctl_val |= BIT(5);
+    }
+    else {
+        madctl_val &= ~BIT(5);
+    }
+    uint8_t command[1];
+    command[0] = madctl_val;
+    tx_param(LCD_CMD_MADCTL, command, 1);
+}
+
+/****************************************************************************/
+/*!
+  @brief  initialize PCF8563 RTC
+  @note   Clears TESTC and CLKOUT
+*/
+/****************************************************************************/
+void gfx4desp32_spi_panel::RTCinit() {
+    if (QSPI_Display) {
+        if (I2CInit == false) {
+            if (Wire.begin(17, 18, 400000)) {
+                I2CInit = true;
+            }
+            else {
+            }
+        }
+        RTCwrite_AND(Control_status_1, 247); // clear TESTC bit
+        RTCwrite_AND(CLKOUT_control, 127);   // clear CLKOUT enable bit
+    }
+}
+/****************************************************************************/
+/*!
+  @brief  Start the clock
+*/
+/****************************************************************************/
+void gfx4desp32_spi_panel::RTCstartClock() {
+    if (QSPI_Display) RTCwrite_AND(Control_status_1, ~(1 << 5));
+}
+/****************************************************************************/
+/*!
+  @brief  Stop the clock
+*/
+/****************************************************************************/
+void gfx4desp32_spi_panel::RTCstopClock() {
+    if (QSPI_Display) RTCwrite_OR(Control_status_1, 1 << 5);
+}
+
+/****************************************************************************/
+/*!
+  @brief  Set Year
+  @param  Year - 0 to 99
+*/
+/****************************************************************************/
+void gfx4desp32_spi_panel::RTCsetYear(uint16_t year) {
+    if (QSPI_Display) {
+        uint8_t y1, y2;
+        uint16_t year100;
+        year100 = year / 100;
+        if (year100 == 20) {
+            y1 = RTCread(Century_months) & 0x7f;
+        }
+        else {
+            y1 = (RTCread(Century_months) & 0x7f) + 0x80;
+        }
+        y2 = year - (year100 * 100);
+        const uint8_t data = ((get_second_number(y2)) << 4) | (get_first_number(y2));
+        RTCwrite(Century_months, y1);
+        RTCwrite(Years, data);
+    }
+}
+/****************************************************************************/
+/*!
+  @brief  Set Month
+  @param  Month - 1 to 12
+*/
+/****************************************************************************/
+void gfx4desp32_spi_panel::RTCsetMonth(uint8_t month) {
+    if (QSPI_Display) {
+        uint8_t century = RTCread(Century_months) & 0x80;
+        const uint8_t data =
+            ((get_second_number(month)) << 4) | (get_first_number(month));
+        RTCwrite(Century_months, (century | (data & 0x7f)));
+    }
+}
+
+/****************************************************************************/
+/*!
+  @brief  Set Day
+  @param  Day - 1 to 31
+*/
+/****************************************************************************/
+void gfx4desp32_spi_panel::RTCsetDay(uint8_t day) {
+    if (QSPI_Display) {
+        const uint8_t data =
+            ((get_second_number(day)) << 4) | (get_first_number(day));
+        RTCwrite(Days, data);
+    }
+}
+
+/****************************************************************************/
+/*!
+  @brief  Set Hour
+  @param  Hour - 0 to 24
+*/
+/****************************************************************************/
+void gfx4desp32_spi_panel::RTCsetHour(uint8_t hour) {
+    if (QSPI_Display) {
+        const uint8_t data =
+            ((get_second_number(hour)) << 4) | (get_first_number(hour));
+        RTCwrite(Hours, data);
+    }
+}
+
+/****************************************************************************/
+/*!
+  @brief  Set Minute
+  @param  Minute - 0 to 59
+*/
+/****************************************************************************/
+void gfx4desp32_spi_panel::RTCsetMinute(uint8_t minute) {
+    if (QSPI_Display) {
+        const uint8_t data =
+            ((get_second_number(minute)) << 4) | (get_first_number(minute));
+        RTCwrite(Minutes, data);
+    }
+}
+
+/****************************************************************************/
+/*!
+  @brief  Set Seconds
+  @param  Seconds - 0 to 99
+*/
+/****************************************************************************/
+void gfx4desp32_spi_panel::RTCsetSecond(uint8_t second) {
+    if (QSPI_Display) {
+        const uint8_t data =
+            ((get_second_number(second)) << 4) | (get_first_number(second));
+        RTCwrite(VL_seconds, data);
+    }
+}
+
+/****************************************************************************/
+/*!
+  @brief  Get Current Time
+  @note   Time (current code encoded into the Time structure)
+*/
+/****************************************************************************/
+Time gfx4desp32_spi_panel::RTCgetTime() {
+    uint8_t century = (RTCread(Century_months) & 0x80) >> 7;
+    uint16_t year100;
+    if (century) {
+        year100 = 1900;
+    }
+    else {
+        year100 = 2000;
+    }
+    Time output;
+    if (!QSPI_Display) return output;
+    // read data registers contents
+    const uint16_t YEAR = RTCread(Years);
+    const uint8_t MONTH = RTCread(Century_months);
+    const uint8_t DAY = RTCread(Days);
+    const uint8_t WEEKDAY = RTCread(Weekdays);
+    const uint8_t HOUR = RTCread(Hours);
+    const uint8_t MINUTE = RTCread(Minutes);
+    const uint8_t SECONDS = RTCread(VL_seconds);
+    // convert readed data to numbers using bcd_to_number function).
+    output.year =
+        year100 + bcd_to_number((YEAR & 0b11110000) >> 4, YEAR & 0b00001111);
+    output.month = bcd_to_number((MONTH & 0b00010000) >> 4, MONTH & 0b00001111);
+    output.day = bcd_to_number((DAY & 0b00110000) >> 4, DAY & 0b00001111);
+    output.weekday = bcd_to_number(0, WEEKDAY & 0b00000111);
+    output.hour = bcd_to_number((HOUR & 0b00110000) >> 4, HOUR & 0b00001111);
+    output.minute =
+        bcd_to_number((MINUTE & 0b01110000) >> 4, MINUTE & 0b00001111);
+    output.second =
+        bcd_to_number((SECONDS & 0b01110000) >> 4, SECONDS & 0b00001111);
+    return output;
+}
+
+/****************************************************************************/
+/*!
+  @brief  Check clock integrity
+  @note   returns clock status
+*/
+/****************************************************************************/
+bool gfx4desp32_spi_panel::RTCcheckClockIntegrity() {
+    if (!QSPI_Display) return 0;
+    const uint8_t data = RTCread(VL_seconds); // read the data
+    if (data & (1 << 7)) {
+        return 0; // if clock integrity is not guaranteed return 0
+    }
+    else {
+        return 1; // otherwise return 1
+    }
+}
+
+// Read one byte of data
+// Parameters:
+//  * uint8_t address  - register read_address
+// Returns: readed byte of data (uint8_t)
+uint8_t gfx4desp32_spi_panel::RTCread(uint8_t address) {
+    if (!QSPI_Display) return 0;
+    Wire.beginTransmission(PCF8563_address); // begin transmission
+    Wire.write(address); // inform chip what register we want to read
+    Wire.endTransmission();
+    Wire.requestFrom(PCF8563_address, 1); // request one byte from the chip
+    uint8_t data = Wire.read();           // read the data
+    return data;
+}
+
+// Convert BCD format to number
+// Parameters:
+//  * uint8_t first -> first digit
+//  * uint8_t second -> second digit
+// Returns: the result of the conversion (unsigned char)
+unsigned char gfx4desp32_spi_panel::bcd_to_number(uint8_t first,
+    uint8_t second) {
+    if (!QSPI_Display) return 0;
+    unsigned char output;
+    output = first * 10;
+    output = output + second;
+    return output;
+}
+
+// Get first digit of the number
+// Parameters:
+//  * unsigned short ->
+// Returns: digit (uint8_t)
+uint8_t gfx4desp32_spi_panel::get_first_number(unsigned short number) {
+    if (!QSPI_Display) return 0;
+    uint8_t output = number % 10;
+    return output;
+}
+
+// Get second digit of the number
+// Parameters:
+//  * unsigned short ->
+// Returns: digit (uint8_t)
+uint8_t gfx4desp32_spi_panel::get_second_number(unsigned short number) {
+    if (!QSPI_Display) return 0;
+    uint8_t output = number / 10;
+    return output;
+}
+
+// Write one byte of data
+// Parameters:
+//  * uint8_t address  - register read_address
+//  * uint8_t data     - byte of data that we want to write to the register
+// Returns: none
+void gfx4desp32_spi_panel::RTCwrite(uint8_t address, uint8_t data) {
+    if (QSPI_Display) {
+        Wire.beginTransmission(PCF8563_address);
+        Wire.write(address);
+        Wire.write(data);
+        Wire.endTransmission();
+    }
+}
+
+// Change state of the register using OR operation
+// Parameters:
+//  * uint8_t address    - register address
+//  * uint8_t data       - one byte of data that we want to put in the register
+// Returns: none
+void gfx4desp32_spi_panel::RTCwrite_OR(uint8_t address, uint8_t data) {
+    if (QSPI_Display) {
+        uint8_t c = RTCread(address);
+        c = c | data;
+        RTCwrite(address, c);
+    }
+}
+
+// Change state of the register using AND operation
+// Parameters:
+//  * uint8_t address    - register address
+//  * uint8_t data       - one byte of data that we want to put in the register
+// Returns: none
+void gfx4desp32_spi_panel::RTCwrite_AND(uint8_t address, uint8_t data) {
+    if (QSPI_Display) {
+        uint8_t c = RTCread(address);
+        c = c & data;
+        RTCwrite(address, c);
+    }
+}
+
+const char* gfx4desp32_spi_panel::RTCformatDateTime(uint8_t sytle) {
+    if (!QSPI_Display) return "0";
+    Time t = RTCgetTime();
+    switch (sytle) {
+    case RTC_TIMEFORMAT_HM:
+        snprintf(format, sizeof(format), "%02d:%02d", t.hour, t.minute);
+        break;
+    case RTC_TIMEFORMAT_HMS:
+        snprintf(format, sizeof(format), "%02d:%02d:%02d", t.hour, t.minute,
+            t.second);
+        break;
+    case RTC_TIMEFORMAT_YYYY_MM_DD:
+        snprintf(format, sizeof(format), "%04d-%02d-%02d", t.year, t.month, t.day);
+        break;
+    case RTC_TIMEFORMAT_MM_DD_YYYY:
+        snprintf(format, sizeof(format), "%02d-%02d-%04d", t.month, t.day, t.year);
+        break;
+    case RTC_TIMEFORMAT_DD_MM_YYYY:
+        snprintf(format, sizeof(format), "%02d-%02d-%04d", t.day, t.month, t.year);
+        break;
+    case RTC_TIMEFORMAT_YYYY_MM_DD_H_M_S:
+        snprintf(format, sizeof(format), "%d-%d-%d/%d:%d:%d", t.year, t.month,
+            t.day, t.hour, t.minute, t.second);
+        break;
+    case RTC_TIMEFORMAT_DD_MM_YYYY_H_M_S:
+        snprintf(format, sizeof(format), "%02d-%02d-%04d/%02d:%02d:%02d", t.day,
+            t.month, t.year, t.hour, t.minute, t.second);
+        break;
+    default:
+        snprintf(format, sizeof(format), "%02d:%02d", t.hour, t.minute);
+        break;
+    }
+    return format;
+}
