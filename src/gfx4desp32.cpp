@@ -5520,7 +5520,7 @@ int gfx4desp32::__gciCharWidth(uint16_t ch) {
 int gfx4desp32::charWidth(uint16_t ch) {
     if (fno != 0 && fno != -1)
         return (fsw + 1) * textsize;
-    //return __gciCharWidth(ch);
+    return __gciCharWidth(ch);
 }
 
 int gfx4desp32::charHeight(uint16_t ch) { return fsh * textsize; }
