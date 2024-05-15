@@ -4,6 +4,7 @@
 
 
 #include "gfx4desp32.h"
+#include "gfx4desp32_rtc.h"
 #include "Wire.h"
 
 #define RGB_LCD_PANEL_MAX_FB_NUM         1 // maximum supported frame buffer number
@@ -78,29 +79,7 @@ struct esp_rgb_panel_t {
     dma_descriptor_t dma_nodes[];      // DMA descriptors pool
 };
 
-struct Time
-{
-    uint16_t year;
-    uint8_t month;
-    uint8_t day;
-    uint8_t weekday;
-    uint8_t hour;
-    uint8_t minute;
-    uint8_t second;
-};
-
-enum {
-    RTC_TIMEFORMAT_HM,
-    RTC_TIMEFORMAT_HMS,
-    RTC_TIMEFORMAT_YYYY_MM_DD,
-    RTC_TIMEFORMAT_MM_DD_YYYY,
-    RTC_TIMEFORMAT_DD_MM_YYYY,
-    RTC_TIMEFORMAT_YYYY_MM_DD_H_M_S,
-    RTC_TIMEFORMAT_DD_MM_YYYY_H_M_S,
-};
-
-
-class gfx4desp32_rgb_panel : virtual public gfx4desp32 {
+class gfx4desp32_rgb_panel : virtual public gfx4desp32, public gfx4desp32_rtc {
 private:
 
     int RGB_InvertFix[16] = { 8, 3, 46, 9, 1, 5, 6, 7, 15, 16, 4, 45, 48, 47, 21, 14 };
@@ -147,7 +126,6 @@ private:
     uint8_t m_ctrl;
     bool IOexpInit;
     int lasttxpos;
-    char format[128];
     bool frameBufferIData;
 
     uint8_t pinNum2bitNum[8] = { 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80 };
@@ -161,33 +139,6 @@ private:
     bool __lcd_rgb_panel_fill_bounce_buffer(uint8_t* buffer);
 
     void FlushArea(int y1, int y2, int xpos);
-    uint8_t RTCread(uint8_t address);                           // read one byte from selected register
-    void RTCwrite(uint8_t address, uint8_t data);               // write one byte of data to the register
-    void RTCwrite_OR(uint8_t address, uint8_t data);            // write data to the register using OR operations
-    void RTCwrite_AND(uint8_t address, uint8_t data);           // write data to the register using AND operation
-    unsigned char bcd_to_number(uint8_t first, uint8_t second); // convert two digits to one number
-    uint8_t get_first_number(unsigned short number);            // get ten’s place digit of the number
-    uint8_t get_second_number(unsigned short number);           // get unit place digit of the number
-    enum registers
-    {
-        PCF8563_address = 0x51,
-        Control_status_1 = 0x00,
-        Control_status_2 = 0x01,
-        VL_seconds = 0x02,
-        Minutes = 0x03,
-        Hours = 0x04,
-        Days = 0x05,
-        Weekdays = 0x06,
-        Century_months = 0x07,
-        Years = 0x08,
-        Minute_alarm = 0x09,
-        Hour_alarm = 0x0A,
-        Day_alarm = 0x0B,
-        Weekday_alarm = 0x0C,
-        CLKOUT_control = 0x0D,
-        Timer_control = 0x0E,
-        Timer = 0x0F,
-    };
 
 protected:
     int touchXraw;
@@ -266,24 +217,13 @@ public:
     uint16_t __width;
     uint16_t __height;
     uint32_t __fbSize;
-    bool I2CInit;
+
     virtual void ClipWindow(int x1, int y1, int x2, int y2) override;
     virtual void Clipping(bool clipping) override;
     void setScrollArea(int x1, int y1, int x2, int y2);
     void setScrollDirection(uint8_t scrDir);
     uint8_t* SelectFB(uint8_t sel);
-    void RTCinit();                     // initialize the chip
-    void RTCstopClock();                // stop the clock
-    void RTCstartClock();               // start the clock
-    void RTCsetYear(uint16_t year);     // set year
-    void RTCsetMonth(uint8_t month);    // set month
-    void RTCsetDay(uint8_t day);        // set day
-    void RTCsetHour(uint8_t hour);      // set hour
-    void RTCsetMinute(uint8_t minute);  // set minut
-    void RTCsetSecond(uint8_t second);  // set second
-    Time RTCgetTime();                  // get time
-    bool RTCcheckClockIntegrity();      // check clock integrity
-    const char* RTCformatDateTime(uint8_t sytle);
+
     int calx1, calx2, caly1, caly2;
     int touchType;
     //bool clippingON;

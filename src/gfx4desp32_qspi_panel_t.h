@@ -2,11 +2,11 @@
 #define __GFX4D_QSPI_PANEL_T__
 
 #include "gfx4desp32_touch.h"
-#include "gfx4desp32_spi_panel.h"
+#include "gfx4desp32_qspi_panel.h"
 #include "Wire.h"
 
 
-class gfx4desp32_qspi_panel_t : public gfx4desp32_spi_panel, public gfx4desp32_touch {
+class gfx4desp32_qspi_panel_t : public gfx4desp32_qspi_panel, public gfx4desp32_touch {
 private:
   const char* TAG = "gfx4desp32_qspi_panel_t";
 

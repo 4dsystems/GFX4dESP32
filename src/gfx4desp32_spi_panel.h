@@ -110,29 +110,6 @@ struct /*st7789_*/vendor_config_t {
     } flags;
 };
 
-struct Time
-{
-    uint16_t year;
-    uint8_t month;
-    uint8_t day;
-    uint8_t weekday;
-    uint8_t hour;
-    uint8_t minute;
-    uint8_t second;
-};
-
-enum {
-    RTC_TIMEFORMAT_HM,
-    RTC_TIMEFORMAT_HMS,
-    RTC_TIMEFORMAT_YYYY_MM_DD,
-    RTC_TIMEFORMAT_MM_DD_YYYY,
-    RTC_TIMEFORMAT_DD_MM_YYYY,
-    RTC_TIMEFORMAT_YYYY_MM_DD_H_M_S,
-    RTC_TIMEFORMAT_DD_MM_YYYY_H_M_S,
-};
-
-// TODO: RTC should be added to QSPI only
-
 class gfx4desp32_spi_panel : virtual public gfx4desp32 {
 private:
 
@@ -215,7 +192,6 @@ private:
 
     bool QSPI_Display;
     uint8_t madctl_val;
-    char format[128];
     bool useRAM;
 
     uint8_t scroll_Directions[16] = { 0x00, 0x01, 0x03, 0x02,
@@ -228,33 +204,6 @@ private:
     void tx_color(int32_t lcd_cmd, const void* param, size_t param_size);
     void QSPI_mirror(bool mirror_x, bool mirror_y);
     void QSPI_swap_xy(bool swap_axes);
-    uint8_t RTCread(uint8_t address);                           // read one byte from selected register
-    void RTCwrite(uint8_t address, uint8_t data);               // write one byte of data to the register
-    void RTCwrite_OR(uint8_t address, uint8_t data);            // write data to the register using OR operations
-    void RTCwrite_AND(uint8_t address, uint8_t data);           // write data to the register using AND operation
-    unsigned char bcd_to_number(uint8_t first, uint8_t second); // convert two digits to one number
-    uint8_t get_first_number(unsigned short number);            // get ten’s place digit of the number
-    uint8_t get_second_number(unsigned short number);           // get unit place digit of the number
-    enum registers
-    {
-        PCF8563_address = 0x51,
-        Control_status_1 = 0x00,
-        Control_status_2 = 0x01,
-        VL_seconds = 0x02,
-        Minutes = 0x03,
-        Hours = 0x04,
-        Days = 0x05,
-        Weekdays = 0x06,
-        Century_months = 0x07,
-        Years = 0x08,
-        Minute_alarm = 0x09,
-        Hour_alarm = 0x0A,
-        Day_alarm = 0x0B,
-        Weekday_alarm = 0x0C,
-        CLKOUT_control = 0x0D,
-        Timer_control = 0x0E,
-        Timer = 0x0F,
-    };
 
 protected:
     int touchXraw;
@@ -334,25 +283,13 @@ public:
     uint16_t __width;
     uint16_t __height;
     uint32_t __fbSize;
-    bool I2CInit;
+
     void ClipWindow(int x1, int y1, int x2, int y2);
     void Clipping(bool clipping);
     void setScrollArea(int x1, int y1, int x2, int y2);
     void setScrollDirection(uint8_t scrDir);
     uint8_t* SelectFB(uint8_t sel);
     virtual uint8_t* SelectINIT(bool sel) = 0;
-    void RTCinit();                     // initialize the chip
-    void RTCstopClock();                // stop the clock
-    void RTCstartClock();               // start the clock
-    void RTCsetYear(uint16_t year);     // set year
-    void RTCsetMonth(uint8_t month);    // set month
-    void RTCsetDay(uint8_t day);        // set day
-    void RTCsetHour(uint8_t hour);      // set hour
-    void RTCsetMinute(uint8_t minute);  // set minut
-    void RTCsetSecond(uint8_t second);  // set second
-    Time RTCgetTime();                  // get time
-    bool RTCcheckClockIntegrity();      // check clock integrity
-    const char* RTCformatDateTime(uint8_t sytle);
 
     uint8_t InitCommandsST[160];
     uint8_t InitCommandsili[160];

@@ -499,6 +499,8 @@ protected:
     uint8_t DisplayType;
     uint8_t __TImode;
 
+    bool I2CInit;
+
     int sd_sck;
     int sd_miso;
     int sd_mosi;

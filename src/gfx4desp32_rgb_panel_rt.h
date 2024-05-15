@@ -1,7 +1,6 @@
 #ifndef __GFX4D_RGB_PANEL_RT__
 #define __GFX4D_RGB_PANEL_RT__
 
-#include <Preferences.h>
 #include "gfx4desp32_rgb_panel_t.h"
 
 class gfx4desp32_rgb_panel_rt : public gfx4desp32_rgb_panel_t {
