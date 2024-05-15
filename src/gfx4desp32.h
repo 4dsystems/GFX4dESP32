@@ -51,7 +51,8 @@
 #include "SD_MMC.h"
 #include <FS.h>
 #define gfx4d_font      File
-#else   
+#else
+#define FILE_COPY_CONSTRUCTOR_SELECT FILE_COPY_CONSTRUCTOR_PUBLIC
 #include <SdFat.h>
 #define gfx4d_font      FsFile
 #endif
