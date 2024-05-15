@@ -301,10 +301,28 @@ int16_t gfx.getY(), word; // Returns the current Y position of the cursor.
 // Notes 	: Returns the current Y position of the cursor.
 //
 
+void gfx.Clipping(mode), void; // Enables previously defined clipping area.
+// Syntax	: gfx.Clipping(mode);
+// Usage	: gfx.Clipping(true);
+// Notes 	: Enables previously defined clipping area.
+//
+
+void gfx.ClipWindow(x1, y1, x2, y2), void; // Set Clip window specified by the rectangle with diagonal at (x1, y1) to (x2, y2)
+// Syntax	: gfx.ClipWindow(x1, y1, x2, y2);
+// Usage	: gfx.ClipWindow(10, 0, 229, 319);
+// Notes 	: Set clip window specified by the rectangle with diagonal at (x1, y1) to (x2, y2)
+//
+
 void gfx.CircleFilled(x, y, r, colour), void; // Draw a filled circle with center at (x, y), with radius r and colour 'colour'.
 // Syntax	: gfx.CircleFilled(x, y, r, colour);
 // Usage	: gfx.CircleFilled(120, 100, 50, CYAN);
 // Notes 	: Draw a filled circle with center at (x, y), with radius r and colour 'colour'.
+//
+
+void gfx.CircleFilledAA(x, y, r, colour), void; // Draw a smooth filled circle with center at (x, y), with radius r and colour 'colour'.
+// Syntax	: gfx.CircleFilled(x, y, r, colour);
+// Usage	: gfx.CircleFilled(120.5, 100.7, 50, CYAN);
+// Notes 	: Draw a smooth filled circle with center at (x, y), with radius r and colour 'colour'.
 //
 
 void gfx.Circle(x, y, r, colour), void; // Draw a circle with center at (x, y), with radius r and colour 'colour'.
@@ -403,10 +421,23 @@ void gfx.Triangle(x0, y0, x1, y1, x2, y2, colour), void; // Draw a triangle spec
 // Notes 	: Draw a triangle specified by 3 points using the colour 'colour'
 //
 
+void gfx.TriangleAA(x0, y0, x1, y1, x2, y2, w, colour), void; // Draw a smooth triangle specified by 3 points using the colour 'colour' and line width 'w'
+// Syntax	: gfx.TriangleAA(x0, y0, x1, y1, x2, y2, w, colour);
+// Usage	: gfx.TriangleAA(10, 20, 100, 40, 60, 100, 3, BLUE);
+// Notes 	: Draw a smooth triangle specified by 3 points using the colour 'colour' and line width of 'w'
+//
+
 void gfx.Line(x0, y0, x1, y1, colour), void; // Draw a line specified by the endpoints (x0, y0) and (x1, y1) using colour 'colour'.
 // Syntax	: gfx.Line(x0, y0, x1, y1, colour);
-// Usage	: gfx.Line(1-, 15, 115, 200, RED);
+// Usage	: gfx.Line(1, 15, 115, 200, RED);
 // Notes 	: Draw a line specified by the endpoints (x0, y0) and (x1, y1) using colour 'colour'.
+//
+
+void gfx.LineAA(x0, y0, x1, y1, w, colour), void; // Draw a smooth line specified by the endpoints (x0, y0) and (x1, y1) using colour 'colour'.
+// Syntax	: gfx.Line(x0, y0, x1, y1, w, colour);
+// Usage	: gfx.Line(1.5, 15.2, 115.6, 200.3, 5, RED);
+// Notes 	: Draw a smooth line specified by the floating point endpoints (x0, y0) and (x1, y1) using colour 'colour' and thickness 'w'.
+//			: Optional 2nd width will draw a line with different thickness at each end eg gfx.Line(10, 10, 100, 100, 1, 10, RED); will draw a pointer type line
 //
 
 void gfx.setGCIsystem(gs), void; // Sets the GCI system to uSD or from a data array
