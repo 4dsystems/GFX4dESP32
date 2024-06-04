@@ -11,4 +11,5 @@ It is recommended to use Workshop4 IDE to get the most of out the library functi
 ### Notes
 
 1. Workshop4 is a **Windows-only** application.
-2. This is tested against Arduino ESP32 Core version 2.0.13. It might also work with 2.0.14 or higher but if any issues occur, it is recommend to try to set the boards package version to 2.0.13. If the issue persists, please don't hesitate to [write an issue](https://github.com/4dsystems/GFX4dESP32/issues/new) or contact us directly.
+2. This is tested against Arduino ESP32 Core version 2.0.13. It might also work with 2.0.14 or higher but if any issues occur, it is recommend to try to set the boards package version to 2.0.13. If trying to use board package v3.0.0 or higher, please see library version v1.1.0 or higher. If the issue persists, please don't hesitate to [write an issue](https://github.com/4dsystems/GFX4dESP32/issues/new) or contact us directly.
+3. This version doesn't support 7-inch and 9-inch variants and also 4.3 QSPI variant. For these displays, please use Arduino-ESP32 core 3.0.0 or higher and GFX4dESP32 library v1.1.0 or higher.
