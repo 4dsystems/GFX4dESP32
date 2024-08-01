@@ -1531,7 +1531,7 @@ void gfx4desp32::Open4dGFXtoPSRAM(String file4d) {
     userDat = LittleFS.open((char*)dat4d.c_str(), "r");
 #else
 #ifdef USE_SDMMC_FILE_SYSTEM
-    userDat = SD_MMC.open(dat4d);
+    userDat = SD_MMC.open("/" + dat4d);
 #else
     userDat = uSD.open(dat4d);
 #endif
@@ -1551,7 +1551,7 @@ void gfx4desp32::Open4dGFXtoPSRAM(String file4d) {
     userImag = LittleFS.open((char*)gci4d.c_str(), "r");
 #else
 #ifdef USE_SDMMC_FILE_SYSTEM
-    userImag = SD_MMC.open(gci4d);
+    userImag = SD_MMC.open("/" + gci4d);
 #else
     userImag = uSD.open(gci4d);
 #endif

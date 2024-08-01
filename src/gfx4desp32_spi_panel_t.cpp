@@ -50,7 +50,7 @@ void gfx4desp32_spi_panel_t::touch_Set(uint8_t mode) {
 */
 /****************************************************************************/
 bool gfx4desp32_spi_panel_t::touch_Update() {
-    if (!_TouchEnable || digitalRead(GFX4d_TOUCH_INT))
+    if (!_TouchEnable /*|| digitalRead(GFX4d_TOUCH_INT)*/ )
         return false;
     bool update = false;
     //int n = -1;

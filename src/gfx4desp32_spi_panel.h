@@ -72,8 +72,8 @@
 #define GEN4_35CT_INVERT_COLOR    true
 #define GEN4_35CT_SWAP_XY         true
 
-#define GFX4d_TOUCH_RESET         0x0b
-#define GFX4d_TOUCH_INT           0x06
+#define GFX4d_TOUCH_RESET         8
+#define GFX4d_TOUCH_INT           11
 #define GFX4d_QSPI_TOUCH_RESET    41
 #define GFX4d_QSPI_TOUCH_INT      42
 
