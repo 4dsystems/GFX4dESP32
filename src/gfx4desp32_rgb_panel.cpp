@@ -351,7 +351,7 @@ void gfx4desp32_rgb_panel::Invert(bool Inv) {
     /*** Not sure how to deal with this on RGB displays ***/
     int panel_id = rgb_panel->panel_id;
     for (int i = 0; i < /*rgb_panel->data_width*/16; i++) {
-        esp_rom_gpio_connect_out_signal(/*rgb_panel->data_gpio_nums[i]*/RGB_InvertFix[i], lcd_periph_signals.panels[panel_id].data_sigs[i],
+        esp_rom_gpio_connect_out_signal(/*rgb_panel->data_gpio_nums[i]*/RGB_InvertFix[i], lcd_periph_rgb_signals.panels[panel_id].data_sigs[i],
             Inv, false);
     }
 }
