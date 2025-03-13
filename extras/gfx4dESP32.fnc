@@ -331,6 +331,12 @@ void gfx.Circle(x, y, r, colour), void; // Draw a circle with center at (x, y), 
 // Notes 	: Draw a circle at x, y, with radius r and colour 'colour'.
 //
 
+void gfx.CircleAA(x, y, r, t, colour), void; // Draw a circle with center at (x, y), with radius r and colour 'colour'.
+// Syntax	: gfx.CircleAA(x, y, r, t, colour);
+// Usage	: gfx.CircleAA(100, 120, 40, 5, LIME);
+// Notes 	: Draw a circle at x, y, with radius r, thickness t and colour 'colour'.
+//
+
 void gfx.EllipseFilled(xe, ye, radx, rady, colour), void; // Draw a filled ellipse at x, y, with horizontal and vertical radii 'radx' and 'rady' and colour 'colour'.
 // Syntax	: gfx.EllipseFilled(x, y, radx, rady, colour);
 // Usage	: gfx.EllipseFilled(100, 100, 40, 30, BLUE);
@@ -403,6 +409,12 @@ void gfx.RoundRectFilled(x1, y1, x2, y2, r, colour), void; // Draws a filled rou
 // Notes 	: Draws a filled rounded rectangle having a diagonal with endpoints at (x1, y1) and (x2, y2), corner radius 'r' and colour 'colour'.
 //
 
+void gfx.RoundRectFilledAA(x1, y1, x2, y2, r, colour), void; // Draws a filled anti-aliaised rounded rectangle having a diagonal with endpoints at (x1, y1) and (x2, y2), corner radius 'r' and colour 'colour'.
+// Syntax	: gfx.RoundRectFilledAA(x1, y1, x2, y2, r, colour);
+// Usage	: gfx.RoundRectFilledAA(50, 50, 200, 200, 25, RED);
+// Notes 	: Draws a filled anti-aliased rounded rectangle having a diagonal with endpoints at (x1, y1) and (x2, y2), corner radius 'r' and colour 'colour'.
+//
+
 void gfx.RoundRect(x1, y1, x2, y2, r, colour), void; // Draws a rounded rectangle having a diagonal with endpoints at (x1, y1) and (x2, y2), corner radius 'r' and colour 'colour'.
 // Syntax	: gfx.RoundRect(x1, y1, x2, y2, r, colour);
 // Usage	: gfx.RoundRect(50, 50, 200, 200, 25, YELLOW);
@@ -433,10 +445,10 @@ void gfx.Line(x0, y0, x1, y1, colour), void; // Draw a line specified by the end
 // Notes 	: Draw a line specified by the endpoints (x0, y0) and (x1, y1) using colour 'colour'.
 //
 
-void gfx.LineAA(x0, y0, x1, y1, w, colour), void; // Draw a smooth line specified by the endpoints (x0, y0) and (x1, y1) using colour 'colour'.
-// Syntax	: gfx.Line(x0, y0, x1, y1, w, colour);
-// Usage	: gfx.Line(1.5, 15.2, 115.6, 200.3, 5, RED);
-// Notes 	: Draw a smooth line specified by the floating point endpoints (x0, y0) and (x1, y1) using colour 'colour' and thickness 'w'.
+void gfx.LineAA(x0, y0, x1, y1, w1, w2, colour), void; // Draw a smooth line specified by the endpoints (x0, y0) and (x1, y1) using colour 'colour'.
+// Syntax	: gfx.LineAA(x0, y0, x1, y1, w1, w2, colour);
+// Usage	: gfx.LineAA(1.5, 15.2, 115.6, 200.3, 5, 5, RED);
+// Notes 	: Draw a smooth line specified by the floating point endpoints (x0, y0) and (x1, y1) using colour 'colour' and thickness's 'w1'.
 //			: Optional 2nd width will draw a line with different thickness at each end eg gfx.Line(10, 10, 100, 100, 1, 10, RED); will draw a pointer type line
 //
 
@@ -726,6 +738,30 @@ void gfx.gradientShape(vert, ow, xPos, yPos, w, h, r1, r2, r3, r4, darken, colou
 // Syntax	: gfx.gradientShape(vert, ow, xPos, yPos, w, h, r1, r2, r3, r4, darken, colour, sr1, gl1, colorD, sr3, gl3, gtb);
 // Usage	: gfx.gradientShape(vert, ow, xPos, yPos, w, h, r1, r2, r3, r4, darken, colour, sr1, gl1, colorD, sr3, gl3, gtb);
 // Notes 	: Draws a customizable shape with rounded corners and internal and external gradients
+//			:   vert    - Horizontal or Vertical gradient -- 0 or 1
+//			:   ow      - Outer gradient width
+//			:   xPos    - x co-ordinate
+//			:   yPos    - y co-ordinate
+//			:   w       - width
+//			:   h       - height
+//			:   r1      - top left corner radius
+//			:   r2      - top right corner radius
+//			:   r3      - bottom left corner radius
+//			:   r4      - bottom right corner radius
+//			:   darken  - Darken both gradients by a value. Can be -ve to lighten
+//			:   colour  - Outer gradient colour
+//			:   sr1     - Outer gradient type (0 - 3 horizontal, +4 vertical) 0 - Raised, 1 - Sunken, 2 - Raised flatter middle, 3 - Sunken flatter middle
+//			:   gl1     - Outer gradient level 0 - 63
+//			:   colourD - Inner gradient colour
+//			:   sr3     - Inner gradient type (0 - 3 horizontal, +4 vertical) 0 - Raised, 1 - Sunken, 2 - Raised flatter middle, 3 - Sunken flatter middle
+//			:   gl3     - Inner gradient level 0 - 63
+//			:   gtb     - Split gradient, 0 - no split, 1 - top, 2 - bottom
+//
+
+void gfx.gradientShapeAA(vert, ow, xPos, yPos, w, h, r1, r2, r3, r4, darken, colour, sr1, gl1, colorD, sr3, gl3, gtb), void; // Draw an anti-aliaised shaped color gradient using the supplied parameters
+// Syntax	: gfx.gradientShapeAA(vert, ow, xPos, yPos, w, h, r1, r2, r3, r4, darken, colour, sr1, gl1, colorD, sr3, gl3, gtb);
+// Usage	: gfx.gradientShapeAA(vert, ow, xPos, yPos, w, h, r1, r2, r3, r4, darken, colour, sr1, gl1, colorD, sr3, gl3, gtb);
+// Notes 	: Draws an anti-aliaised customizable shape with rounded corners and internal and external gradients
 //			:   vert    - Horizontal or Vertical gradient -- 0 or 1
 //			:   ow      - Outer gradient width
 //			:   xPos    - x co-ordinate
@@ -1530,4 +1566,10 @@ void gfx.FlushArea(x1, x2, y1, y2, xpos), void; // Flushes display area
 // Syntax	: gfx.FlushArea(x1, x2, y1, y2, xpos);
 // Usage	: gfx.FlushArea(10, 100, 10, 100, -1);
 // Notes	: xpos is set to -1 for normal use or set to a value to refresh one pixel at xpos position.
+//
+
+bool gfx.PointWithinRectangle(x, y, area), 1; // Returns true if x & y are within the area specified by area array
+// Syntax	: gfx.PointWithinRectangle(x, y, area);
+// Usage	: gfx.PointWithinRectangle(100, 100, touched_area);
+// Notes	: area array = [x1, y1, x2, y2] A true is returned if x & y are within the area boundary else false.
 //

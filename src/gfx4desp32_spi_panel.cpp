@@ -1,6 +1,6 @@
 #include "gfx4desp32_spi_panel.h"
 
-#define swap(a, b)                                                            \
+#define gfx_Swap(a, b)                                                            \
     {                                                                         \
         int32_t tab = a;                                                      \
         a = b;                                                                \
@@ -29,6 +29,7 @@
 #include "esp_log.h"
 #include "esp_pm.h"
 #include "esp_private/gdma.h"
+#include "esp_psram.h"
 #include "hal/dma_types.h"
 #include "hal/gpio_hal.h"
 #include "hal/lcd_hal.h"
@@ -105,7 +106,7 @@ esp_lcd_panel_handle_t gfx4desp32_spi_panel::__begin() {
     ESP_ERROR_CHECK(gpio_config(&bk_gpio_config));
 
     ESP_LOGI(TAG, "Install SPI LCD panel driver");
-
+    esp_psram_init();
     if (!QSPI_Display) {
         displayBus = DISPLAY_BUS_SPI;
         spi_bus_config_t bus_config = {};
@@ -116,7 +117,7 @@ esp_lcd_panel_handle_t gfx4desp32_spi_panel::__begin() {
         bus_config.quadhd_io_num = -1;          // Not used
 
         if (DisplayModel != GFX4d_DISPLAY_ILI9488) {
-            bus_config.max_transfer_sz = h_res * 54 * 2;
+            bus_config.max_transfer_sz = h_res * 36 * 2;
         }
         else {
             bus_config.max_transfer_sz = h_res * 22 * 3;
@@ -165,7 +166,7 @@ esp_lcd_panel_handle_t gfx4desp32_spi_panel::__begin() {
         bus_config.sclk_io_num = panelPin_CLK;
         bus_config.data2_io_num = panelPin_DATA2;
         bus_config.data3_io_num = panelPin_DATA3;
-        bus_config.max_transfer_sz = h_res * 36 * 2;
+        bus_config.max_transfer_sz = h_res * 10 * 2;
 
         ESP_ERROR_CHECK(spi_bus_initialize(GEN4_35CT_SPI_HOST, &bus_config, SPI_DMA_CH_AUTO));
 
@@ -776,9 +777,9 @@ void gfx4desp32_spi_panel::DrawFrameBufferArea(uint8_t fbnum, int16_t x1,
     y_end = y2;
     if (x_start >= __width || x_end < 0 || y_start >= __height || y_end < 0)
         return;
-    if (x_end >= __width)
+    if (x_end >= __width - 1)
         x_end = __width - 1;
-    if (y_end >= __height)
+    if (y_end >= __height - 1)
         y_end = __height - 1;
     if (x_start < 0)
         x_start = 0;
@@ -963,7 +964,7 @@ void gfx4desp32_spi_panel::WrGRAMs(uint8_t* color_data, uint32_t len) {
         }
         pixelPos++;
     }
-    if (pixelPos >= pixelCount &&
+    if (GRAMypos > GRAMy2/*pixelPos >= pixelCount - 2*/ &&
         frame_buffer == 0) { // if GRAM area is written to flush the area.
         wrGRAM = false;
         // CPU writes data to PSRAM through DCache, data in PSRAM might not get
@@ -1062,7 +1063,7 @@ void gfx4desp32_spi_panel::FlushArea(int y1, int y2, int xpos) {
         return;
     }
     if (y1 > y2)
-        swap(y1, y2);
+        gfx_Swap(y1, y2);
     if (y1 > __scrHeight) {
         flush_pending = false;
         return;
@@ -1176,7 +1177,7 @@ void gfx4desp32_spi_panel::FlushArea(int x1, int x2, int y1, int y2, int xpos) {
         return;
     }
     if (y1 > y2)
-        swap(y1, y2);
+        gfx_Swap(y1, y2);
     if (y1 > (__height - 1) || x1 > (__width - 1)) {
         flush_pending = false;
         return;
@@ -1305,7 +1306,7 @@ void gfx4desp32_spi_panel::WrGRAMs(uint16_t* color_data, uint32_t len) {
         pixelPos++;
     }
 
-    if (pixelPos >= pixelCount) { // if GRAM area is written to flush the area.
+    if (/*pixelPos >= pixelCount*/GRAMypos > GRAMy2) { // if GRAM area is written to flush the area.
         wrGRAM = false;
         if (frame_buffer == 0)
             FlushArea(GRAMx1, GRAMx2, GRAMy1, GRAMy2, -1);
@@ -1373,7 +1374,7 @@ void gfx4desp32_spi_panel::WrGRAMs(uint32_t* color_data, uint16_t len) {
         }
     }
 
-    if (pixelPos >= pixelCount) { // if GRAM area is written to flush the area.
+    if (/*pixelPos >= pixelCount*/GRAMypos > GRAMy2) { // if GRAM area is written to flush the area.
         wrGRAM = false;
         if (frame_buffer == 0)
             FlushArea(GRAMx1, GRAMx2, GRAMy1, GRAMy2, -1);
@@ -2316,9 +2317,9 @@ void gfx4desp32_spi_panel::RectangleFilled(int x1, int y1, int x2, int y2,
             return;
     }
     if (x1 > x2)
-        swap(x1, x2);
+        gfx_Swap(x1, x2);
     if (y1 > y2)
-        swap(y1, y2);
+        gfx_Swap(y1, y2);
     if (x1 >= __width || x2 < 0 || y1 >= __height || y2 < 0)
         return;
     if (x1 < 0)
@@ -2745,8 +2746,8 @@ void gfx4desp32_spi_panel::QSPI_mirror(bool mirror_x, bool mirror_y) {
     tx_param(LCD_CMD_MADCTL, command, 1);
 }
 
-void gfx4desp32_spi_panel::QSPI_swap_xy(bool swap_axes) {
-    if (swap_axes) {
+void gfx4desp32_spi_panel::QSPI_swap_xy(bool gfx_Swap_axes) {
+    if (gfx_Swap_axes) {
         madctl_val |= BIT(5);
     }
     else {

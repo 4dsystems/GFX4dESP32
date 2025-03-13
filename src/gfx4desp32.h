@@ -8,10 +8,14 @@
 #include "WProgram.h"
 #endif
 
+#define DISABLE_WIFI_FUNCTIONS
+
+#ifndef DISABLE_WIFI_FUNCTIONS
 #include "HTTPClient.h"
 #include "WiFi.h"
 #include "WiFiClient.h"
 #include "WiFiClientSecure.h"
+#endif
 
 
 #include "esp_err.h"
@@ -35,7 +39,7 @@
 //#define LITTLEFS_FORMAT_ON_FAIL
 
 //**** Uncomment below if SD_MMC File sysem is used instead of SdFat. Note, SPI is not available to user on RGB displays when SDMMC is enabled ****
-//#define USE_SDMMC_FILE_SYSTEM
+#define USE_SDMMC_FILE_SYSTEM
 
 //**** Uncomment below if external SDMMC slot is used instead of on-board slot, Note, not available on RGB displays ****
 //#define SDMMC_4BIT
@@ -54,6 +58,7 @@
 #else
 #define FILE_COPY_CONSTRUCTOR_SELECT FILE_COPY_CONSTRUCTOR_PUBLIC
 #include <SdFat.h>
+#include "sdios.h"
 #define gfx4d_font      FsFile
 #endif
 #endif
@@ -482,6 +487,7 @@ private:
     const uint8_t* fontPtrBkup;
     bool fntCmprsBkup;
     int8_t fnoBkup;
+	float deg2rad = 0.0174532925;
 
 protected:
 #ifndef USE_LITTLEFS_FILE_SYSTEM
@@ -526,8 +532,8 @@ protected:
     int16_t MAX_WIDGETS = 600;
     uint16_t opgfx = 0;
 
-    String dat4d;
-    String gci4d;
+    String dat4d = "################################";
+    String gci4d = "################################";
     int16_t xic;
     int16_t yic;
     uint16_t gciobjnum;
@@ -724,7 +730,10 @@ public:
     void PutPixelAlpha(int x, int y, int32_t color, uint8_t alpha);
     void CircleFilled(int16_t xc, int16_t yc, int16_t r, uint16_t color);
     void Circle(int16_t xc, int16_t yc, int16_t r, uint16_t color);
-    void Ellipse(int16_t xe, int16_t ye, int16_t radx, int16_t rady, uint16_t color);
+	void CircleAA(int32_t x, int32_t y, int32_t r, int thk, int32_t fg_color);
+    void drawArc(int32_t x, int32_t y, int32_t r, int32_t ir, uint32_t sA, uint32_t eA, int32_t color);//, uint32_t bg_color, bool smooth);
+	void ArcAA(int32_t x, int32_t y, int32_t r1, int32_t r2, uint32_t sA, uint32_t eA, int32_t color, bool rounded);
+	void Ellipse(int16_t xe, int16_t ye, int16_t radx, int16_t rady, uint16_t color);
     void EllipseFilled(int16_t xe, int16_t ye, int16_t radx, int16_t rady, uint16_t color);
     void ArcFilled(int16_t xa, int16_t ya, int16_t r, int16_t sa, int16_t ea, uint16_t color);
     void Rectangle(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color);
@@ -732,7 +741,8 @@ public:
     uint8_t Orientation();
     void RoundRectFilled(int16_t x, int16_t y, int16_t w, int16_t h, int16_t r, uint16_t color);
     void RoundRect(int16_t x, int16_t y, int16_t w, int16_t h, int16_t r, uint16_t color);
-    void Arc(int16_t x0, int16_t y0, int16_t r, uint16_t sa, uint16_t color);
+    void RoundRectFilledAA(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, int32_t color);
+	void Arc(int16_t x0, int16_t y0, int16_t r, uint16_t sa, uint16_t color);
     void Triangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t color);
     void TriangleAA(float x0, float y0, float x1, float y1, float x2, float y2, int w, uint16_t color);
     void TriangleFilled(int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t x3, int16_t y3, uint16_t c);
@@ -831,6 +841,10 @@ public:
         int r2, int r3, int r4, int darken, uint16_t color,
         int sr1, int gl1, uint16_t colorD, int sr3, int gl3,
         int gtb);
+	void gradientShapeAA(int vert, int ow, int xpos, int ypos, int w,
+		int h, int r1, int r2, int r3, int r4,
+		int darken, int32_t color, int sr1, int gl1,
+		int32_t colorD, int sr3, int gl3, int gtb);
     uint16_t Grad(int GraisSunk, int Gstate, int Gglev, int Gh1, int Gpos,
         uint16_t colToAdj);
     void drawChar2tw(int16_t x, int16_t y, unsigned char c, uint16_t color,
@@ -940,11 +954,13 @@ public:
     int16_t imageAutoKnob(int hndl, int uix, int uiy, int minarc, int maxarc,
         int ming, int maxg);
     virtual int16_t getImageValue(uint16_t ui);
-    void DownloadFile(String WebAddr, String Fname);
+#ifndef DISABLE_WIFI_FUNCTIONS
+	void DownloadFile(String WebAddr, String Fname);
     void DownloadFile(String WebAddr, String Fname, const char* sha1);
     void DownloadFile(String Address, uint16_t port, String hfile, String Fname);
     void Download(String Address, uint16_t port, String hfile, String Fname,
         bool certUsed, const char* sha1);
+#endif
     void PrintImageFile(String ifile);
     void UserCharacter(uint32_t* data, uint8_t ucsize, int16_t ucx, int16_t ucy,
         uint16_t color, uint16_t bgcolor);
@@ -1038,14 +1054,16 @@ public:
     int inx[MAX_ARCSIZE];
     uint16_t oldgTX, oldgTY, oldgPEN;
     uint16_t gTX, gTY, gPEN;
-    uint8_t* fb;
+    void* fb1 = NULL;
+	void* fb0 = NULL;
+	void* fb = NULL;
     uint8_t* psRAMbuffer1;
     uint8_t* psRAMbuffer2;
     uint8_t* psRAMbuffer3;
     uint8_t* psRAMbuffer4;
     uint8_t* psRAMbuffer5;
     uint8_t* psRAMbuffer6;
-    uint8_t* workbuffer;
+    uint8_t* workbuffer; 
     uint8_t* cache_DAT;
     uint8_t* cache_GCI;
     uint32_t cache_DAT_size;
@@ -1100,6 +1118,8 @@ public:
     int scroll_Y1;
     int scroll_X2;
     int scroll_Y2;
+	int st_hres;
+	int st_vres;
 };
 
 #endif

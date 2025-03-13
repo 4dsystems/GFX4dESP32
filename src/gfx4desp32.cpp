@@ -1,6 +1,6 @@
 #include "gfx4desp32.h"
 
-#define swap(a, b)                                                              \
+#define gfx_Swap(a, b)                                                              \
     {                                                                           \
         int32_t tab = a;                                                        \
         a = b;                                                                  \
@@ -78,7 +78,7 @@ void gfx4desp32::begin(String ips, int pval, bool backLightStartOn) {
     GCItype = GCI_SYSTEM_USD;
     __begin();            // start panel
     panelOrientation(0);  // set default orientation
-    width = getWidth();   // retrieve Width in pixels from panel
+	width = getWidth();   // retrieve Width in pixels from panel
     height = getHeight(); // retrieve Height in pixels from panel
     screenArea = (width * height) << 1;
     scrollAreaY0 = 0; // set initial scroll area to maximum height - used for auto
@@ -88,7 +88,7 @@ void gfx4desp32::begin(String ips, int pval, bool backLightStartOn) {
     textXmax = width - 1;
     _nlh = height; // set newline cut-off point for autoscroll to maximum height
     Cls();         // clear the screen
-    rotation = 0;  // set rotation variable to match initial orientation
+	rotation = 0;  // set rotation variable to match initial orientation
     cursor_y = cursor_x = 0; // set text cursor to 0, 0
     textsize = 1;            // set text multiplier to 1
     textcolor = 0xFFFF;      // set default text colour to white
@@ -107,7 +107,6 @@ void gfx4desp32::begin(String ips, int pval, bool backLightStartOn) {
     twcolnum = 13; // set default text window column number
     tchen = true;
     twcurson = true; // set default text window cursor on
-
 #ifdef USE_LITTLEFS_FILE_SYSTEM // resolve File system method
 #ifdef LITTLEFS_FORMAT_ON_FAIL
     if (LittleFS.begin(true))         // init flash file system
@@ -140,7 +139,7 @@ void gfx4desp32::begin(String ips, int pval, bool backLightStartOn) {
     }
 #else
     SPI.begin(sd_sck, sd_miso, sd_mosi);
-
+    //SPI.setFrequency(40000000);
     if (uSD.begin(sd_cs, SD_SCK_MHZ(40))) // initialize SdFat file system
     {
         sdok |= true;
@@ -150,8 +149,7 @@ void gfx4desp32::begin(String ips, int pval, bool backLightStartOn) {
     }
 #endif
 #endif
-    AllocateFB(0);
-    //psRAMbuffer1 = (uint8_t*)ps_malloc(1024000);
+	AllocateFB(0);
     if (bkStartOn) {
         Contrast(BK_LIGHT_STARTUP_LEVEL);
     }
@@ -1005,13 +1003,9 @@ void gfx4desp32::Rectangle(int16_t x, int16_t y, int16_t x1, int16_t y1,
     uint16_t color) {
     bool needsEndWrite = StartWrite();
     if (x > x1)
-        swap(x, x1);
+        gfx_Swap(x, x1);
     if (y > y1)
-        swap(y, y1);
-    //if (x < 0)
-    //    x = 0;
-    //if (y < 0)
-    //    y = 0;
+        gfx_Swap(y, y1);
     int w = x1 - x + 1;
     int h = y1 - y + 1;
     Hline(x, y, w, color);
@@ -1021,6 +1015,167 @@ void gfx4desp32::Rectangle(int16_t x, int16_t y, int16_t x1, int16_t y1,
     if (needsEndWrite)
         EndWrite();
 }
+
+void gfx4desp32::CircleAA(int32_t x, int32_t y, int32_t r, int thk, int32_t fg_color){
+  bool needsEndWrite = StartWrite();
+  int32_t rt = r - thk;
+  if (rt < 0) rt = 0;
+  drawArc(x, y, r, rt, 0, 360, fg_color);//, 0, true);
+  if(needsEndWrite) EndWrite();
+}
+
+void gfx4desp32::ArcAA(int32_t x, int32_t y, int32_t r1, int32_t r2, uint32_t sA, uint32_t eA, int32_t color, bool rounded)
+{
+  int16_t bkx = cursor_x;
+  int16_t bky = cursor_y;
+  if (eA != sA && (sA != 0 || eA != 360))
+  {
+    float stxy1[2], stxy2[2];
+    float enxy1[2], enxy2[2];
+    float str[2], enr[2];
+	MoveTo(x, y);
+    if (!rounded)
+    {
+      Orbit(sA + 180, r2, stxy1);
+      Orbit(sA + 180, r1, stxy2);
+      Orbit(eA + 180, r2, enxy1);
+      Orbit(eA + 180, r1, enxy2);
+      LineAA(stxy1[0], stxy1[1], stxy2[0], stxy2[1], 0.3, 0.3, color);
+      LineAA(enxy1[0], enxy1[1], enxy2[0], enxy2[1], 0.3, 0.3, color);
+    } else {
+      Orbit(sA + 180, (r1 + r2)/2.0, str);
+      Orbit(eA + 180, (r1 + r2)/2.0, enr);
+      CircleFilledAA(str[0], str[1], (r1 - r2) >> 1, color);
+      CircleFilledAA(enr[0], enr[1], (r1 - r2) >> 1, color);
+    }
+  } else {
+    sA = 0; eA = 360;
+  }
+  drawArc(x, y, r1, r2, sA, eA, color);//, 0, true);
+  cursor_x = bkx;
+  cursor_y = bky;
+}
+
+void gfx4desp32::drawArc(int32_t x, int32_t y, int32_t r, int32_t ir,
+                       uint32_t sA, uint32_t eA,
+                       int32_t color)//, uint32_t bg_color,
+                       //bool smooth)
+{
+  	
+  if (eA > 360) eA = 360;
+  if (sA > 360) sA = 360;
+  if (sA == eA) return;
+  if (r < ir) gfx_Swap(r, ir);  // Required that r > ir
+  if (r <= 0 || ir < 0) return;  // Invalid r, ir can be zero (circle sector)
+  if (eA < sA) {
+    if (sA < 360) drawArc(x, y, r, ir, sA, 360, color);//, bg_color, smooth);
+    if (eA == 0) return;
+    sA = 0;
+  }
+  bool needsEndWrite = StartWrite();
+  int32_t x0, x1, y0, y1;
+  float al;
+  uint16_t fgcol = color;
+  int32_t xs = 0;        // x start position for quadrant scan
+  uint8_t alpha = 0;     // alpha value for blending pixels
+  uint32_t r2 = r * r;   // Outer arc radius^2
+  r++;       // Outer AA zone radius
+  uint32_t r1 = r * r;   // Outer AA radius^2
+  int16_t w = r - ir;   // Width of arc (r - ir + 1)
+  uint32_t r3 = ir * ir; // Inner arc radius^2
+  ir--;      // Inner AA zone radius
+  uint32_t r4 = ir * ir; // Inner AA radius^2
+  uint32_t ss[4] = {0, 0, 0xFFFFFFFF, 0};
+  uint32_t es[4] = {0, 0xFFFFFFFF, 0, 0};
+  float mD = 1.0/32768;
+  float fabscos = fabsf(cosf(sA * deg2rad));
+  float fabssin = fabsf(sinf(sA * deg2rad));
+  uint32_t slope = (fabscos/(fabssin + mD)) * (float)(1<<16);
+  if (sA <= 90) {
+    ss[0] = slope;
+  }
+  else if (sA <= 180) {
+    ss[1] = slope;
+  }
+  else if (sA <= 270) {
+    ss[1] = 0xFFFFFFFF;
+    ss[2] = slope;
+  }
+  else {
+    ss[1] = 0xFFFFFFFF;
+    ss[2] = 0;
+    ss[3] = slope;
+  }
+  fabscos = fabsf(cosf(eA * deg2rad));
+  fabssin = fabsf(sinf(eA * deg2rad));
+  slope = (uint32_t)((fabscos/(fabssin + mD)) * (float)(1<<16));
+  if (eA <= 90) {
+    es[0] = slope; es[1] = 0; ss[2] = 0;
+  }
+  else if (eA <= 180) {
+    es[1] = slope; ss[2] = 0;
+  }
+  else if (eA <= 270) {
+    es[2] = slope;
+  }
+  else {
+    es[3] = slope;
+  }
+  for (int32_t cy = r - 1; cy > 0; cy--)
+  {
+    uint32_t len[4] = { 0,  0,  0,  0}; // Pixel run length
+    int32_t  xst[4] = {-1, -1, -1, -1}; // Pixel run x start
+    uint32_t dy2 = (r - cy) * (r - cy);
+    while ((r - xs) * (r - xs) + dy2 >= r1) xs++;
+    for (int32_t cx = xs; cx < r; cx++)
+    {
+      uint32_t hyp = (r - cx) * (r - cx) + dy2;
+      if (hyp > r2) {
+        al = sqrt(hyp);
+        alpha = ~((int)((al - (int)al) * 255));
+      }
+      else if (hyp >= r3) {
+        slope = ((r - cy) << 16)/(r - cx);
+        if (slope <= ss[0] && slope >= es[0]) { // slope hi -> lo
+          xst[0] = cx; len[0]++;
+        }
+        if (slope >= ss[1] && slope <= es[1]) { // slope lo -> hi
+          xst[1] = cx; len[1]++;
+        }
+        if (slope <= ss[2] && slope >= es[2]) { // slope hi -> lo
+          xst[2] = cx; len[2]++;
+        }
+        if (slope <= es[3] && slope >= ss[3]) { // slope lo -> hi
+          xst[3] = cx; len[3]++;
+        }
+        continue; // Next x
+      } else {
+        if (hyp <= r4) break;  // Skip inner pixels
+        al = sqrt(hyp);
+        alpha = (int)((al - (int)al) * 255);
+      }
+      //if (alpha < 16) continue;  // Skip low alpha pixels
+      slope = ((r - cy)<<16)/(r - cx);
+      x0 = x + cx - r; y0 = y - cy + r; x1 = x - cx + r; y1 = y + cy - r;
+      if (slope <= ss[0] && slope >= es[0]) PutPixelAlpha((int)x0, (int)y0, color, (uint8_t)alpha); //{ // BL
+      if (slope >= ss[1] && slope <= es[1]) PutPixelAlpha((int)x0, (int)y1, color, (uint8_t)alpha); //{ // TL
+      if (slope <= ss[2] && slope >= es[2]) PutPixelAlpha((int)x1, (int)y1, color, (uint8_t)alpha); //{ // TR
+      if (slope <= es[3] && slope >= ss[3]) PutPixelAlpha((int)x1, (int)y0, color, (uint8_t)alpha); //{ // BR
+      }
+      if (len[0]) HlineX(x + xst[0] - len[0] + 1 - r, (int)y0, len[0], color); // BL
+      if (len[1]) HlineX(x + xst[1] - len[1] + 1 - r, (int)y1, len[1], color); // TL
+      if (len[2]) HlineX(x - xst[2] + r, (int)y1, len[2], color); // TR
+      if (len[3]) HlineX(x - xst[3] + r, (int)y0, len[3], color); // BR
+    }
+  //if(!gfx.gradON){
+      if (sA == 0 || eA == 360) VlineX(x, y + r - w, w, color); // Bottom
+      if (sA <= 90 && eA >= 90) HlineX(x - r + 1, y, w, color); // Left
+      if (sA <= 180 && eA >= 180) VlineX(x, y - r + 1, w, color); // Top
+      if (sA <= 270 && eA >= 270) HlineX(x + r - w, y, w, color); // Right
+  //}
+  if(needsEndWrite) EndWrite();
+}
+
 
 /****************************************************************************/
 /*!
@@ -1285,10 +1440,10 @@ void gfx4desp32::RoundRectFilled(int16_t x, int16_t y, int16_t x1, int16_t y1,
     int16_t r, uint16_t color) {
     bool needsEndWrite = StartWrite();
     if (x > x1) {
-        swap(x, x1);
+        gfx_Swap(x, x1);
     }
     if (y > y1) {
-        swap(y, y1);
+        gfx_Swap(y, y1);
     }
     int w = x1 - x + 1;
     int h = y1 - y + 1;
@@ -1351,12 +1506,12 @@ void gfx4desp32::Line(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
     bool needsEndWrite = StartWrite();
     int16_t angH = abs(y1 - y0) > abs(x1 - x0);
     if (angH) {
-        swap(x0, y0);
-        swap(x1, y1);
+        gfx_Swap(x0, y0);
+        gfx_Swap(x1, y1);
     }
     if (x0 > x1) {
-        swap(x0, x1);
-        swap(y0, y1);
+        gfx_Swap(x0, x1);
+        gfx_Swap(y0, y1);
     }
     int16_t xx;
     int16_t yy;
@@ -1427,16 +1582,16 @@ void gfx4desp32::TriangleFilled(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
     int16_t x2, int16_t y2, uint16_t color) {
     int16_t p0, p1, y, last;
     if (y0 > y1) {
-        swap(y0, y1);
-        swap(x0, x1);
+        gfx_Swap(y0, y1);
+        gfx_Swap(x0, x1);
     }
     if (y1 > y2) {
-        swap(y2, y1);
-        swap(x2, x1);
+        gfx_Swap(y2, y1);
+        gfx_Swap(x2, x1);
     }
     if (y0 > y1) {
-        swap(y0, y1);
-        swap(x0, x1);
+        gfx_Swap(y0, y1);
+        gfx_Swap(x0, x1);
     }
     if (y0 == y2) {
         p0 = p1 = x0;
@@ -1467,7 +1622,7 @@ void gfx4desp32::TriangleFilled(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
         z1 += xx01;
         z2 += xx02;
         if (p0 > p1) {
-            swap(p0, p1);
+            gfx_Swap(p0, p1);
         }
         Hline(p0, y, p1 - p0 + 1, color);
     }
@@ -1479,7 +1634,7 @@ void gfx4desp32::TriangleFilled(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
         z1 += xx12;
         z2 += xx02;
         if (p0 > p1) {
-            swap(p0, p1);
+            gfx_Swap(p0, p1);
         }
         Hline(p0, y, p1 - p0 + 1, color);
     }
@@ -3392,7 +3547,7 @@ void gfx4desp32::DeleteButton(int hndl) {
         bactive[hndl] = false;
     }
     else {
-        for (int n = 0; n > 128; n++) {
+        for (int n = 0; n < 128; n++) {
             RectangleFilled(bposx[n], bposy[n], bposx[n] + bposw[n] - 1,
                 bposy[n] + bposh[n] - 1, bposc[n]);
             bactive[n] = false;
@@ -3407,7 +3562,7 @@ void gfx4desp32::DeleteButton(int hndl, uint16_t color) {
         bactive[hndl] = false;
     }
     else {
-        for (int n = 0; n > 128; n++) {
+        for (int n = 0; n < 128; n++) {
             RectangleFilled(bposx[n], bposy[n], bposx[n] + bposw[n] - 1,
                 bposy[n] + bposh[n] - 1, color);
             bactive[n] = false;
@@ -3422,12 +3577,139 @@ void gfx4desp32::DeleteButtonBG(int hndl, int objBG) {
         bactive[hndl] = false;
     }
     else {
-        for (int n = 0; n > 128; n++) {
+        for (int n = 0; n < 128; n++) {
             UserImageDR(objBG, bposx[n], bposy[n], bposw[n], bposh[n], bposx[n],
                 bposy[n]);
             bactive[n] = false;
         }
     }
+}
+
+void gfx4desp32::gradientShapeAA(int vert, int ow, int xpos, int ypos, int w,
+    int h, int r1, int r2, int r3, int r4,
+    int darken, int32_t color, int sr1, int gl1,
+    int32_t colorD, int sr3, int gl3, int gtb) {
+    int32_t x[4];
+    int32_t y[4];
+	int radsGS[4];
+	int mw, mh;
+	int32_t pc1, pc2;
+	int opc;
+	bool gapL = false; 
+	bool gapR = false;
+	radsGS[0] = r1 + !(r1);
+    radsGS[1] = r2 + !(r2);
+    radsGS[2] = r3 + !(r3);
+    radsGS[3] = r4 + !(r4);
+    mh = max(radsGS[0] + radsGS[2], radsGS[1] + radsGS[3]);
+    mw = max(radsGS[0] + radsGS[1], radsGS[2] + radsGS[3]);
+    if (mh > h - 1)
+        h = mh - 1;
+    if (mw > w - 1)
+        w = mw - 1;
+	//if((radsGS[0] + radsGS[2]) < h + (h / 10)) gapL = true; 
+   //if((radsGS[1] + radsGS[3]) < h + (h / 10)) gapR = true;	
+    x[0] = xpos + r1; y[0] = ypos + r1;
+    x[1] = xpos + w - r2 - 1; y[1] = ypos + r2;
+    x[2] = xpos + r3; y[2] = ypos + h - 1 - r3;
+    x[3] = xpos + w - r4 - 1; y[3] = ypos + h - 1 - r4;
+    //(int GraisSunk, int Gstate, int Gglev, int Gh1, int Gpos, uint16_t colToAdj)
+    grad1[0] = sr1; grad1[1] = darken; grad1[2] = gl1; grad1[3] = h; grad1[6] = ypos;
+    grad1[7] = sr3; grad1[8] = darken; grad1[9] = gl3; grad1[10] = h - (ow << 1); grad1[13] = ypos + ow;
+    bool outer, inner;
+    outer = (sr1 != -1 && gl1 != -1);
+    inner = (sr3 != -1 && gl3 != -1);
+    //StartWrite();
+    bool needsEndWrite = StartWrite();
+	if (outer){
+        gradON = 1;
+        
+		if(gapL){
+		    //pc1 = radGS[0] * 100 / h; pc2 = radGS[2] * 100 / h;
+			//opc = 100 - pc1 + pc2 / 2
+			//pc1 += opc; pc2 += opc;
+			grad1[0] = sr1; grad1[1] = darken; grad1[2] = gl1; grad1[3] = h / 2; grad1[6] = ypos;
+			drawArc(x[0], y[0], r1, r1 - ow, 90, 180, color);//, 0, true);
+		    drawArc(x[2], y[2], r3, r3 - ow, 0, 90, color);//, 0, true);
+		} else {
+		    grad1[0] = sr1; grad1[1] = darken; grad1[2] = gl1; grad1[3] = h; grad1[6] = ypos;
+            grad1[7] = sr3; grad1[8] = darken; grad1[9] = gl3; grad1[10] = h - (ow << 1); grad1[13] = ypos + ow;
+			drawArc(x[0], y[0], r1, r1 - ow, 90, 180, color);//, 0, true);
+		    drawArc(x[2], y[2], r3, r3 - ow, 0, 90, color);//, 0, true);
+		}
+        if(gapR){
+			grad1[0] = sr1; grad1[1] = darken; grad1[2] = gl1; grad1[3] = h / 2; grad1[6] = ypos;
+			drawArc(x[1], y[1], r2, r2 - ow, 180, 270, color);//, 0, true);
+			drawArc(x[3], y[3], r4, r4 - ow, 270, 360, color);//, 0, true);
+		} else {
+		    grad1[0] = sr1; grad1[1] = darken; grad1[2] = gl1; grad1[3] = h; grad1[6] = ypos;
+            grad1[7] = sr3; grad1[8] = darken; grad1[9] = gl3; grad1[10] = h - (ow << 1); grad1[13] = ypos + ow;
+			drawArc(x[1], y[1], r2, r2 - ow, 180, 270, color);//, 0, true);
+            drawArc(x[3], y[3], r4, r4 - ow, 270, 360, color);//, 0, true);
+		}
+		
+		//ArcAA(x[0], y[0], r1, r1 - ow, 90, 180, color, true);
+		//drawArc(x[0], y[0], r1, r1 - ow, 90, 180, color, 0, true);
+		//drawArc(x[1], y[1], r2, r2 - ow, 180, 270, color, 0, true);
+		//drawArc(x[2], y[2], r3, r3 - ow, 0, 90, color, 0, true);
+		//drawArc(x[3], y[3], r4, r4 - ow, 270, 360, color, 0, true);
+    }
+    if (inner){
+        gradON = 2;
+        drawArc(x[0], y[0], r1 - ow, 1, 90, 180, colorD);//, 0, true);
+        PutPixelAlpha(x[0], y[0], colorD, 255);
+        drawArc(x[1], y[1], r2 - ow, 1, 180, 270, colorD);//, 0, true);
+        PutPixelAlpha(x[1], y[1], colorD, 255);
+        drawArc(x[2], y[2], r3 - ow, 1, 0, 90, colorD);//, 0, true);
+        PutPixelAlpha(x[2], y[2], colorD, 255);
+        drawArc(x[3], y[3], r4 - ow, 1, 270, 360, colorD);//, 0, true);
+        PutPixelAlpha(x[3], y[3], colorD, 255);
+    }
+    int l1, w1, l2, w2, l3, w3;
+
+    for (int n = 0; n < h; n++){
+       if (n < ow && outer){
+         gradON = 1;
+         HlineX(x[0] + 1, ypos + n, w - r1 - r2 - 1, color);
+       }
+       else if (n > h - ow - 1 && outer){
+         gradON = 1;
+         HlineX(x[2] + 1, ypos + n, w - r3 - r4 - 1, color);
+       } else {
+         w1 = 0; w2 = w - (ow << 1); w3 = 0; l2 = ow;
+         if (n > r1 && n < h - r3 - 1) {
+             w1 = ow;
+         }
+         if (n < r1){
+            l2 = r1 - 1;
+            w2 -= (r1 - ow - 1);
+         }
+         if (n < r2) w2 -= (r2 - ow - 1);
+
+         if (n > r2 && n < h - r4 - 1) {
+             w3 = ow;
+         }
+         if (n > h - r3){
+            l2 = r3 - 1;
+            w2 -= (r3 - ow - 1);
+         }
+         if (n > h - r4) w2 -= (r4 - ow - 1);
+         if (outer){
+             gradON = 1;
+             if (w1 != 0) HlineX(xpos, ypos + n, ow, color);
+             if (w3 != 0) HlineX(xpos + w - ow, ypos + n, ow, color);
+         }
+         if (inner) {
+             gradON = 2;
+             HlineX(xpos + l2, ypos + n, w2, colorD);
+         }
+       }
+       //if (w2 == w) w2 -= (ow << 1);
+
+
+    }
+    if(needsEndWrite) EndWrite();
+    gradON = 0;
 }
 
 void gfx4desp32::gradientShape(int vert, int ow, int xPos, int yPos, int w,
@@ -3452,9 +3734,9 @@ void gfx4desp32::gradientShape(int vert, int ow, int xPos, int yPos, int w,
     uint16_t tcolorD = 0;
     uint16_t tgrad = 0;
     if (vert) {
-        swap(xPos, yPos);
-        swap(h, w);
-        swap(r2, r3);
+        gfx_Swap(xPos, yPos);
+        gfx_Swap(h, w);
+        gfx_Swap(r2, r3);
     }
     int oddf = h % 2;
     radsGS[0] = r1 + !(r1);
@@ -3885,13 +4167,13 @@ void gfx4desp32::gradientShape(int vert, int ow, int xPos, int yPos, int w,
 /****************************************************************************/
 void gfx4desp32::HlineD(int y, int x1, int x2, uint16_t color) {
     if (x1 > x2)
-        swap(x1, x2);
+        gfx_Swap(x1, x2);
     Hline(x1, y, x2 - x1 + 1, color);
 }
 
 void gfx4desp32::VlineD(int x, int y1, int y2, uint16_t color) {
     if (y1 > y2)
-        swap(y1, y2);
+        gfx_Swap(y1, y2);
     Vline(x, y1, y2 - y1 + 1, color);
 }
 
@@ -3900,16 +4182,16 @@ void gfx4desp32::GradTriangleFilled(int x0, int y0, int x1, int y1, int x2,
     int ypos, int lev, int erase) {
     int a, b, y, last;
     if (y0 > y1) {
-        swap(y0, y1);
-        swap(x0, x1);
+        gfx_Swap(y0, y1);
+        gfx_Swap(x0, x1);
     }
     if (y1 > y2) {
-        swap(y2, y1);
-        swap(x2, x1);
+        gfx_Swap(y2, y1);
+        gfx_Swap(x2, x1);
     }
     if (y0 > y1) {
-        swap(y0, y1);
-        swap(x0, x1);
+        gfx_Swap(y0, y1);
+        gfx_Swap(x0, x1);
     }
     if (y0 == y2) {
         a = x0;
@@ -4649,7 +4931,7 @@ int16_t gfx4desp32::XYposToDegree(int curX, int curY) {
     }
     else {
         adj &= 2;
-        swap(curX, curY);
+        gfx_Swap(curX, curY);
     }
     delta = at[(curX * 100) / curY];
     if (adj) {
@@ -4889,9 +5171,9 @@ void gfx4desp32::CopyImageLine(int inum, int x, int y, int w) {
     usePushColors = (DisplayType == DISP_INTERFACE_RGB) && (x >= clipx1) &&
         (y >= clipy1) && (x + w <= clipx2) && (y <= clipy2) &&
         (!transalpha) && (!WriteFBonly) && (frame_buffer == 0);
-    SetGRAM(x, y, x + w - 1, y);
+    SetGRAM(x, y, x + w - 1, y + 1);
     //  if (GCItype == GCI_SYSTEM_USD) {
-    if (usePushColors && frame_buffer == 0) {
+    if (usePushColors) {
         pushColors(psRAMbuffer1, w);
     }
     else {
@@ -5645,7 +5927,7 @@ int gfx4desp32::imageGetWord(uint16_t img, byte controlIndex) {
 }
 
 int16_t gfx4desp32::getImageValue(uint16_t ui) { return tuiImageIndex[ui]; }
-
+#ifndef DISABLE_WIFI_FUNCTIONS
 void gfx4desp32::DownloadFile(String WebAddr, String Fname) {
     Download(WebAddr, 0, "", Fname, false, empty);
 }
@@ -5786,7 +6068,7 @@ void gfx4desp32::Download(String Address, uint16_t port, String hfile,
     return;
 #endif
 }
-
+#endif
 void gfx4desp32::PrintImageFile(String ifile) {
     if (cursor_x >= (width - 1))
         return;
@@ -6164,7 +6446,7 @@ void gfx4desp32::UserImageHide(int hndl, uint16_t color) {
         RectangleFilled(tuix[hndl], tuiy[hndl], tuiw[hndl], tuih[hndl], color);
     }
     else {
-        for (int n = 0; n > MAX_WIDGETS; n++) {
+        for (int n = 0; n < MAX_WIDGETS; n++) {
             RectangleFilled(tuix[n], tuiy[n], tuiw[n], tuih[n], color);
         }
     }
@@ -6176,7 +6458,7 @@ void gfx4desp32::UserImageHideBG(int hndl, int objBG) {
             tuix[hndl], tuiy[hndl]);
     }
     else {
-        for (int n = 0; n > MAX_WIDGETS; n++) {
+        for (int n = 0; n < MAX_WIDGETS; n++) {
             UserImageDR(objBG, tuix[n], tuiy[n], tuiw[n], tuih[n], tuix[n], tuiy[n]);
         }
     }
@@ -6381,4 +6663,46 @@ void gfx4desp32::TriangleAA(float x0, float y0, float x1, float y1,
     LineAA(x2, y2, x0, y0, w, color);
     if (needsEndWrite)
         EndWrite();
+}
+
+void gfx4desp32::RoundRectFilledAA(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, int32_t color)
+{
+  bool needsEndWrite = StartWrite();
+  //gfx.StartWrite();
+  int32_t xs = 0;
+  int32_t cnx = 0;
+  if (r < 0)   r = 0;
+  if (r > w >> 1) r = w >> 1;
+  if (r > h >> 1) r = h >> 1;
+  y += r;
+  h -= 2 * r;
+  float al;
+  RectangleFilledX((int)x, (int)y, (int)(x + w - 1), (int)(y + h - 1), color);
+  h--;
+  x += r;
+  w -= 2 * r + 1;
+  int32_t r1 = r * r;
+  int32_t r2 = r1 + ((r++) << 1) + 1;
+  for (int32_t cny = r - 1; cny > 0; cny--)
+  {
+    int32_t dy2 = (r - cny) * (r - cny);
+    for (cnx = xs; cnx < r; cnx++)
+    {
+      int32_t hyp2 = (r - cnx) * (r - cnx) + dy2;
+      if (hyp2 <= r1) break;
+      if (hyp2 >= r2) continue;
+      al = sqrt(hyp2);
+      uint8_t alpha = ~((int)((al - (int)al) * 255));
+      if (alpha > 246) break;
+      xs = cnx;
+      if (alpha < 9) continue;
+      PutPixelAlpha(x + cnx - r, y + cny - r, color, (uint8_t)alpha);
+      PutPixelAlpha(x - cnx + r + w, y + cny - r, color, (uint8_t)alpha);
+      PutPixelAlpha(x - cnx + r + w, y - cny + r + h, color, (uint8_t)alpha);
+      PutPixelAlpha(x + cnx - r, y - cny + r + h, color, (uint8_t)alpha);
+    }
+    HlineX(x + cnx - r, y + cny - r, 2 * (r - cnx) + 1 + w, color);
+    HlineX(x + cnx - r, y - cny + r + h, 2 * (r - cnx) + 1 + w, color);
+  }
+  if (needsEndWrite) EndWrite();
 }

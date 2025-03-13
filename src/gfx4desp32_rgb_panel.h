@@ -41,7 +41,7 @@ struct esp_rgb_panel_t {
     esp_pm_lock_handle_t pm_lock; // Power management lock
     size_t num_dma_nodes;     // Number of DMA descriptors that used to carry the frame buffer
     //uint8_t *fb;
-    uint8_t* fbs[RGB_LCD_PANEL_MAX_FB_NUM]; // Frame buffers
+    uint8_t* dummy3[RGB_LCD_PANEL_MAX_FB_NUM]; // Frame buffers
     size_t dummy1;
     size_t dummy2;
     uint8_t cur_fb_index;     // Current frame buffer index

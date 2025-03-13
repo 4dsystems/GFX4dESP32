@@ -718,7 +718,7 @@ void gfx4desp32_touch::UserImageHide(int hndl, uint16_t color) {
     imageTouchEnable(hndl, false);
   }
   else {
-    for (int n = 0; n > MAX_WIDGETS; n++) {
+    for (int n = 0; n < MAX_WIDGETS; n++) {
       RectangleFilled(tuix[n], tuiy[n], tuiw[n], tuih[n], color);
       imageTouchEnable(n, false);
     }
@@ -732,7 +732,7 @@ void gfx4desp32_touch::UserImageHideBG(int hndl, int objBG) {
     imageTouchEnable(hndl, false);
   }
   else {
-    for (int n = 0; n > MAX_WIDGETS; n++) {
+    for (int n = 0; n < MAX_WIDGETS; n++) {
       UserImageDR(objBG, tuix[n], tuiy[n], tuiw[n], tuih[n], tuix[n], tuiy[n]);
       imageTouchEnable(n, false);
     }
