@@ -10,5 +10,9 @@ It is recommended to use Workshop4 IDE to get the most of out the library functi
 
 ### Notes
 
-1. Workshop4 is a **Windows-only** application.
-2. This is tested against Arduino ESP32 Core version `3.1.0` and should be compatible with higher versions as long as there is no breaking changes to the board package. In case of any issues, please don't hesitate to [write an issue](https://github.com/4dsystems/GFX4dESP32/issues/new) or contact us directly.
+1.  Workshop4 is a **Windows-only** application.
+2.  This is tested against Arduino ESP32 Core version `3.1.1`. On versions `3.1.2` and `3.1.3`,
+    it was noticed that some Bluetooth operations will cause a restart, the same issue isn't present in version `3.1.1`.
+    If Bluetooth is needed we recommend using `3.1.1` for the time being.
+
+In case of any issues, please don't hesitate to [write an issue](https://github.com/4dsystems/GFX4dESP32/issues/new) or contact us directly.
