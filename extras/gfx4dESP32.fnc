@@ -1277,6 +1277,13 @@ boolean touch_Update(), 1; // Checks whether a touch event is detected
 //			: This function is only available for capacitive and resistive touch displays
 //
 
+int16_t gfx.touch_GetTouchPoints(x, y), 1; // Returns the number of touch points and fills buffer x and buffer y
+// Syntax	: gfx.touch_GetTouchPoints(touchx, touchy);
+// Usage	: numTouchepoints = gfx.touch_GetTouchPoints(touchx, touchy);
+// Notes 	: Returns the number of touches. touchx and touchy arrays need to be declared before use, size of 5
+//			: This function is only available for capacitive touch displays
+//
+
 int16_t gfx.touch_GetPen(), 1; // Returns the latest pen status after the last gfx.touch_Update
 // Syntax	: gfx.touch_GetPen();
 // Usage	: gfx.touch_GetPen();
