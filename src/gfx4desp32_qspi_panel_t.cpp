@@ -47,6 +47,38 @@ void gfx4desp32_qspi_panel_t::touch_Set(uint8_t mode) {
 
 /****************************************************************************/
 /*!
+  @brief   Get all touch points
+  @param   tpx - array to store all x touch points
+  @param   tpy - array to store all y touch points
+  @returns number of current touch points
+  @note    if there are any touch points the number of touches will be returned
+           and the tpx, tpy arrays will be filled with x and y co-ordinates.
+*/
+/****************************************************************************/
+
+int gfx4desp32_qspi_panel_t::touch_GetTouchPoints(int* tpx, int* tpy){
+	int num = 0;
+	if (!(_TouchEnable)) return 0;
+	int bytesReceived, tps;
+    Wire.beginTransmission(0x38);
+    Wire.write((byte)2);
+    Wire.endTransmission();
+    bytesReceived = Wire.requestFrom(0x38, CTP_DATA_LEN);
+    Wire.readBytes(gCTPData, bytesReceived);
+    Wire.endTransmission();
+    if (tps != 0xff) {
+		num = gCTPData[0] ;
+		if (num > 5) num = 5 ;
+		for (int i = 0; i < num; i++) {
+			tpy[i] = (((gCTPData[1 + i * 6] & 0x0f) << 8) + gCTPData[2 + i * 6]) - 1;
+			tpx[i] = ((gCTPData[3 + i * 6] & 0x0f) << 8) + gCTPData[4 + i * 6] ;
+		}
+	}
+	return num;
+}
+
+/****************************************************************************/
+/*!
   @brief  Update touch controller
   @note   if a touch event has occurred pen, xpos, ypos and images touched
           will be updated.

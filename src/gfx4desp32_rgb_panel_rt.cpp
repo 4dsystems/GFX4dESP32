@@ -43,6 +43,10 @@ void gfx4desp32_rgb_panel_rt::touch_Set(uint8_t mode) {
     }
 }
 
+int gfx4desp32_rgb_panel_rt::touch_GetTouchPoints(int* tpx, int* tpy){
+	return 0;
+}
+
 /****************************************************************************/
 /*!
   @brief  Update touch controller

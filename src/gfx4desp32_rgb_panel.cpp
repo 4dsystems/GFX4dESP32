@@ -2578,7 +2578,7 @@ void gfx4desp32_rgb_panel::AllocateDRcache(uint32_t cacheSize) {
 void gfx4desp32_rgb_panel::AllocateFB(uint8_t sel) {
     size_t psram_trans_align = rgb_panel->psram_trans_align;
     if (sel == 0) {
-        psRAMbuffer1 = (uint8_t*)ps_malloc (102*1000);
+        psRAMbuffer1 = (uint8_t*)ps_malloc (1024*1000);
     }
     if (sel == 1) {
         psRAMbuffer3 = (uint8_t*)ps_malloc(__fbSize);

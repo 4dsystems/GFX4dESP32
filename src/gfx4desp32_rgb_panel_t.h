@@ -3,6 +3,8 @@
 
 #include "gfx4desp32_touch.h"
 #include "gfx4desp32_rgb_panel.h"
+#define MAX_PENS 			 5	
+#define CTP_DATA_LEN    	 1+6*MAX_PENS
 
 class gfx4desp32_rgb_panel_t : public gfx4desp32_rgb_panel, public gfx4desp32_touch {
 private:
@@ -13,6 +15,8 @@ public:
 
   virtual void touch_Set(uint8_t mode) override;
   virtual bool touch_Update() override;
+  virtual int touch_GetTouchPoints(int* tpx, int* tpy) override;
+  uint8_t gCTPData[CTP_DATA_LEN];
 };
 
 #endif  // __GFX4D_RGB_PANEL_T__

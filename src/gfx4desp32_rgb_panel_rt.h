@@ -15,6 +15,7 @@ public:
     virtual void touch_Set(uint8_t mode) override;
     virtual bool touch_Update() override;
     void touchCalibration();
+	virtual int touch_GetTouchPoints(int* tpx, int* tpy) override;
 };
 
 #endif  // __GFX4D_RGB_PANEL_RT__
