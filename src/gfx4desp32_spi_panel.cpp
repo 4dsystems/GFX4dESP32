@@ -120,7 +120,7 @@ esp_lcd_panel_handle_t gfx4desp32_spi_panel::__begin() {
             bus_config.max_transfer_sz = h_res * 36 * 2;
         }
         else {
-            bus_config.max_transfer_sz = h_res * 22 * 3;
+            bus_config.max_transfer_sz = h_res * 18 * 3;
         }
         spi_bus_initialize(GEN4_35CT_SPI_HOST, &bus_config, SPI_DMA_CH_AUTO);
 
@@ -695,6 +695,15 @@ void gfx4desp32_spi_panel::EndWrite() {
         esp_lcd_panel_io_tx_param(io_handle, 0x2b, command, 4);
         esp_lcd_panel_io_tx_color(io_handle, ILI9488_CMD_MEMORY_WRITE, fb35,
             pixSize * 3);
+		//if (pixSize > 199998) {
+		//	esp_lcd_panel_io_tx_color(io_handle, ILI9488_CMD_MEMORY_WRITE, fb35,
+		//		199998);
+		//	esp_lcd_panel_io_tx_color(io_handle, ILI9488_CMD_MEMORY_WRITE, fb35,
+		//		pixSize - 199998);
+		//} else {
+		//	esp_lcd_panel_io_tx_color(io_handle, ILI9488_CMD_MEMORY_WRITE, fb35,
+		//		pixSize);
+		//}
     }
     else {
         while (h--) {
@@ -826,6 +835,146 @@ void gfx4desp32_spi_panel::DrawFrameBufferArea(uint8_t fbnum, int16_t x1,
 
 /****************************************************************************/
 /*!
+  @brief  Draw frame buffer area relative to GCI widget from selected to buffer
+  to target buffer at position x, y
+  @param  fbnum - frame buffer number to draw from.
+          ui    - GCI widget index
+		  x     - target x position
+		  y     - target y position
+*/
+/****************************************************************************/
+void gfx4desp32_spi_panel::DrawFrameBufferAreaXY(uint8_t fbnum, int16_t ui, int x, int y) {
+    DrawFrameBufferAreaXY(fbnum, tuix[ui], tuiy[ui], tuix[ui] + tuiw[ui] - 1,
+        tuiy[ui] + tuih[ui] - 1, x, y);
+}
+
+
+/****************************************************************************/
+/*!
+  @brief  Draw frame buffer area using screen co-ordinates from selected
+              buffer to target buffer at position x, y
+  @param  fbnum - frame buffer number to draw from.
+              x1 - left co-ordinate
+              y1 - top co-ordinate
+              x2 - right co-ordinate
+              y2 - bottom co-ordinate
+			  x  - target x position
+			  y  - target y position
+*/
+/****************************************************************************/
+void gfx4desp32_spi_panel::DrawFrameBufferAreaXY(uint8_t fbnum, int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t x, int16_t y) {
+	uint8_t* tfrom = SelectFB(fbnum);
+    uint8_t* to = SelectFB(frame_buffer);
+    int32_t x_start = 0;
+    int32_t y_start = 0;
+	int32_t tx_start = 0;
+    int32_t ty_start = 0;
+	int32_t tx = 0;
+	int32_t ty = 0;
+	int xe;
+	int ye;
+    int32_t x_end = 0;
+    int32_t y_end = 0;
+    uint8_t colM, colL;
+	int tw, th;
+    Clipping(false);
+    x_start = x1;
+    y_start = y1;
+    tx_start = x;
+    ty_start = y;
+    x_end = x2;
+    y_end = y2;
+
+    int sub = 0;
+	if (x_start >= __width || x_end < 0 || y_start >= __height || y_end < 0 || tx_start >= __width || (tx_start + (x_end - x_start + 1)) < 0 || ty_start >= __height || (ty_start + (y_end - y_start + 1)) < 0)
+        return;
+    if (x_start < 0)
+        x_start = 0; 
+    if (y_start < 0)
+        y_start = 0;
+	tx = tx_start;
+	if (tx_start < 0){
+        sub = tx_start;
+		tx_start = 0;
+	}
+    if (x_end >= __width)
+        x_end = __width - 1;
+    if (y_end >= __height - 1)
+        y_end = __height - 1;
+    uint32_t s_width = x_end - x_start + 1;
+    uint32_t s_height = y_end - y_start + 1;
+	int drawn = 0;
+    int32_t offset = 0;
+	if ((tx_start + s_width) > __width) offset = (tx_start + s_width - __width); 
+	uint32_t pc = (y_start * __scrWidth) + (x_start << 1);	
+	uint32_t pct = 0; 
+	if (ty_start >= 0){
+		pct = (ty_start * __scrWidth);
+	}
+	if (sub >= 0) pct += (tx_start << 1);
+    to += pct;
+    tfrom += pc;
+	ty = ty_start;
+	int txx = tx;
+	int32_t st = 0;
+    int twidth;
+	int count;
+    while (s_height--) {
+		count = 0;
+		if (!transalpha) {
+            if (ty >= 0 && ty < __height){
+				//esp_async_memcpy(driver, to, tfrom + (abs(sub) << 1), (s_width - offset + sub) << 1, NULL, NULL);
+				memcpy(to, tfrom + (abs(sub) << 1), (s_width - offset + sub) << 1);
+				drawn ++;
+			}
+            if (ty >= 0) to += __scrWidth;
+            tfrom += __scrWidth;
+			ty ++;
+        }
+        else {
+            twidth = s_width;
+            if(ty >= 0 && ty < __height){
+				drawn ++;
+				while (twidth--) {
+					if (txx >= 0 && txx < __width){
+						colM = tfrom[0];
+						colL = tfrom[1];
+						if (!(transparency && (colM == _transMSB && colL == _transLSB))) {
+							if (alpha) {
+								calcAlpha(colL + (colM << 8), to[1] | (to[0] << 8), __alpha);
+								to[1] = __colour;
+								to[0] = __colour >> 8;
+							}
+							else {
+								to[0] = colM;
+								to[1] = colL;
+							}
+						}
+					    to += 2;
+					    count ++;
+					}
+					tfrom += 2;
+					txx ++;
+				}
+		    } else {
+				if (ty >= 0) to += (s_width << 1);
+				tfrom += (s_width << 1);
+			}
+			txx = tx;
+			ty ++;
+            if (ty > 0 && transalpha) to += (__scrWidth - (count << 1));
+            tfrom += (__scrWidth - (s_width << 1));
+			count = 0;
+        }
+    }
+    if (frame_buffer == visibleFB){
+	  if (ty_start < 0) ty_start = 0; 	
+	  if (drawn > 0) FlushArea(ty_start, ty_start + drawn, -1);
+	}
+}
+
+/****************************************************************************/
+/*!
   @brief  Draw selected frame buffer to the display
   @param  fbnum - frame buffer number to draw.
 */
@@ -872,6 +1021,11 @@ void gfx4desp32_spi_panel::WriteToFrameBuffer(uint32_t offset, uint8_t* data, ui
             pto += 2;
         }
     }
+	if(frame_buffer == 0){
+		int y1 = offset / __scrWidth;
+		int y2 = offset + (len / __scrWidth) + ((len % __scrWidth) > 0);
+		FlushArea(y1, y2, -1);
+	}
 }
 
 /****************************************************************************/
@@ -906,6 +1060,11 @@ void gfx4desp32_spi_panel::WriteToFrameBuffer(uint32_t offset, uint16_t* data, u
             pto += 2;
         }
     }
+	if(frame_buffer == 0){
+		int y1 = offset / __scrWidth;
+		int y2 = offset + (len / __width) + ((len % __width) > 0);
+		FlushArea(y1, y2, -1);
+	}
 }
 
 /****************************************************************************/
@@ -1306,7 +1465,7 @@ void gfx4desp32_spi_panel::WrGRAMs(uint16_t* color_data, uint32_t len) {
         pixelPos++;
     }
 
-    if (/*pixelPos >= pixelCount*/GRAMypos > GRAMy2) { // if GRAM area is written to flush the area.
+    if (/*pixelPos >= pixelCount*/GRAMypos >= GRAMy2) { // if GRAM area is written to flush the area.
         wrGRAM = false;
         if (frame_buffer == 0)
             FlushArea(GRAMx1, GRAMx2, GRAMy1, GRAMy2, -1);
@@ -1374,7 +1533,7 @@ void gfx4desp32_spi_panel::WrGRAMs(uint32_t* color_data, uint16_t len) {
         }
     }
 
-    if (/*pixelPos >= pixelCount*/GRAMypos > GRAMy2) { // if GRAM area is written to flush the area.
+    if (/*pixelPos >= pixelCount*/GRAMypos >= GRAMy2) { // if GRAM area is written to flush the area.
         wrGRAM = false;
         if (frame_buffer == 0)
             FlushArea(GRAMx1, GRAMx2, GRAMy1, GRAMy2, -1);
@@ -2384,7 +2543,13 @@ uint8_t* gfx4desp32_spi_panel::SelectFB(uint8_t sel) {
     case 4:
         return psRAMbuffer6;
         break;
-    }
+    case WIDGET_BUFFER:
+        return workbuffer;
+        break;
+	case RGB888_BUFFER:
+        return psRAMrgb888buffer;
+        break;
+	}	
     return fb;
 }
 
@@ -2412,6 +2577,14 @@ void gfx4desp32_spi_panel::AllocateFB(uint8_t sel) {
     if (sel == 4) {
         psRAMbuffer6 = (uint8_t*)ps_malloc(__fbSize);
         framebufferInit4 = true;
+    }
+	if (sel == WIDGET_BUFFER) {
+        workbuffer = (uint8_t*)ps_malloc(__fbSize);
+		framebufferInit12 = true;
+    }
+	if (sel == RGB888_BUFFER) {
+        psRAMrgb888buffer = (uint8_t*)ps_malloc(__fbSize + (__fbSize >> 1));
+        framebufferInit13 = true;
     }
 }
 
@@ -2756,6 +2929,95 @@ void gfx4desp32_spi_panel::QSPI_swap_xy(bool gfx_Swap_axes) {
     uint8_t command[1];
     command[0] = madctl_val;
     tx_param(LCD_CMD_MADCTL, command, 1);
+}
+
+void gfx4desp32_spi_panel::DrawDitheredGradientRectToFrameBuffer(uint8_t fb, int x1, int y1, int x2, int y2, int32_t colfrom, int32_t colto, bool Orientation){
+  int r, g, b; 
+  int rb, gb, bb;
+  float ri, gi, bi;
+  int tx1, tx2, ty1, ty2;
+  if(x1 >= __width || y1 >= __height || x2 < 0 || y2 < 0) return;
+  if(x1 < 0) x1 = 0;
+  if(y1 < 0) y1 = 0;
+  if(x2 >= __width) x2 = __width -1;
+  if(y2 >= __height) y2 = __height -1;  
+  if (!framebufferInit13)
+    AllocateFB(RGB888_BUFFER);
+  int cf = GetFrameBuffer();
+  DrawToframebuffer(fb);
+  DrawToframebuffer(cf);
+  uint8_t* rgb888 = SelectFB(RGB888_BUFFER);
+  uint16_t* rgb565 = (uint16_t*)SelectFB(fb);
+  uint8_t* pto;
+  int w = x2 - x1 + 1;
+  int h = y2 - y1 + 1;
+  int32_t x, y;
+  uint32_t pos888;
+  float range = w;
+  if (Orientation == VERTICAL) range = h;
+  r = (colfrom >> 11) << 3;
+  g = ((colfrom >> 5) & 0x3f) << 2;
+  b = (colfrom & 0x1f) << 3;
+  rb = (colto >> 11) << 3;
+  gb = ((colto >> 5) & 0x3f) << 2;
+  bb = (colto & 0x1f) << 3;
+  ri = (float)(rb - r) / range;
+  gi = (float)(gb - g) / range;
+  bi = (float)(bb - b) / range;
+  int gCount;
+  for(y = 0; y < h; y++){
+    pto = rgb888 + ((((y1 + y) * __width) + x1) * 3);
+	for(x = 0; x < w; x++){
+	  gCount = x;
+	  if(Orientation == VERTICAL) gCount = y;
+	  pto[0] = r + ((float)gCount * ri);
+      pto[1] = g + ((float)gCount * gi);
+      pto[2] = b + ((float)gCount * bi);
+      pto += 3;	
+	}
+  }		
+  for (uint32_t y = 0; y < h; y++) {
+    for (uint32_t x = 0; x < w; x++) {
+	  uint32_t index = ((y1 + y) * __width + (x1 + x)) * 3;
+      uint8_t r = rgb888[index];
+      uint8_t g = rgb888[index + 1];
+      uint8_t b = rgb888[index + 2];
+	  uint16_t outColor = RGBto565(r, g, b);   
+      uint16_t temp = outColor >> 8;  
+	  rgb565[(y1 + y) * __width + (x1 + x)] = (outColor << 8) + temp;//outColor;	  
+	  int err_b = b - ((outColor & 0x1F) * 255 / 31);
+	  int err_g = g - (((outColor >> 5) & 0x3F) * 255 / 63);
+	  int err_r = r - (((outColor >> 11) & 0x1F) * 255 / 31);
+	  if (x + 1 < w) {
+	    uint32_t nextIndex = (((y1 + y) * __width + (x1 + x) + 1) * 3);
+        rgb888[nextIndex] = rgb888[nextIndex] + (err_r * 7 / 16);
+        rgb888[nextIndex + 1] = rgb888[nextIndex + 1] + (err_g * 7 / 16);
+        rgb888[nextIndex + 2] = rgb888[nextIndex + 2] + (err_b * 7 / 16);
+      } 
+	  if (y + 1 < h) {
+        if (x > 0) {
+		  uint32_t nextIndex = ((((y1 + y) + 1) * __width + ((x1 + x) - 1)) * 3);
+          rgb888[nextIndex] = rgb888[nextIndex] + (err_r * 3 / 16);
+          rgb888[nextIndex + 1] = rgb888[nextIndex + 1] + (err_g * 3 / 16);
+          rgb888[nextIndex + 2] = rgb888[nextIndex + 2] + (err_b * 3 / 16);
+        }
+		uint32_t nextIndex = ((((y1 + y) + 1) * __width + (x1 + x)) * 3);
+        rgb888[nextIndex] = rgb888[nextIndex] + (err_r * 5 / 16);
+        rgb888[nextIndex + 1] = rgb888[nextIndex + 1] + (err_g * 5 / 16);
+        rgb888[nextIndex + 2] = rgb888[nextIndex + 2] + (err_b * 5 / 16);
+
+        if (x + 1 < w) {
+		  uint32_t nextIndex = ((((y1 + y) + 1) * __width + (x1 + x) + 1) * 3);
+          rgb888[nextIndex] = rgb888[nextIndex] + (err_r * 1 / 16);
+          rgb888[nextIndex + 1] = rgb888[nextIndex + 1] + (err_g * 1 / 16);
+          rgb888[nextIndex + 2] = rgb888[nextIndex + 2] + (err_b * 1 / 16);
+        }
+      }
+    }
+  }
+  if (frame_buffer == 0){
+	FlushArea(y1, y2, -1);  
+  }
 }
 
 

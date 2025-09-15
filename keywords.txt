@@ -43,7 +43,18 @@ gfx4desp32_ESP32_90CT_CLB	KEYWORD1
 #	Methods	and	Functions	(KEYWORD2)
 #######################################
 
+AlphaBlend	KEYWORD2
+AlphaBlendLevel	KEYWORD2
 ArcAA	KEYWORD2
+ArcFlare	KEYWORD2
+AngularGauge	KEYWORD2
+AngularGaugeFlare	KEYWORD2
+AngularImageRotary	KEYWORD2
+AngularKnob	KEYWORD2
+AngularNeedle	KEYWORD2
+AngularNeedleDouble	KEYWORD2
+AngularScale	KEYWORD2
+AngularTickGauge	KEYWORD2
 BacklightOn	KEYWORD2
 begin	KEYWORD2
 BGcolour	KEYWORD2
@@ -62,9 +73,13 @@ CheckSD	KEYWORD2
 Circle	KEYWORD2
 CircleAA	KEYWORD2
 CircleFilled	KEYWORD2
+CircleFilledAA	KEYWORD2
+CircleFlare	KEYWORD2
 Clipping	KEYWORD2
 ClipWindow	KEYWORD2
 Cls	KEYWORD2
+ColorFromTo	KEYWORD2
+ContAnim	KEYWORD2
 Contrast	KEYWORD2
 CopyFrameBufferLine	KEYWORD2
 CopyImageLine	KEYWORD2
@@ -78,14 +93,19 @@ Download	KEYWORD2
 DownloadFile	KEYWORD2
 drawArc	KEYWORD2
 drawBitmap	KEYWORD2
+DrawImageArray	KEYWORD2
 DrawFrameBuffer	KEYWORD2
+DrawFrameBufferArea	KEYWORD2
+DrawFrameBufferAreaXY	KEYWORD2
 DrawImageFile	KEYWORD2
 DrawToframebuffer	KEYWORD2
 Ellipse	KEYWORD2
 EllipseFilled	KEYWORD2
+EndAnim	KEYWORD2
 EndWrite	KEYWORD2
 FGcolour	KEYWORD2
 FillScreen	KEYWORD2
+FlushArea	KEYWORD2
 Font	KEYWORD2
 FontHeight	KEYWORD2
 FontStyle	KEYWORD2
@@ -94,8 +114,10 @@ getFontData	KEYWORD2
 GetFrameBuffer	KEYWORD2
 getHeight	KEYWORD2
 getImageValue	KEYWORD2
+getLastPointerPos	KEYWORD2
 getNumberofObjects	KEYWORD2
 GetNumberSprites	KEYWORD2
+getOrbit	KEYWORD2
 getPanelOrientation	KEYWORD2
 getScrollOffset	KEYWORD2
 GetSliderValue	KEYWORD2
@@ -106,12 +128,14 @@ getSdFatInstance	KEYWORD2
 getWidth	KEYWORD2
 getX	KEYWORD2
 getY	KEYWORD2
+Grad	KEYWORD2
+GradientRectangleFilled	KEYWORD2
 gradientShape	KEYWORD2
 gradientShapeAA	KEYWORD2
 GradTriangleFilled	KEYWORD2
 Hline	KEYWORD2
+HlineD	KEYWORD2
 HlineX	KEYWORD2
-Grad	KEYWORD2
 touch_GetInvertMode	KEYWORD2
 imageAutoKnob	KEYWORD2
 imageAutoSlider	KEYWORD2
@@ -127,9 +151,11 @@ LedDigitsDisplay	KEYWORD2
 LedDigitsDisplaySigned	KEYWORD2
 Line	KEYWORD2
 LineAA	KEYWORD2
+LineAAflare	KEYWORD2
 MergeFrameBuffers	KEYWORD2
 MoveTo	KEYWORD2
 Opacity	KEYWORD2
+Open4dFont	KEYWORD2
 Open4dGFX	KEYWORD2
 Orbit	KEYWORD2
 Orientation	KEYWORD2
@@ -142,6 +168,7 @@ PointWithinRectangle	KEYWORD2
 PointWithinTriangle	KEYWORD2
 PrintImage	KEYWORD2
 PrintImageFile	KEYWORD2
+PrintImageFromFrameBuffer	KEYWORD2
 pushColors	KEYWORD2
 putch	KEYWORD2
 putchXY	KEYWORD2
@@ -149,6 +176,9 @@ PutColor	KEYWORD2
 PutPixel	KEYWORD2
 PutPixelAlpha	KEYWORD2
 putstr	KEYWORD2
+putstrAngularXY	KEYWORD2
+putstrCenteredXY	KEYWORD2
+putstrScrolledXYW	KEYWORD2
 putstrXY	KEYWORD2
 ReadCommand	KEYWORD2
 ReadImagePixel	KEYWORD2
@@ -158,11 +188,17 @@ ReadPixelFromFrameBuffer	KEYWORD2
 Rectangle	KEYWORD2
 RectangleFilled	KEYWORD2
 RectangleFilledX	KEYWORD2
+RectangleFlare	KEYWORD2
 ResetKeypad	KEYWORD2
+RestoreCursPos	KEYWORD2
 RGBto565	KEYWORD2
+RollingCounter	KEYWORD2
+RollingDigit	KEYWORD2
+RollingStrings	KEYWORD2
 RoundRect	KEYWORD2
 RoundRectFilled	KEYWORD2
 RoundRectFilledAA	KEYWORD2
+RoundRectFlare	KEYWORD2
 RTCcheckClockIntegrity	KEYWORD2
 RTCformatDateTime	KEYWORD2
 RTCgetTime	KEYWORD2
@@ -175,8 +211,11 @@ RTCsetSecond	KEYWORD2
 RTCsetYear	KEYWORD2
 RTCstartClock	KEYWORD2
 RTCstopClock	KEYWORD2
+ScreenCapture	KEYWORD2
 Scroll	KEYWORD2
 ScrollEnable	KEYWORD2
+SelectDataSourceGCI	KEYWORD2
+SelectDataSourceFB	KEYWORD2
 SetGRAM	KEYWORD2
 setGRAM	KEYWORD2
 SetMaxNumberSprites	KEYWORD2
@@ -186,6 +225,7 @@ setScrollArea	KEYWORD2
 setScrollBlankingColor	KEYWORD2
 setScrollDirection	KEYWORD2
 SetSprite	KEYWORD2
+ShowAnim	KEYWORD2
 Slider	KEYWORD2
 SmoothScrollSpeed	KEYWORD2
 SpriteAdd	KEYWORD2
@@ -196,9 +236,16 @@ SpriteGetPixel	KEYWORD2
 SpriteInit	KEYWORD2
 SpriteSetPalette	KEYWORD2
 SpriteTouched	KEYWORD2
+SpriteUseFrameBufferBackground	KEYWORD2
+StartAnim	KEYWORD2
 StartWrite	KEYWORD2
+StoreCursPos	KEYWORD2
 strWidth	KEYWORD2
 TextColor	KEYWORD2
+TextCursorXYfromScrollWindow	KEYWORD2
+TextMarginMaxX	KEYWORD2
+TextMarginMinX	KEYWORD2
+TextMarginsXfromScrollWindow	KEYWORD2
 TextSize	KEYWORD2
 TextWindow	KEYWORD2
 TextWindowImage	KEYWORD2
@@ -239,16 +286,12 @@ UserImageHideBG	KEYWORD2
 UserImages	KEYWORD2
 UserImagesDR	KEYWORD2
 Vline	KEYWORD2
+VlineD	KEYWORD2
 VlineX	KEYWORD2
 WrGRAMs	KEYWORD2
 write	KEYWORD2
 WriteLine	KEYWORD2
 XYposToDegree	KEYWORD2
-Open4dFont	KEYWORD2
-DrawFrameBufferArea	KEYWORD2
-getLastPointerPos	KEYWORD2
-WriteToFrameBuffer	KEYWORD2
-FlushArea	KEYWORD2
 	
 #######################################	
 #	Constants	(LITERAL1)	
@@ -524,5 +567,20 @@ GCI_IMAGE	LITERAL1
 FRAMEBUFFER_IMAGE	LITERAL1
 BEGIN_WITH_BACKLIGHT_ON	LITERAL1
 BEGIN_WITH_BACKLIGHT_OFF	LITERAL1
+FLARE_EXTERNAL	LITERAL1
+FLARE_INTERNAL	LITERAL1
+WIDGET_BUFFER	LITERAL1
+RGB888_BUFFER	LITERAL1
+SHAPE_NONE	LITERAL1
+SHAPE_CIRCLE	LITERAL1
+SHAPE_RECTANGLE	LITERAL1
+SHAPE_ROUNDED_RECTANGLE	LITERAL1
+IMAGE_XPOS	LITERAL1
+IMAGE_YPOS	LITERAL1
+IMAGE_WIDTH	LITERAL1
+IMAGE_HEIGHT	LITERAL1
+IMAGE_VALUE	LITERAL1
+IMAGE_XYPOS	LITERAL1
+IMAGE_INDEX	LITERAL1
 
 

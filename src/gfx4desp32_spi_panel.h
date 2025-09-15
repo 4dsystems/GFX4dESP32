@@ -160,10 +160,10 @@ private:
     int clipY1;
     int clipX2;
     int clipY2;
-    int clipX1pos;
-    int clipY1pos;
-    int clipX2pos;
-    int clipY2pos;
+    //int clipX1pos;
+    //int clipY1pos;
+    //int clipX2pos;
+    //int clipY2pos;
     bool clippingON;
     uint8_t writeBuffInitial = 1;
     bool scroll_Enable;
@@ -257,6 +257,8 @@ public:
     virtual void DrawFrameBuffer(uint8_t fbnum) override;
     virtual void DrawFrameBufferArea(uint8_t fbnum, int16_t ui) override;
     virtual void DrawFrameBufferArea(uint8_t fbnum, int16_t x1, int16_t y1, int16_t x2, int16_t y2) override;
+	virtual void DrawFrameBufferAreaXY(uint8_t fbnum, int16_t ui, int x, int y) override;
+	virtual void DrawFrameBufferAreaXY(uint8_t fbnum, int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t x, int16_t y) override;
     virtual void MergeFrameBuffers(uint8_t fbto, uint8_t fbfrom1, uint8_t fbfrom2, uint16_t transColor) override;
     virtual void MergeFrameBuffers(uint8_t fbto, uint8_t fbfrom1, uint8_t fbfrom2, uint8_t fbfrom3, uint16_t transColor, uint16_t transColor1) override;
     // virtual void drawBitmap(int x1, int y1, int x2, int y2, uint16_t* c_data) override;
@@ -271,6 +273,7 @@ public:
     virtual void WriteToFrameBuffer(uint32_t offset, uint16_t* data, uint32_t len) override;
     virtual void AllocateFB(uint8_t sel) override;
     virtual void AllocateDRcache(uint32_t cacheSize) override;
+	virtual void DrawDitheredGradientRectToFrameBuffer(uint8_t fb, int x1, int y1, int x2, int y2, int32_t colfrom, int32_t colto, bool Orientation) override;
     int rotation;
     void* wb = NULL;
     int32_t __scrWidth;

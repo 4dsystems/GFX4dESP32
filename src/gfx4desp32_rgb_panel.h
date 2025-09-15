@@ -6,6 +6,7 @@
 #include "gfx4desp32.h"
 #include "gfx4desp32_rtc.h"
 #include "Wire.h"
+#include "esp_async_memcpy.h"
 
 #define RGB_LCD_PANEL_MAX_FB_NUM         1 // maximum supported frame buffer number
 #define RGB_LCD_PANEL_BOUNCE_BUF_NUM     2 // bounce buffer number
@@ -106,10 +107,10 @@ private:
     int clipY1;
     int clipX2;
     int clipY2;
-    int clipX1pos;
-    int clipY1pos;
-    int clipX2pos;
-    int clipY2pos;
+    //int clipX1pos;
+    //int clipY1pos;
+    //int clipX2pos;
+    //int clipY2pos;
     //bool clippingON;
     uint8_t writeBuffInitial = 1;
     bool scroll_Enable;
@@ -139,6 +140,8 @@ private:
     bool __lcd_rgb_panel_fill_bounce_buffer(uint8_t* buffer);
 
     void FlushArea(int y1, int y2, int xpos);
+	async_memcpy_config_t config;//ASYNC_MEMCPY_DEFAULT_CONFIG();
+    async_memcpy_handle_t driver = NULL;
 
 protected:
     int touchXraw;
@@ -195,6 +198,8 @@ public:
     virtual void DrawFrameBuffer(uint8_t fbnum) override;
     virtual void DrawFrameBufferArea(uint8_t fbnum, int16_t ui) override;
     virtual void DrawFrameBufferArea(uint8_t fbnum, int16_t x1, int16_t y1, int16_t x2, int16_t y2) override;
+	virtual void DrawFrameBufferAreaXY(uint8_t fbnum, int16_t ui, int x, int y) override;
+	virtual void DrawFrameBufferAreaXY(uint8_t fbnum, int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t x, int16_t y) override;
     virtual void MergeFrameBuffers(uint8_t fbto, uint8_t fbfrom1, uint8_t fbfrom2, uint16_t transColor) override;
     virtual void MergeFrameBuffers(uint8_t fbto, uint8_t fbfrom1, uint8_t fbfrom2, uint8_t fbfrom3, uint16_t transColor, uint16_t transColor1) override;
     // virtual void drawBitmap(int x1, int y1, int x2, int y2, uint16_t* c_data) override;
@@ -205,6 +210,7 @@ public:
     virtual int DigitalRead(byte pin) override;
     virtual void AllocateFB(uint8_t sel) override;
     virtual void AllocateDRcache(uint32_t cacheSize) override;
+	virtual void DrawDitheredGradientRectToFrameBuffer(uint8_t fb, int x1, int y1, int x2, int y2, int32_t colfrom, int32_t colto, bool Orientation) override;
     int rotation;
     void* wb = NULL;
     int32_t __scrWidth;

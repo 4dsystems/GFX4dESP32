@@ -323,7 +323,7 @@ void gfx4desp32::Cls() {
 /****************************************************************************/
 void gfx4desp32::Cls(uint16_t color) {
     FillScreen(color);
-    cursor_x = 0;
+    cursor_x = textXmin;
     cursor_y = 0;
     scrolled = false;
     nl = false;
@@ -357,6 +357,74 @@ int16_t gfx4desp32::getX(void) { return cursor_x; }
 */
 /****************************************************************************/
 int16_t gfx4desp32::getY(void) { return cursor_y; }
+
+/****************************************************************************/
+/*!
+  @brief  Get Last angle used in Angular function.
+  @note   returns lastAngle variable
+*/
+/****************************************************************************/
+int16_t gfx4desp32::getAngle(void) { return lastAngle; }
+
+/****************************************************************************/
+/*!
+  @brief  Get Last Orbit x & y used in Angular function.
+  @note   Loads lOrbit array with x & y position.
+*/
+/****************************************************************************/
+void gfx4desp32::getOrbit(int * lOrbit) {
+	lOrbit[0] = lastOrbit[0];
+	lOrbit[1] = lastOrbit[1];
+}
+
+/****************************************************************************/
+/*!
+  @brief  Get Last Orbit x & y used in Angular function.
+  @note   Loads lOrbit array with x & y position.
+*/
+/****************************************************************************/
+void gfx4desp32::getOrbit(float * lOrbit) {
+	lOrbit[0] = flastOrbit[0];
+	lOrbit[1] = flastOrbit[1];
+}
+
+/****************************************************************************/
+/*!
+  @brief  Store the x & y position to the text cursor if it is to be changed
+  @param  none
+  @note works in conjunction RestoreCursPos
+*/
+/****************************************************************************/
+void gfx4desp32::StoreCursPos(){
+  int pos = 6 * xystore;
+  xyCurPos[pos + 0] = cursor_x;
+  xyCurPos[pos + 1] = cursor_y;
+  xyCurPos[pos + 2] = lastfsh;
+  xyCurPos[pos + 3] = lastfsw;
+  xyCurPos[pos + 4] = lastsizeht;
+  xyCurPos[pos + 5] = nl;
+  xystore ++;
+  if (xystore > 9) xystore = 9; 
+}
+
+/****************************************************************************/
+/*!
+  @brief  Restore the x & y position that was previously stored
+  @param  none
+  @note works in conjunction StoreCursPos
+*/
+/****************************************************************************/
+void gfx4desp32::RestoreCursPos(){ 
+  int pos = 6 * (xystore - 1);
+  if (pos < 0) pos = 0;
+  MoveTo(xyCurPos[pos + 0], xyCurPos[pos + 1]);
+  lastfsh = xyCurPos[pos + 2];
+  lastfsw = xyCurPos[pos + 3];
+  lastsizeht = xyCurPos[pos + 4];
+  nl = xyCurPos[pos + 5];
+  xystore --;
+  if (xystore < 0) xystore = 0;	
+}
 
 /****************************************************************************/
 /*!
@@ -530,13 +598,13 @@ void gfx4desp32::drawChar4D(int16_t x, int16_t y, uint16_t c,
         return;
 
     if (c == '\r') {
-        cursor_x = 0;
+        cursor_x = textXmin;
         return;
     }
 
     if (c == '\n') {
         cursor_y += fsh;
-        cursor_x = 0; // ensures that \n works the same as \r\n
+        cursor_x = textXmin; // ensures that \n works the same as \r\n
         return;
     }
 
@@ -565,10 +633,10 @@ void gfx4desp32::drawChar4D(int16_t x, int16_t y, uint16_t c,
         data = &fontPtr[offset + 2];
     }
 
-    if (wrap && cursor_x + _width > getWidth()) {
+    if (wrap && cursor_x + _width > textXmax) {
         // if next character overflows, move to next line
         cursor_y += fsh;
-        cursor_x = 0;
+        cursor_x = textXmin;
     }
 
     int bytePerRow = _width << 1;
@@ -629,13 +697,13 @@ void gfx4desp32::drawChar4Dcmp(int16_t x, int16_t y, uint16_t c,
         return;
 
     if (c == '\r') {
-        cursor_x = 0;
+        cursor_x = textXmin;
         return;
     }
 
     if (c == '\n') {
         cursor_y += fsh;
-        cursor_x = 0; // ensures that \n works the same as \r\n
+        cursor_x = textXmin; // ensures that \n works the same as \r\n
         return;
     }
 
@@ -661,10 +729,10 @@ void gfx4desp32::drawChar4Dcmp(int16_t x, int16_t y, uint16_t c,
         data++;
     }
 
-    if (wrap && cursor_x + width > getWidth()) {
+    if (wrap && cursor_x + width > textXmax) {
         // if next character overflows, move to next line
         cursor_y += fsh;
-        cursor_x = 0;
+        cursor_x = textXmin;
     }
 
     bool needsEndWrite = StartWrite();
@@ -961,6 +1029,44 @@ void gfx4desp32::TextWrap(boolean w) { wrap = w; }
 
 /****************************************************************************/
 /*!
+  @brief  Set text margins to scroll window X limits.
+  @param  none
+*/
+/****************************************************************************/
+void gfx4desp32::TextMarginsXfromScrollWindow() {
+	textXmin = scroll_X1;
+	textXmax = scroll_X2;
+}
+
+/****************************************************************************/
+/*!
+  @brief  Set text curstor X & Y to Scroll Window.
+  @param  none
+*/
+/****************************************************************************/
+void gfx4desp32::TextCursorXYfromScrollWindow() {
+	cursor_x = scroll_X1;
+	cursor_y = scroll_Y1;
+}
+
+/****************************************************************************/
+/*!
+  @brief  Set minimum cursor position for newline.
+  @param  pixels - pixels from left.
+*/
+/****************************************************************************/
+void gfx4desp32::TextMarginMinX(int pixels) { textXmin = pixels; }
+
+/****************************************************************************/
+/*!
+  @brief  Set maximum cursor position for newline with textWrap.
+  @param  pixels - maximum x pixels from left.
+*/
+/****************************************************************************/
+void gfx4desp32::TextMarginMaxX(int pixels) { textXmax = pixels; }
+
+/****************************************************************************/
+/*!
   @brief  Return height of current selected font
 */
 /****************************************************************************/
@@ -1016,6 +1122,23 @@ void gfx4desp32::Rectangle(int16_t x, int16_t y, int16_t x1, int16_t y1,
         EndWrite();
 }
 
+void gfx4desp32::Rectangle(int16_t x, int16_t y, int16_t x1, int16_t y1,
+    int16_t thk, uint16_t color) {
+    bool needsEndWrite = StartWrite();
+    if (x > x1)
+        gfx_Swap(x, x1);
+    if (y > y1)
+        gfx_Swap(y, y1);
+    int w = x1 - x + 1;
+    int h = y1 - y + 1;
+    RectangleFilled(x, y, x1 - thk, y + thk, color);
+	RectangleFilled(x + thk, y1 - thk, x1, y1, color);
+	RectangleFilled(x, y + thk, x + thk, y1, color);
+	RectangleFilled(x1 - thk, y, x1, y1 - thk, color);
+    if (needsEndWrite)
+        EndWrite();
+}
+
 void gfx4desp32::CircleAA(int32_t x, int32_t y, int32_t r, int thk, int32_t fg_color){
   bool needsEndWrite = StartWrite();
   int32_t rt = r - thk;
@@ -1024,15 +1147,29 @@ void gfx4desp32::CircleAA(int32_t x, int32_t y, int32_t r, int thk, int32_t fg_c
   if(needsEndWrite) EndWrite();
 }
 
-void gfx4desp32::ArcAA(int32_t x, int32_t y, int32_t r1, int32_t r2, uint32_t sA, uint32_t eA, int32_t color, bool rounded)
+/****************************************************************************/
+/*!
+  @brief  Draw anti-aliaised arc
+  @param  x - arc centre X position in pixels
+  @param  y - arc centre Y position in pixels
+  @param  r1 - external radius of arc in pixels
+  @param  r2 - internal radius of arc in pixels
+  @param  sA - start angle of arc degrees. must be 0 to 359 and less than r2
+  @param  eA - start angle of arc degrees. must be 0 to 359 and greater than r1
+  @param  color - RGB565 colour of source
+  @param  rounded - true if rounded ends or false for straight
+  @note Clipping, if set, is handled by Hline / Vline functions
+*/
+/****************************************************************************/
+void gfx4desp32::ArcAA(int32_t x, int32_t y, int32_t r1, int32_t r2, int32_t sA, int32_t eA, int32_t color, bool rounded)
 {
-  int16_t bkx = cursor_x;
-  int16_t bky = cursor_y;
+  StoreCursPos();
   if (eA != sA && (sA != 0 || eA != 360))
   {
     float stxy1[2], stxy2[2];
     float enxy1[2], enxy2[2];
     float str[2], enr[2];
+	float thk = abs(r2 - r1);
 	MoveTo(x, y);
     if (!rounded)
     {
@@ -1043,35 +1180,85 @@ void gfx4desp32::ArcAA(int32_t x, int32_t y, int32_t r1, int32_t r2, uint32_t sA
       LineAA(stxy1[0], stxy1[1], stxy2[0], stxy2[1], 0.3, 0.3, color);
       LineAA(enxy1[0], enxy1[1], enxy2[0], enxy2[1], 0.3, 0.3, color);
     } else {
-      Orbit(sA + 180, (r1 + r2)/2.0, str);
-      Orbit(eA + 180, (r1 + r2)/2.0, enr);
-      CircleFilledAA(str[0], str[1], (r1 - r2) >> 1, color);
-      CircleFilledAA(enr[0], enr[1], (r1 - r2) >> 1, color);
+      Orbit(sA + 180, r1 + (thk / 2.0)/*(r1 + r2)/2.0*/, str);
+      Orbit(eA + 180, r1 + (thk / 2.0)/*(r1 + r2)/2.0*/, enr);
+      CircleFilledAA(str[0], str[1], abs(r1 - r2) >> 1, color);
+      CircleFilledAA(enr[0], enr[1], abs(r1 - r2) >> 1, color);
     }
   } else {
     sA = 0; eA = 360;
   }
   drawArc(x, y, r1, r2, sA, eA, color);//, 0, true);
-  cursor_x = bkx;
-  cursor_y = bky;
+  RestoreCursPos();
 }
 
+/****************************************************************************/
+/*!
+  @brief  Draw anti-aliaised arc - helper function for drawArcAA
+  @param  x - arc centre X position in pixels
+  @param  y - arc centre Y position in pixels
+  @param  r1 - external radius of arc in pixels
+  @param  r2 - internal radius of arc in pixels
+  @param  sA - start angle of arc degrees. can be out of deg range.
+  @param  eA - start angle of arc degrees. can be out of deg range
+  @param  color - RGB565 colour of source
+  @note Clipping, if set, is handled by Hline / Vline functions
+*/
+/****************************************************************************/
 void gfx4desp32::drawArc(int32_t x, int32_t y, int32_t r, int32_t ir,
-                       uint32_t sA, uint32_t eA,
+                       int32_t sA, int32_t eA,
+                       int32_t color)					   
+{
+  if (sA > eA){
+	  eA = (eA % 360) + 360;
+  }
+  if(sA < 0 && eA > 0){
+	  drawArcAA(x, y, r, ir, (sA + 360) % 360, 360, color);
+	  drawArcAA(x, y, r, ir, 0, eA % 360, color);
+  }
+  if(sA < 360 && eA < 360){
+	  drawArcAA(x, y, r, ir, sA, eA, color);
+	  return;
+  }
+  if(sA < 360 && eA > 359){
+	  drawArcAA(x, y, r, ir, sA, 360, color);
+	  drawArcAA(x, y, r, ir, 0, eA % 360/*- 360*/, color);
+	  return;
+  } 
+   if(sA > 359 && eA > 359){
+	   drawArcAA(x, y, r, ir, sA % 360/*- 360*/, eA % 360/*- 360*/, color);
+  }  
+}
+      
+/****************************************************************************/
+/*!
+  @brief  Draw anti-aliaised arc without ending round or straight
+  @param  x - arc centre X position in pixels
+  @param  y - arc centre Y position in pixels
+  @param  r1 - external radius of arc in pixels
+  @param  r2 - internal radius of arc in pixels
+  @param  sA - start angle of arc degrees. must be 0 to 359 and less than r2
+  @param  eA - start angle of arc degrees. must be 0 to 359 and greater than r1
+  @param  color - RGB565 colour of source
+  @note Clipping, if set, is handled by Hline / Vline functions
+*/
+/****************************************************************************/
+void gfx4desp32::drawArcAA(int32_t x, int32_t y, int32_t r, int32_t ir,
+                       int32_t sA, int32_t eA,
                        int32_t color)//, uint32_t bg_color,
                        //bool smooth)
 {
   	
-  if (eA > 360) eA = 360;
-  if (sA > 360) sA = 360;
+  //if (eA > 360) eA = 360;
+  //if (sA > 360) sA = 360;
   if (sA == eA) return;
   if (r < ir) gfx_Swap(r, ir);  // Required that r > ir
   if (r <= 0 || ir < 0) return;  // Invalid r, ir can be zero (circle sector)
-  if (eA < sA) {
-    if (sA < 360) drawArc(x, y, r, ir, sA, 360, color);//, bg_color, smooth);
-    if (eA == 0) return;
-    sA = 0;
-  }
+  //if (eA < sA) {
+  //  if (sA < 360) drawArc(x, y, r, ir, sA, 360, color);//, bg_color, smooth);
+  //  if (eA == 0) return;
+  //  sA = 0;
+  //}
   bool needsEndWrite = StartWrite();
   int32_t x0, x1, y0, y1;
   float al;
@@ -1773,6 +1960,10 @@ void gfx4desp32::_Open4dGFX(String file4d, bool scan) {
     String inputString;
     dat4d = file4d + ".dat";
     gci4d = file4d + ".gci";
+#ifdef USE_SDMMC_FILE_SYSTEM
+    dat4d = "/" + dat4d;
+    gci4d = "/" + gci4d;
+#endif
 #ifdef USE_LITTLEFS_FILE_SYSTEM
     if (GCItype == GCI_SYSTEM_USD) {
         dat4d = "/" + dat4d;
@@ -1923,7 +2114,7 @@ gfx4d_font gfx4desp32::Open4dFont(String font4d) {
     return LittleFS.open((char*)tstring.c_str(), "r");
 #else
 #ifdef USE_SDMMC_FILE_SYSTEM
-    return SD_MMC.open(font4d);
+    return SD_MMC.open("/" + font4d);
 #else
     return uSD.open(font4d);
 #endif
@@ -2742,11 +2933,11 @@ void gfx4desp32::setAddrWindow(int16_t x1, int16_t y1, int16_t w, int16_t h) {
 */
 /****************************************************************************/
 void gfx4desp32::PrintImage(uint16_t ui) {
-    if (cursor_x > (width - 1))
+    if (cursor_x > textXmax/*(width - 1)*/)
         return;
     boolean tempnl = false;
     if (nl) {
-        cursor_x = 0;
+        cursor_x = textXmin;
         tempnl = true;
         newLine(lastfsh, textsizeht, textXmin);
     }
@@ -3025,6 +3216,23 @@ uint32_t gfx4desp32::HighlightColors(uint16_t colorh, int step) {
     uint16_t _light = RGBs2COL(GFX4dESP32_RED, GFX4dESP32_GREEN, GFX4dESP32_BLUE);
     uint32_t bevcol = (_dark << 16) + _light;
     return bevcol;
+}
+
+uint16_t gfx4desp32::ColorFromTo(uint16_t a, uint16_t b, uint8_t step){
+	int rf = a >> 11;
+	int rt = b >> 11;
+	int gf = (a >> 5) & 0x3f;
+	int gt = (b >> 5) & 0x3f;
+	int bf = a & 0x1f;
+	int bt = b & 0x1f;
+	float rr, gr, br, res;
+	rr = rt - rf;
+	gr = gt - gf;
+	br = bt - bf;
+	rf += (int)(rr / 255.0 * step);
+	gf += (int)(gr / 255.0 * step);
+	bf += (int)(br / 255.0 * step);
+	return (rf << 11) + (gf << 5) + bf;
 }
 
 uint16_t gfx4desp32::RGBs2COL(uint8_t r, uint8_t g, uint8_t b) {
@@ -5384,6 +5592,16 @@ void gfx4desp32::DrawToframebuffer(uint8_t fbnum) {
         if (!framebufferInit4)
             AllocateFB(4);
         break;
+	case WIDGET_BUFFER:
+        frame_buffer = WIDGET_BUFFER;
+        if (!framebufferInit12)
+            AllocateFB(WIDGET_BUFFER);
+        break;
+	case RGB888_BUFFER:
+        frame_buffer = RGB888_BUFFER;
+        if (!framebufferInit13)
+            AllocateFB(RGB888_BUFFER);
+        break;
     }
 }
 
@@ -5769,6 +5987,21 @@ void gfx4desp32::putstrXY(int xpos, int ypos, const char* strg) {
     print(strg);
 }
 
+void gfx4desp32::putstrCenteredXY(int xpos, int ypos, String strg) {
+	MoveTo(xpos - (strWidth(strg) >> 1), ypos - (fsh >> 1));
+    print(strg);
+}
+
+void gfx4desp32::putstrAngularXY(int xpos, int ypos, int ang, int radius, String strg) {
+	int xy1[2];
+	int curX = cursor_x; int curY = cursor_y;
+	MoveTo(xpos, ypos);
+	Orbit(ang, radius, xy1);
+	MoveTo((int)xy1[0] - (strWidth(strg) >> 1), (int)xy1[1] - (fsh >> 1));
+    print(strg);
+	cursor_y = curY; cursor_x = curX;
+}
+
 void gfx4desp32::putch(char chr) { write(chr); }
 
 void gfx4desp32::putchXY(int xpos, int ypos, char chr) {
@@ -6070,7 +6303,7 @@ void gfx4desp32::Download(String Address, uint16_t port, String hfile,
 }
 #endif
 void gfx4desp32::PrintImageFile(String ifile) {
-    if (cursor_x >= (width - 1))
+    if (cursor_x >= textXmax /*(width - 1)*/)
         return;
     boolean tempnl = false;
     if (nl) {
@@ -6081,7 +6314,7 @@ void gfx4desp32::PrintImageFile(String ifile) {
         return;
 #ifndef USE_LITTLEFS_FILE_SYSTEM
 #ifdef USE_SDMMC_FILE_SYSTEM
-    dataFile = SD_MMC.open(ifile);
+    dataFile = SD_MMC.open("/" + ifile);
 #else
     dataFile = uSD.open(ifile);
 #endif
@@ -6665,6 +6898,24 @@ void gfx4desp32::TriangleAA(float x0, float y0, float x1, float y1,
         EndWrite();
 }
 
+void gfx4desp32::RoundRectAA(int16_t x, int16_t y, int16_t x1, int16_t y1,
+        int16_t r, int16_t thk, uint16_t color) {
+    bool needsEndWrite = StartWrite();
+    int w = x1 - x + 1;
+    int h = y1 - y + 1;
+    int ri = r - thk; 
+    RectangleFilled(x + r, y, x1 - r, y + thk, color);
+    RectangleFilled(x + r, y + h - (thk+1), x1 - r, y + h - 1, color);
+    RectangleFilled(x, y + r, x + thk, y + h - r - 1, color);
+    RectangleFilled(x + w - (thk+1), y + r, x + w - 1, y + h - r - 1, color);
+    drawArc(x + r, y + r, r, ri, 91, 179, color);
+    drawArc(x + w - r - 1, y + r, r, ri, 181, 269, color);
+    drawArc(x + w - r - 1, y + h - r - 1, r, ri, 271, 359, color);
+    drawArc(x + r, y + h - r - 1, r, ri, 1, 89, color);
+    if (needsEndWrite)
+       EndWrite();
+}
+
 void gfx4desp32::RoundRectFilledAA(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, int32_t color)
 {
   bool needsEndWrite = StartWrite();
@@ -6705,4 +6956,1344 @@ void gfx4desp32::RoundRectFilledAA(int32_t x, int32_t y, int32_t w, int32_t h, i
     HlineX(x + cnx - r, y - cny + r + h, 2 * (r - cnx) + 1 + w, color);
   }
   if (needsEndWrite) EndWrite();
+}
+
+/****************************************************************************/
+/*!
+  @brief  Draws a dithered gradient filled rectangle
+  @param  x - x top left position
+  @param  y - y top left position
+  @param  x1 - x bottom right position
+  @param  y1 - y bottom right position
+  @param  colfrom - RGB565 gradient from color
+  @param  colto - RGB565 gradient to color
+  @param  Orientation - Orientation of the gradient HORIZONTAL, VERTICAL
+*/
+/****************************************************************************/
+void gfx4desp32::GradientRectangleFilled(int x1, int y1, int x2, int y2, int32_t colfrom, int32_t colto, bool Orientation){
+  int cf = GetFrameBuffer();
+  DrawDitheredGradientRectToFrameBuffer(cf, x1, y1, x2, y2, colfrom, colto, Orientation);  
+}
+
+/****************************************************************************/
+/*!
+  @brief  Sets frame buffer for building layered widget 
+  @param  bgColor - RGB565 color of background blanking rectangle
+  @param  builtBuff - Buffer that widget layers will be built
+  @param  x1 - Top left x position of anim area
+  @param  y1 - Top left y position of anim area
+  @param  x2 - Bottom right x position of anim area
+  @param  y2 - Bottom right y position of anim area
+  @returns Index of stored animation profile
+  @note Allows simple widget layered build using plain background
+*/
+/****************************************************************************/
+int gfx4desp32::StartAnim(uint32_t bgColor, int builtBuff, int x1, int y1, int x2, int y2){
+  int tcount;
+  tcount = StartAnim(-1, bgColor, builtBuff, x1, y1, x2, y2);
+  return tcount;  
+}
+
+/****************************************************************************/
+/*!
+  @brief  Sets frame 3 buffers for building layered widget using background image
+  @param  bkgBuff - First source buffer containing background image to copy
+  @param  buildBuff - Second storage buffer for holding background image
+  @param  builtBuff - Third buffer for building widget layers
+  @param  x1 - Top left x position of anim area
+  @param  y1 - Top left y position of anim area
+  @param  x2 - Bottom right x position of anim area
+  @param  y2 - Bottom right y position of anim area
+  @returns Index of stored animation profile
+  @note Allows complex widget layered build using image background
+*/
+/****************************************************************************/
+int gfx4desp32::StartAnim(int16_t bkgBuff, uint32_t buildBuff, uint16_t builtBuff, int x1, int y1, int x2, int y2){
+  int arraypos = 7 * animIndexCounter;
+  if(bkgBuff != -1){
+    DrawToframebuffer(buildBuff);
+    DrawFrameBufferArea(bkgBuff, x1, y1, x2, y2);
+    DrawToframebuffer(builtBuff);
+    DrawFrameBufferArea(buildBuff, x1, y1, x2, y2);
+  } else {
+	RectangleFilled(x1, y1, x2, y2, buildBuff);  
+  }
+  anims[arraypos] = bkgBuff;
+  anims[arraypos + 1] = buildBuff;
+  anims[arraypos + 2] = builtBuff;
+  anims[arraypos + 3] = x1; anims[arraypos + 4] = y1; anims[arraypos +5] = x2; anims[arraypos + 6] = y2;  
+  return animIndexCounter++;
+}
+
+/****************************************************************************/
+/*!
+  @brief  Sets up anim when returning to rebuild layered widget
+  @param  animIndex - index given for retreiving anim parameters
+*/
+/****************************************************************************/
+void gfx4desp32::ContAnim(int animIndex){
+  int arraypos = 7 * animIndex;
+  DrawToframebuffer(anims[arraypos + 2]);
+  if(anims[arraypos] != -1){
+    DrawFrameBufferArea(anims[arraypos + 1], anims[arraypos + 3], anims[arraypos + 4], anims[arraypos + 5], anims[arraypos + 6]);
+  } else {
+	RectangleFilled(anims[arraypos + 3], anims[arraypos + 4], anims[arraypos + 5], anims[arraypos + 6], anims[arraypos + 1]);  
+  }
+}
+
+/****************************************************************************/
+/*!
+  @brief  Show built layered widget
+  @param  animIndex - index given for retreiving anim parameters
+*/
+/****************************************************************************/
+void gfx4desp32::ShowAnim(int animIndex){
+  int arraypos = 7 * animIndex;
+  DrawToframebuffer(0);
+  DrawFrameBufferArea(anims[arraypos + 2], anims[arraypos + 3], anims[arraypos + 4], anims[arraypos + 5], anims[arraypos + 6]); 
+  if(anims[arraypos] != -1){
+    DrawToframebuffer(anims[arraypos + 2]);
+    DrawFrameBufferArea(anims[arraypos + 1], anims[arraypos + 3], anims[arraypos + 4], anims[arraypos + 5], anims[arraypos + 6]);
+  } else {
+	DrawToframebuffer(anims[arraypos + 2]);
+    RectangleFilled(anims[arraypos + 3], anims[arraypos + 4], anims[arraypos + 5], anims[arraypos + 6], anims[arraypos + 1]);	
+  }
+  //DrawToframebuffer(0);
+}
+
+/****************************************************************************/
+/*!
+  @brief  End layered widget anim
+  @param  animIndex - index given for retreiving anim parameters
+*/
+/****************************************************************************/
+void gfx4desp32::EndAnim(int animIndex){
+  //int arraypos = 7 * animIndex;
+  DrawToframebuffer(0);
+}
+
+/****************************************************************************/
+/*!
+  @brief  Draws a list of images in a rotary carousel
+  @param  valdeg - angle in degrees of position of rotary carousel
+  @param  xc - x center position of rotary carousel
+  @param  yc - y center position of rotary carousel
+  @param  sa - Start angle (value 0) of rotary carousel
+  @param  imageArcRange - Range in degrees of carousel movement
+  @param  numImages - Number of images in the image list
+  @param  imageList - Array of image indexes
+  @param  opac1 - opacity of images at outer range of carousel
+  @param  opac2 - opacity of images at valdeg position
+  @param  imageMask - Value setting the shape that the image will be drawn as
+  @param  RRarc - if set as round rectangle, set the radius of the corners
+  @param  selectedFrame - if set a frame will be drawn around selected image (only SHAPE_ROUNDED_RECTANGLE supported at present)
+  @param  frameColour - Color of sectected frame  
+  @param  frameWidth - Line thickness of selected frame 
+  @param  frameGap - Gap between selected frame and image 
+  @param  frameOpac - Opacity of selected frame
+  @note   use with StartAnim, ContAnim, ShowAnim functions
+*/
+/****************************************************************************/
+void gfx4desp32::AngularImageRotary(int valdeg, int xc, int yc, int sa, int imageArcRange, int imageCTRradius, int numImages, int *imageList, uint8_t opac1, uint8_t opac2, int imageMask, int RRarc, int selectedFrame, uint16_t frameColour, int frameWidth, int frameGap, int frameOpac){
+  bool opacON = false;
+  if (valdeg > imageArcRange) valdeg = imageArcRange;
+  if (valdeg < 0) valdeg = 0;
+  float opacityLstep;
+  float opacityL;
+  int degCount = valdeg;
+  float newSa = sa - valdeg;
+  int n, x, y, w, h;
+  int xy[2];
+  int alphabk = __alpha;
+  bool alphaonbk = alpha;
+  if(opac1 >= 1 || opac2 >= 1){
+	if(opac1 > opac2) gfx_Swap(opac1, opac2);
+	opacityLstep = (float)(opac2 - opac1) / imageArcRange;
+	opacON = true;
+	AlphaBlend(ON);
+  }
+  int rr;
+  float gap = imageArcRange / (float)(numImages - 1); 
+  for (n = 0; n < numImages; n++){
+	MoveTo(xc, yc);
+	w = imageGetWord(imageList[n], IMAGE_WIDTH);	
+	h = imageGetWord(imageList[n], IMAGE_HEIGHT);
+	if (RRarc <= 0){
+	  rr = w;
+	  if(w > h) rr = h;
+	  rr = rr >> 1;
+	} else {
+	  rr = RRarc;
+	}
+	degCount = valdeg - (n * gap);
+	AlphaBlendLevel(opac2 - (abs(degCount * opacityLstep)));
+	Orbit((int)(newSa + (n * gap)), imageCTRradius, xy);
+	x = xy[0]; y = xy[1];
+	imageSetWord(imageList[n], IMAGE_XPOS, x - (w >> 1));
+	imageSetWord(imageList[n], IMAGE_YPOS, y - (h >> 1)); 
+	if(imageMask == SHAPE_CIRCLE){
+	  CircleFilledAA(x, y, rr, GCI_IMAGE+imageList[n]);
+	} else if (imageMask == SHAPE_RECTANGLE){
+	  RectangleFilledX(x - (w >> 1), y - (h >> 1), x + (w >> 1) - 1, y + (h >> 1) - 1, GCI_IMAGE+imageList[n]);	
+	} else if (imageMask == SHAPE_ROUNDED_RECTANGLE){
+	  if(RRarc > (w >> 1)) RRarc = w >> 1;
+	  if(RRarc > (h >> 1)) RRarc = h >> 1;
+	  RoundRectFilledAA(x - (w >> 1), y - (h >> 1), w, h, RRarc, GCI_IMAGE+imageList[n]);
+	} else {
+	  UserImage(imageList[n]);
+	}
+  }
+  if(selectedFrame == SHAPE_ROUNDED_RECTANGLE){
+    Orbit(sa, imageCTRradius, xy);
+	x = xy[0] - (w >> 1) - frameWidth - frameGap; y = xy[1] - (h >> 1) - frameWidth - frameGap;
+	if(frameOpac != 255){
+	  AlphaBlendLevel(frameOpac);
+	  AlphaBlend(ON);
+	}
+	RoundRectAA(x, y, x + w + ((frameWidth + frameGap) << 1) - 1, y + h + ((frameWidth + frameGap) << 1) - 1, RRarc + frameWidth + frameGap, frameWidth, frameColour);
+  }
+  AlphaBlendLevel(alphabk);
+  AlphaBlend(alphaonbk);
+  //AngularScale(x, y, sa, ea, ticks, tickRadius, ticksMajor, ticksMajorRadius, tickLen, tickW, tickColor, tickMajorLen, tickMajorW, tickMajorColor, hasValues, valueRadius, minVal, maxVal, allowFloat, textColor, labels);
+}
+
+/****************************************************************************/
+/*!
+  @brief  Draws an angular scale with optional values
+  @param  x - x center position of rotary carousel
+  @param  y - y center position of rotary carousel
+  @param  sa - Start angle of acale
+  @param  ea - End angle of scale
+  @param  ticks - total number of ticks
+  @param  tickRadius - radius at which the ticks are drawn
+  @param  ticksMajor - Number of ticks that are major ticks
+  @param  ticksMajorRadius - radius at which the major ticks are drawn
+  @param  tickLen - length of minor ticks
+  @param  tickW - line width of minor ticks
+  @param  tickColor - RGB565 color of minor ticks
+  @param  tickMajorLen - length of major ticks  
+  @param  tickMajorW - line width of major ticks 
+  @param  tickMajorColor - RGB565 color of major ticks 
+  @param  hasValues - true or false
+  @param  valueRadius - Radius of wher values will be printed
+  @param  minVal - minimum value of scale
+  @param  maxVal - maximum value of scale
+  @param  allowFloat - true or false
+  @param  fnt - font used for values, can be system, flash or GCI font
+  @param  labels - Optional, use array of strings instead of values
+  @note   use with StartAnim, ContAnim, ShowAnim functions
+*/
+/****************************************************************************/
+void gfx4desp32::AngularScale(int x, int y, int sa, int ea, int ticks, int tickRadius, int ticksMajor, int ticksMajorRadius, int tickLen, float tickW, uint32_t tickColor, int tickMajorLen, float tickMajorW, uint32_t tickMajorColor, bool hasValues, int valueRadius, float minVal, float maxVal, bool allowFloat, int textColor, const uint8_t* fnt, String* labels){
+  gfx4d_font gfnt;
+  uint8_t sfnt;
+  const uint8_t* cfnt = fontPtr;
+  uint8_t tfno = fno;
+  if(fno == 0){
+	gfnt = gciFont;  
+  } else if(fno == -1){
+	cfnt = fontPtr;
+  } else {
+	sfnt = fno;
+  }	
+  Font(fnt, true);
+  AngularScale(x, y, sa, ea, ticks, tickRadius, ticksMajor, ticksMajorRadius, tickLen, tickW, tickColor, tickMajorLen, tickMajorW, tickMajorColor, hasValues, valueRadius, minVal, maxVal, allowFloat, textColor, labels);
+  if(tfno == 0){
+	Font(gfnt);  
+  } else if(tfno == -1){
+	Font(cfnt, true);
+  } else {
+	Font(sfnt);
+  }	
+}
+
+void gfx4desp32::AngularScale(int x, int y, int sa, int ea, int ticks, int tickRadius, int ticksMajor, int ticksMajorRadius, int tickLen, float tickW, uint32_t tickColor, int tickMajorLen, float tickMajorW, uint32_t tickMajorColor, bool hasValues, int valueRadius, float minVal, float maxVal, bool allowFloat, int textColor, uint8_t fnt, String* labels){
+  gfx4d_font gfnt;
+  uint8_t sfnt;
+  const uint8_t* cfnt = fontPtr;
+  uint8_t tfno = fno;
+  if(fno == 0){
+	gfnt = gciFont;  
+  } else if(fno == -1){
+	cfnt = fontPtr;
+  } else {
+	sfnt = fno;
+  }	
+  Font(fnt);
+  AngularScale(x, y, sa, ea, ticks, tickRadius, ticksMajor, ticksMajorRadius, tickLen, tickW, tickColor, tickMajorLen, tickMajorW, tickMajorColor, hasValues, valueRadius, minVal, maxVal, allowFloat, textColor, labels);
+  if(tfno == 0){
+	Font(gfnt);  
+  } else if(tfno == -1){
+	Font(cfnt, true);
+  } else {
+	Font(sfnt);
+  }	
+}
+
+void gfx4desp32::AngularScale(int x, int y, int sa, int ea, int ticks, int tickRadius, int ticksMajor, int ticksMajorRadius, int tickLen, float tickW, uint32_t tickColor, int tickMajorLen, float tickMajorW, uint32_t tickMajorColor, bool hasValues, int valueRadius, float minVal, float maxVal, bool allowFloat, int textColor, gfx4d_font fnt, String* labels){
+  gfx4d_font gfnt;
+  uint8_t sfnt;
+  const uint8_t* cfnt = fontPtr;
+  uint8_t tfno = fno;
+  if(fno == 0){
+	gfnt = gciFont;  
+  } else if(fno == -1){
+	cfnt = fontPtr;
+  } else {
+	sfnt = fno;
+  }	
+  Font(fnt);
+  AngularScale(x, y, sa, ea, ticks, tickRadius, ticksMajor, ticksMajorRadius, tickLen, tickW, tickColor, tickMajorLen, tickMajorW, tickMajorColor, hasValues, valueRadius, minVal, maxVal, allowFloat, textColor, labels);
+  if(tfno == 0){
+	Font(gfnt);  
+  } else if(tfno == -1){
+	Font(cfnt, true);
+  } else {
+	Font(sfnt);
+  }	
+}
+
+void gfx4desp32::AngularScale(int x, int y, int sa, int ea, int ticks, int tickRadius, int ticksMajor, int ticksMajorRadius, int tickLen, float tickW, uint32_t tickColor, int tickMajorLen, float tickMajorW, uint32_t tickMajorColor, bool hasValues, int valueRadius, float minVal, float maxVal, bool allowFloat, int textColor, String* labels){
+  if(ea < sa) return;
+  ea += 180;
+  sa += 180;
+  int tm = ticksMajor;
+  if (tm == 0) tm = 1;
+  uint16_t tcol = textcolor;
+  uint16_t tbcol = textbgcolor;
+  int tx = cursor_x;
+  int ty = cursor_y;
+  bool twr = wrap;
+  wrap = false;
+  int dir = 0;
+  int labCount = 0;  
+  bool needsEndWrite = StartWrite();
+  int tickChange;
+  tickChange = ticks / tm;
+  float range;  
+  if (minVal > maxVal) dir = 1;
+  if (minVal == maxVal){
+	dir = 2;
+	minVal = 0;
+  }
+  range = fabs(maxVal - minVal);
+  float angularRange = fabs(ea - sa);
+  float scaleInc;
+  scaleInc = range / tm;
+  float scaleVal = minVal;
+  float tickGap = (float)angularRange / ticks;
+  float tpos = sa;
+  float xy1[2];
+  float xy2[2];
+  for (int n = 0; n < ticks + (angularRange != 360); n++){
+    MoveTo(x, y);
+    Orbit(tpos, tickRadius, xy1);
+    if (!(n % tickChange) && ticksMajor > 0){
+      Orbit(tpos, ticksMajorRadius, xy1);
+      Orbit(tpos, ticksMajorRadius + tickMajorLen, xy2);
+      if(tickMajorW > 0) LineAA(xy1[0], xy1[1], xy2[0], xy2[1], 2, 2, tickMajorColor);
+      if(hasValues){
+	    Orbit(tpos, valueRadius, xy1);
+        TextColor(textColor, textColor);
+        if(dir == 2){
+          putstrCenteredXY(xy1[0] + 1, xy1[1] + 1, labels[labCount]);
+	    } else {		  
+		  if(allowFloat){
+		    putstrCenteredXY(xy1[0] + 1, xy1[1] + 1, String(scaleVal));
+	      } else {
+		    putstrCenteredXY(xy1[0] + 1, xy1[1] + 1, String((int32_t)scaleVal));
+	      }
+	    }
+	  }
+	  if(dir == 0){
+	    scaleVal += scaleInc;
+	  } else {
+		scaleVal -= scaleInc;  
+	  }
+	  labCount ++;
+    } else {
+      Orbit(tpos, tickRadius, xy1);
+      Orbit(tpos, tickRadius + tickLen, xy2);
+      if(tickW > 0) LineAA(xy1[0], xy1[1], xy2[0], xy2[1], 1, 1, tickColor);
+    }
+    tpos += tickGap;
+  }
+  if (needsEndWrite) EndWrite();
+  TextColor(tcol, tbcol);
+  cursor_x = tx; cursor_y = ty;
+  wrap = twr;
+}
+
+/****************************************************************************/
+/*!
+  @brief  Draws a flare around an arc
+  @param  x - x center position of rotary carousel
+  @param  y - y center position of rotary carousel
+  @param  baser - External radius of arc to apply flare
+  @param  ir - Internal radius of arc to apply flare
+  @param  sa - Start angle of arc
+  @param  ea - End angle of arc
+  @param  colorfrom - RGB565 color to start flare
+  @param  colorto - RGB565 color to end flare
+  @param  roundEnds - true if rounded, false if straight
+  @param  flareSize - size of flare in pixels
+  @param  flareDir - direction of flare FLARE_EXTERNAL, FLARE_INTERNAL
+*/
+/****************************************************************************/
+void gfx4desp32::ArcFlare(int x, int y, int baser, int ir, int sa, int ea, int32_t colorfrom, int32_t colorto, bool roundEnds, int flareSize, int flareDir){
+  int n;
+  uint16_t aa, ba;
+  float c = 255;
+  float flareInc = c / (float)flareSize;
+  if(flareDir < 0){
+	flareDir = -1;
+  } else {
+	flareDir = 1;  
+  }
+  if(flareDir == 1){
+	ir -= flareSize;
+	baser += flareSize;
+  }
+  for(n = 0; n < flareSize; n++) {
+	baser -= flareDir;
+	ir += flareDir;
+	calcAlpha(colorfrom, colorto, (int)((float)n * flareInc));
+    ArcAA(x, y, ir, baser, sa, ea, __colour, roundEnds);
+  }
+}
+
+/****************************************************************************/
+/*!
+  @brief  Draws a flare around an angular gauge
+  @param  x - x center position of angular gauge
+  @param  y - y center position of angular gauge
+  @param  sa - Start angle of gauge
+  @param  ea - End angle of gauge
+  @param  gaugeRadius - Radius of gauge to apply flare
+  @param  gaugeThickness - Thickness of gauge to apply flare
+  @param  colorfrom - RGB565 color to start flare
+  @param  colorto - RGB565 color to end flare
+  @param  roundEnds - true if rounded, false if straight
+  @param  flareSize - size of flare in pixels
+  @param  flareDir - direction of flare FLARE_EXTERNAL, FLARE_INTERNAL
+*/
+/****************************************************************************/
+void gfx4desp32::AngularGaugeFlare(int x, int y, int sa, int ea, int gaugeRadius, int gaugeThickness, int32_t colorfrom, int32_t colorto, bool roundEnds, int flareSize, int flareDir){
+  ArcFlare(x, y, gaugeRadius + gaugeThickness, gaugeRadius, sa, ea, colorfrom, colorto, roundEnds, flareSize, flareDir);
+}
+
+/****************************************************************************/
+/*!
+  @brief  Draws angular gauge
+  @param val to be shown on gauge
+  @param  x - x center position of gauge
+  @param  y - y center position of gauge
+  @param  sa - Start angle of gauge
+  @param  ea - End angle of gauge
+  @param  min - Minimum value of gauge
+  @param  max - Maximum value of gauge
+  @param  gaugeRadius - Radius of gauge
+  @param  gaugeThickness - Thickness of gauge
+  @param  gaugeLOcolor - RGB565 color of low to val
+  @param  gaugeHIcolor - RGB565 color to high to val
+  @param  roundEnds - true if rounded, false if straight
+*/
+/****************************************************************************/
+void gfx4desp32::AngularGauge(float val, int x, int y, int sa, int ea, float min, float max, int gaugeRadius, int gaugeThickness, int32_t gaugeLOcolor, int32_t gaugeHIcolor, bool roundEnds){
+  float angularRange = ea - sa;
+  float range = fabs(max - min);
+  float gaugeSeg = angularRange / range;
+  float pos;
+  int dir = (max < min);
+  if(!dir){
+    pos = (gaugeSeg * val) + sa;
+    if(pos < ea) ArcAA(x, y, gaugeRadius, gaugeRadius + gaugeThickness, pos, ea, gaugeLOcolor, roundEnds);
+    if(pos > sa) ArcAA(x, y, gaugeRadius, gaugeRadius + gaugeThickness, sa, pos, gaugeHIcolor, roundEnds);
+  } else {
+	pos = ea - (gaugeSeg * val);
+	if(pos < ea) ArcAA(x, y, gaugeRadius, gaugeRadius + gaugeThickness, sa, pos, gaugeLOcolor, false);
+    if(pos > sa) ArcAA(x, y, gaugeRadius, gaugeRadius + gaugeThickness, pos, ea, gaugeHIcolor, roundEnds);
+  }
+  lastAngle = pos;
+}
+
+/****************************************************************************/
+/*!
+  @brief  Draws angular tick gauge
+  @param val to be shown on tick gauge
+  @param  x - x center position of tick gauge
+  @param  y - y center position of tick gauge
+  @param  sa - Start angle of tick gauge
+  @param  ea - End angle of tick gauge
+  @param  min - Minimum value of tick gauge
+  @param  max - Maximum value of tick gauge
+  @param  gaugeRadius - Radius of tick gauge
+  @param  gaugeThickness - Thickness of tick gauge
+  @param  tickW - Line thickness of ticks
+  @param  gaugeLOcolor - RGB565 color of low to val
+  @param  gaugeHIcolor - RGB565 color to high to val
+  @param  gaugeblendColor - Optional, if set colors will be blended from Lo to this color
+*/
+/****************************************************************************/
+void gfx4desp32::AngularTickGauge(float val, int x, int y, int sa, int ea, float min, float max, int gaugeRadius, int gaugeThickness, float tickW, int32_t gaugeLOcolor, int32_t gaugeHIcolor, int32_t gaugeblendColor){
+  ea += 180; sa += 180;
+  float angularRange = ea - sa;
+  float range = fabs(max - min);
+  float gaugeSeg = angularRange / range;
+  float pos;   
+  int dir = (max < min);
+  float xy1[2];
+  float xy2[2];
+  int curX = cursor_x;
+  int curY = cursor_y;  
+  float gpos;
+  int r, g, b; 
+  float rb, gb, bb;
+  float ri, gi, bi;
+  bool blend = false;
+  MoveTo(x, y);
+  if (gaugeHIcolor != gaugeblendColor){
+	r = gaugeHIcolor >> 11;
+	g = (gaugeHIcolor >> 5) & 0x3f;
+	b = gaugeHIcolor & 0x1f;
+	rb = gaugeblendColor >> 11;
+	gb = (gaugeblendColor >> 5) & 0x3f;
+	bb = gaugeblendColor & 0x1f;
+	ri = (float)(rb - r) / range;
+	gi = (float)(gb - g) / range;
+	bi = (float)(bb - b) / range;
+	blend = true;
+  }
+  if(!dir){
+    pos = (gaugeSeg * val) + sa;
+    for(int n = 0; n < range; n++){
+	  gpos = (n * gaugeSeg) + sa;
+	  Orbit(gpos, gaugeRadius, xy1);
+	  Orbit(gpos, gaugeRadius + gaugeThickness, xy2);
+	  if (gpos <= pos){
+		if(!blend){
+		  LineAA(xy1[0], xy1[1], xy2[0], xy2[1],  tickW, gaugeHIcolor); 
+		} else {
+          rb = r + (n * ri); gb = g + (n * gi); bb = b + (n * bi);
+		  LineAA(xy1[0], xy1[1], xy2[0], xy2[1],  tickW, ((uint16_t)rb << 11) + ((uint16_t)gb << 5) + (uint16_t)bb);
+		}			
+	  } else {
+		LineAA(xy1[0], xy1[1], xy2[0], xy2[1],  tickW, gaugeLOcolor);  
+	  }
+	}
+  } else {
+	pos = ea - (gaugeSeg * val);
+	for(int n = 0; n < range; n++){
+	  gpos = ea - (n * gaugeSeg);
+	  Orbit(gpos, gaugeRadius, xy1);
+	  Orbit(gpos, gaugeRadius + gaugeThickness, xy2);
+	  if (pos <= gpos){
+		if(!blend){
+		  LineAA(xy1[0], xy1[1], xy2[0], xy2[1],  tickW, gaugeHIcolor); 
+		} else {
+          rb = r + (n * ri); gb = g + (n * gi); bb = b + (n * bi);
+		  LineAA(xy1[0], xy1[1], xy2[0], xy2[1],  tickW, ((uint16_t)rb << 11) + ((uint16_t)gb << 5) + (uint16_t)bb);
+		}			
+	  } else {
+		LineAA(xy1[0], xy1[1], xy2[0], xy2[1],  tickW, gaugeLOcolor);  
+	  }
+	}
+  }
+  lastAngle = pos;
+  cursor_x = curX;
+  cursor_y = curY; 
+}
+
+/****************************************************************************/
+/*!
+  @brief  Draws angular gauge
+  @param val to be shown on gauge
+  @param  x - x center position of gauge
+  @param  y - y center position of gauge
+  @param  sa - Start angle of gauge
+  @param  ea - End angle of gauge
+  @param  min - Minimum value of gauge
+  @param  max - Maximum value of gauge
+  @param  gaugeRadius - Radius of gauge
+  @param  gaugeThickness - Thickness of gauge
+  @param  gaugeLOcolorLO - RGB565 low color at lower level
+  @param  gaugeHIcolorLO - RGB565 high color at lower level
+  @param  gaugeMIDcolorLO - RGB565 mid color at lower level
+  @param  gaugeLOcolorHI - RGB565 low color at higher level
+  @param  gaugeHIcolorHI - RGB565 high color at higher level
+  @param  gaugeMIDcolorHI - RGB565 mid color at higher level
+  @param  midVal - Middle value threshold
+  @param  hiVal - High value threshold
+*/
+/****************************************************************************/
+void gfx4desp32::AngularGauge(float val, int x, int y, int sa, int ea, float min, float max, int gaugeRadius, int gaugeThickness, uint32_t gaugeLOcolorLO, uint32_t gaugeLOcolorHI, uint32_t gaugeMIDcolorLO, uint32_t gaugeMIDcolorHI, uint32_t gaugeHIcolorLO, uint32_t gaugeHIcolorHI, int midVal, int hiVal){
+  float angularRange = ea - sa;
+  float range = fabs(max - min);
+  float gaugeSeg = angularRange / range;
+  if(midVal > range) midVal = range;
+  if(hiVal > range) hiVal = range;
+  int dir = (max < min);
+  float pos, ea1, sa2, ea2, sa3;
+  if(dir){
+	gfx_Swap(gaugeLOcolorLO, gaugeHIcolorHI);
+	gfx_Swap(gaugeLOcolorHI, gaugeHIcolorLO);
+	gfx_Swap(gaugeMIDcolorHI, gaugeMIDcolorLO);
+	gfx_Swap(midVal, hiVal);
+	pos = ea - (gaugeSeg * val);
+	ea1 = ea - (gaugeSeg * midVal);
+    sa2 = ea1;
+    ea2 = ea - (gaugeSeg * hiVal);
+    sa3 = ea2; 
+  } else {
+    pos = (gaugeSeg * val) + sa;
+    ea1 = (gaugeSeg * midVal) + sa;
+    sa2 = ea1;
+    ea2 = (gaugeSeg * hiVal) + sa;
+    sa3 = ea2;  
+  }
+  if(pos < ea1){
+    ArcAA(x, y, gaugeRadius, gaugeRadius + gaugeThickness, pos, ea1, gaugeLOcolorLO, false);
+    if(pos > sa) ArcAA(x, y, gaugeRadius, gaugeRadius + gaugeThickness, sa, pos, gaugeLOcolorHI, false);
+  } else {
+    ArcAA(x, y, gaugeRadius, gaugeRadius + gaugeThickness, sa, ea1, gaugeLOcolorHI, false);
+  }
+  if(pos >= sa2 && pos < ea2){
+    ArcAA(x, y, gaugeRadius, gaugeRadius + gaugeThickness, pos, ea2, gaugeMIDcolorLO, false);
+    if(pos > sa2) ArcAA(x, y, gaugeRadius, gaugeRadius + gaugeThickness, sa2, pos, gaugeMIDcolorHI, false);
+  } else {
+    if(pos < sa2){
+      ArcAA(x, y, gaugeRadius, gaugeRadius + gaugeThickness, sa2, ea2, gaugeMIDcolorLO, false);
+    } else {
+      ArcAA(x, y, gaugeRadius, gaugeRadius + gaugeThickness, sa2, ea2, gaugeMIDcolorHI, false);
+    }
+  }
+  if(pos >= sa3 && pos < ea){
+    if(pos < ea) ArcAA(x, y, gaugeRadius, gaugeRadius + gaugeThickness, pos, ea, gaugeHIcolorLO, false);
+    if(pos > sa3) ArcAA(x, y, gaugeRadius, gaugeRadius + gaugeThickness, sa3, pos, gaugeHIcolorHI, false);
+  } else {
+    if(pos < sa3){
+      ArcAA(x, y, gaugeRadius, gaugeRadius + gaugeThickness, sa3, ea, gaugeHIcolorLO, false);
+    } else {
+      ArcAA(x, y, gaugeRadius, gaugeRadius + gaugeThickness, sa3, ea, gaugeHIcolorHI, false);
+    }
+  }
+  lastAngle = pos;
+}
+
+/****************************************************************************/
+/*!
+  @brief  Draws angular needle
+  @param val - position of needle
+  @param  x - x center position of needle
+  @param  y - y center position of needle
+  @param  sa - Start angle of needle
+  @param  ea - End angle of needle
+  @param  radius - radius of tip of needle
+  @param  centreRadius - radius of base of needle
+  @param  minVal - Minimum value of needle movement
+  @param  maxVal - Maximum value of needle movement
+  @param  baseW - Thickness of needle at its base
+  @param  tipW - Thickness of needle at its tip
+  @param  color - RGB565 color of needle
+  @param  baseRadius - Radius of circular base of needle
+  @param  gbaseColor - RGB565 color of circular base of needle
+  @param  basePivotRadius - Radius of circular pivot
+  @param  basePivotColor - RGB565 color of circular pivot
+  @param  flareSize - Optional, Size of needle flare
+  @param  startAlpha - Optional, Opacity level of flare start
+  @param  endAlpha - Optional, Opacity level of flare end
+  @param  color2 - Optional, RGB565 flare to color
+*/
+/****************************************************************************/
+void gfx4desp32::AngularNeedle(float val, int x, int y, int sa, int ea, int radius, int centreRadius, float minVal, float maxVal, float baseW, float tipW, int32_t color, int baseRadius, int32_t baseColor, int basePivotRadius, int32_t basePivotColor, int flareSize, int startAlpha, int endAlpha, int flareDir, int32_t color2){
+  int dir = (maxVal < minVal);
+  ea += 180; sa += 180;
+  float angularRange = ea - sa;
+  float range = abs(maxVal - minVal);
+  float angularSegment = angularRange / range;
+  float pos;
+  int curX = cursor_x;
+  int curY = cursor_y; 
+  if (!dir){
+    pos = (angularSegment * val) + sa;
+  } else {
+    pos = ea - (angularSegment * val);
+    }
+  float xy1[2];
+  float xy2[2];
+  MoveTo(x, y);
+  if(centreRadius != 0){
+    Orbit(pos, centreRadius, xy2);
+	Orbit(pos, radius, xy1);
+	if(flareSize > 0 && flareDir == FLARE_EXTERNAL){
+	  LineAAflare(xy2[0], xy2[1], xy1[0], xy1[1], baseW, tipW, flareSize, startAlpha, endAlpha, flareDir, color2);
+	}
+	lastAngle = pos;
+    LineAA(xy2[0], xy2[1], xy1[0], xy1[1], baseW, tipW, color);
+  } else {
+    Orbit(pos, radius, xy1);
+	if(flareSize > 0 && flareDir == FLARE_EXTERNAL){
+	  LineAAflare(x, y, xy1[0], xy1[1], baseW, tipW, flareSize, startAlpha, endAlpha, flareDir, color2);
+	}
+	LineAA(x, y, xy1[0], xy1[1], baseW, tipW, color);
+	xy2[0] = x; xy2[1] = y;
+  }
+  if(flareSize > 0 && flareDir == FLARE_INTERNAL){
+	  LineAAflare(xy2[0], xy2[1], xy1[0], xy1[1], baseW, tipW, flareSize, startAlpha, endAlpha, flareDir, color2);
+  }
+  if(baseRadius > 0)
+    CircleFilledAA(x, y, baseRadius, baseColor);
+  if(basePivotRadius > 0)
+    CircleFilledAA(x, y, basePivotRadius, basePivotColor);
+  cursor_x = curX;
+  cursor_y = curY;
+}
+
+/****************************************************************************/
+/*!
+  @brief  Draws angular needle with 2 steps
+  @param val - position of needle
+  @param  x - x center position of needle
+  @param  y - y center position of needle
+  @param  sa - Start angle of needle
+  @param  ea - End angle of needle
+  @param  radius - radius of tip of needle
+  @param  centreRadius - radius of base of needle
+  @param  midRadius - radius of middle of needle
+  @param  minVal - Minimum value of needle movement
+  @param  maxVal - Maximum value of needle movement
+  @param  baseW - Thickness of needle at its base
+  @param  midW - Thickness of needle at its mid point
+  @param  tipW - Thickness of needle at its tip
+  @param  color - RGB565 color of needle
+  @param  baseRadius - Radius of circular base of needle
+  @param  gbaseColor - RGB565 color of circular base of needle
+  @param  basePivotRadius - Radius of circular pivot
+  @param  basePivotColor - RGB565 color of circular pivot
+*/
+/****************************************************************************/
+void gfx4desp32::AngularNeedleDouble(float val, int x, int y, int sa, int ea, int radius, int centreRadius, int midRadius, float minVal, float maxVal, float baseW, float midW, float tipW, int32_t color, int baseRadius, int32_t baseColor, int basePivotRadius, int32_t basePivotColor){
+  int dir = (maxVal < minVal);
+  ea += 180; sa += 180;
+  float angularRange = ea - sa;
+  float range = abs(maxVal - minVal);
+  float angularSegment = angularRange / range;
+  float pos;
+  int curX = cursor_x;
+  int curY = cursor_y; 
+  if (!dir){
+    pos = (angularSegment * val) + sa;
+  } else {
+    pos = ea - (angularSegment * val);
+    }
+  float xy1[2];
+  float xy2[2];
+  float xy3[2];
+  MoveTo(x, y);
+  Orbit(pos, radius, xy1);
+  if(centreRadius > 0){
+    Orbit(pos, centreRadius, xy2);
+	lastAngle = pos;
+    if(midW && midRadius == 0){
+	  LineAA(xy2[0], xy2[1], xy1[0], xy1[1], baseW, tipW, color);
+    } else {
+	  Orbit(pos, midRadius, xy3);
+	  LineAA(xy2[0], xy2[1], xy3[0], xy3[1], baseW, midW, color);
+	  LineAA(xy3[0], xy3[1], xy1[0], xy1[1], midW, tipW, color);
+	}
+  } else {
+    if(midW && midRadius == 0){
+	  LineAA(x, y, xy1[0], xy1[1], baseW, tipW, color);
+    } else {
+	  Orbit(pos, midRadius, xy3);
+	  LineAA(x, y, xy3[0], xy3[1], baseW, midW, color);
+	  LineAA(xy3[0], xy3[1], xy1[0], xy1[1], midW, tipW, color);
+	}
+  }
+  if(baseRadius > 0)
+    CircleFilledAA(x, y, baseRadius, baseColor);
+  if(basePivotRadius > 0)
+    CircleFilledAA(x, y, basePivotRadius, basePivotColor);
+  cursor_x = curX;
+  cursor_y = curY;
+}
+
+/****************************************************************************/
+/*!
+  @brief  Draws a knob at angular position
+  @param val - position of angular knob
+  @param  x - x center position of angular knob
+  @param  y - y center position of angular knob
+  @param  sa - Start angle of angular knob
+  @param  ea - End angle of angular knob
+  @param  radius - radius of angular knob
+  @param  w - width of angular knob
+  @param  sizeh - height of angular knob
+  @param  minVal - Minimum value of angular knob movement
+  @param  maxVal - Maximum value of angular knob movement
+  @param  outlineSize - Thickness of knob outline
+  @param  flareSize - Optional, Size of knob flare
+  @param  startAlpha - Optional, Opacity level of flare start
+  @param  endAlpha - Optional, Opacity level of flare end
+  @param  flareDir - direction of flare FLARE_EXTERNAL, FLARE_INTERNAL
+  @param  color2 - Optional, RGB565 flare to color
+*/
+/****************************************************************************/
+void gfx4desp32::AngularKnob(float val, int x, int y, int sa, int ea, int radius, float w, float sizeh, float minVal, float maxVal, float outlineSize, int32_t colorOuter, int32_t colorInner, int flareSize, int startAlpha, int endAlpha, int flareDir, int32_t color2){
+  int dir = (maxVal < minVal);
+  ea += 180; sa += 180;
+  float krad = sizeh;// / 2;
+  float angularRange = ea - sa - w;
+  float range = abs(maxVal - minVal);
+  float angularSegment = angularRange / range;
+  float pos;
+  int curX = cursor_x;
+  int curY = cursor_y; 
+  if (!dir){
+    pos = (angularSegment * val) + sa;
+  } else {
+    pos = ea - (angularSegment * val) - w;
+  }
+  lastAngle = pos;
+  float xy1[2];
+  float xy2[2];
+  MoveTo(x, y);
+  Orbit(pos, radius, xy1);
+  Orbit(pos + w, radius, xy2);
+  if(flareSize > 0 && flareDir == FLARE_EXTERNAL) LineAAflare(xy1[0], xy1[1], xy2[0], xy2[1], krad, krad, flareSize, startAlpha, endAlpha, flareDir, color2);
+  LineAA(xy1[0], xy1[1], xy2[0], xy2[1], krad, krad, colorOuter);
+  if(outlineSize > 0) LineAA(xy1[0], xy1[1], xy2[0], xy2[1], krad - outlineSize, krad - outlineSize, colorInner);
+  if(flareSize > 0 && flareDir == FLARE_INTERNAL) LineAAflare(xy1[0], xy1[1], xy2[0], xy2[1], krad, krad, flareSize, startAlpha, endAlpha, flareDir, color2);
+  cursor_x = curX;
+  cursor_y = curY;
+}
+
+/****************************************************************************/
+/*!
+  @brief  Draws a flare around a circle
+  @param  x - x center position of circle
+  @param  y - y center position of circle
+  @param  radius - radius of circle
+  @param  flareSize - Size of knob flare
+  @param  startAlpha -  Opacity level of flare start
+  @param  endAlpha - Opacity level of flare end
+  @param  flareDir - direction of flare FLARE_EXTERNAL, FLARE_INTERNAL
+  @param  color -  RGB565 flare color
+*/
+/****************************************************************************/
+void gfx4desp32::CircleFlare(float x, float y, int radius, int flareSize, int startAlpha, int endAlpha, int flareDir, uint16_t color){
+  int n;
+  if(startAlpha > 255) startAlpha = 255;
+  if(endAlpha > 255) endAlpha = 255;
+  if(startAlpha < 0) startAlpha = 0;
+  if(endAlpha < 0) endAlpha = 0;
+  float flareInc;
+  int alphaRange = endAlpha - startAlpha;
+  flareInc = (float)alphaRange / flareSize;
+  AlphaBlend(ON);
+  flareDir = 1;
+  if(flareDir < 0) flareDir = -1;
+  for(n = 0; n < flareSize; n++) {
+	radius += flareDir;
+    AlphaBlendLevel(startAlpha + (n * flareInc));
+    CircleAA(x, y, radius, 2, color);
+  }
+  AlphaBlend(OFF);
+}
+
+/****************************************************************************/
+/*!
+  @brief  Draws a flare around a rounded rectangle
+  @param  x - x top left position
+  @param  y - y top left position
+  @param  x1 - x bottom right position
+  @param  y1 - y bottom right position
+  @param  r - radius of rounded rectangle corners
+  @param  flareSize - Size of flare
+  @param  startAlpha - Opacity level of flare start
+  @param  endAlpha - Opacity level of flare end
+  @param  flareDir - direction of flare FLARE_EXTERNAL, FLARE_INTERNAL
+  @param  color - RGB565 flare color
+*/
+/****************************************************************************/
+void gfx4desp32::RoundRectFlare(int16_t x, int16_t y, int16_t x1, int16_t y1,
+    int16_t r, int flareSize, int startAlpha, int endAlpha, int flareDir, uint16_t color){
+  int n;
+  if(startAlpha > 255) startAlpha = 255;
+  if(endAlpha > 255) endAlpha = 255;
+  if(startAlpha < 0) startAlpha = 0;
+  if(endAlpha < 0) endAlpha = 0;
+  float flareInc;
+  int alphaRange = endAlpha - startAlpha;
+  flareInc = (float)alphaRange / flareSize;
+  int d1 = 1, d2 = -1;
+  if (flareDir < 0){
+    d1 = -1; d2 = 1;
+  }
+  AlphaBlend(ON);
+  for(n = 0; n < flareSize; n++) {
+    r+= d1; x+= d2, y+= d2, x1+= d1; y1+= d1;
+    if(r < 1) r = 1;
+    AlphaBlendLevel(startAlpha + (n * flareInc));
+    RoundRectAA(x, y, x1, y1, r, 2, color);
+  }
+  AlphaBlend(OFF);
+}
+
+/****************************************************************************/
+/*!
+  @brief  Draws a flare around a rectangle
+  @param  x - x top left position
+  @param  y - y top left position
+  @param  x1 - x bottom right position
+  @param  y1 - y bottom right position
+  @param  flareSize - Size of flare
+  @param  startAlpha - Opacity level of flare start
+  @param  endAlpha - Opacity level of flare end
+  @param  flareDir - direction of flare FLARE_EXTERNAL, FLARE_INTERNAL
+  @param  color - RGB565 flare color
+*/
+/****************************************************************************/
+void gfx4desp32::RectangleFlare(int16_t x, int16_t y, int16_t x1, int16_t y1,
+    int flareSize, int startAlpha, int endAlpha, int flareDir, uint16_t color){
+    RoundRectFlare(x, y, x1, y1, 1, flareSize, startAlpha, endAlpha, flareDir, color);
+}
+
+/****************************************************************************/
+/*!
+  @brief  Draws a flare around a line
+  @param  x - x line co-ords 1
+  @param  y - y line co-ords 1
+  @param  x1 - x line co-ords 2
+  @param  y1 - y line co-ords 2
+  @param  r - radius of line end 1
+  @param  r1 - radius of line end 2
+  @param  startAlpha - Opacity level of flare start
+  @param  endAlpha - Opacity level of flare end
+  @param  flareDir - direction of flare FLARE_EXTERNAL, FLARE_INTERNAL
+  @param  color - RGB565 flare color
+*/
+/****************************************************************************/
+void gfx4desp32::LineAAflare(float x, float y, float x1, float y1,
+    float r, float r1, int flareSize, int startAlpha, int endAlpha, int flareDir, uint16_t color){
+  int n;
+  if(startAlpha > 255) startAlpha = 255;
+  if(endAlpha > 255) endAlpha = 255;
+  if(startAlpha < 0) startAlpha = 0;
+  if(endAlpha < 0) endAlpha = 0;
+  float flareInc;
+  int alphaRange = endAlpha - startAlpha;
+  flareInc = (float)alphaRange / flareSize;
+  int d1 = 1, d2 = -1;
+  if (flareDir < 0){
+    d1 = -1; d2 = 1;
+  }
+  AlphaBlend(ON);
+  for(n = 0; n < flareSize; n++) {
+    r+= d1; r1+= d1;// x+= d2, y+= d2, x1+= d1; y1+= d1;
+    if(r < 0.5) r = 0.5;
+	if(r1 < 0.5) r1 = 0.5;
+    AlphaBlendLevel(startAlpha + (n * flareInc));
+    LineAA(x, y, x1, y1, r, r1, color);
+  }
+  AlphaBlend(OFF);
+}
+
+/*************************************************************************************************************/
+/*!
+  @brief  Draw a single rolling digit 
+  @param  xpos - X as left position of rolling digit
+  @param  ypos - Y as top  position of rolling digit
+  @param  width - width of rolling digit
+  @param  height - height of rolling digit
+  @param  val - position of the list
+  @param  mul - the multiple of the val for smooth rolling
+  @param  shadow - draws and alpha darkened gradient top and bottom 0 - 255
+  @param  highlight - draws and alpha lightened gradient from centre to top and bottom 0 - 255
+  @param  bkgcol - background colour of rolling digit  Text color and font set externally
+*/
+/*************************************************************************************************************/
+void gfx4desp32::RollingDigit(int xpos, int ypos, int width, int height, int32_t val, int32_t mul, int shadow, int highlight, uint16_t bkgcol, int maxNum) {
+	int sh = fsh * textsize;
+	int gap;
+	height -= 1;
+	gap = height - sh;
+	int tfb = frame_buffer;
+	bool tw = wrap;
+	bool senbl = sEnable;
+	int len = 10;
+	if (maxNum != 10) len = maxNum;
+	float scrollPos;
+	StoreCursPos();
+	TextWrap(false);
+	ScrollEnable(false);	
+	DrawToframebuffer(WIDGET_BUFFER);
+    int hh = sh + gap;
+	int oh = (hh * len);
+	scrollPos = ((float)oh / (float)len / mul) * val;
+	if (val > (len * mul)) val = val % (len * mul);
+	RectangleFilled(0, 0, width -1, (hh * 3) + (gap >> 1), bkgcol);
+	int starty = (gap >> 1);
+	int strtStr = (val / mul);
+	int list[4];
+	if (strtStr >= len - 1){
+		list[0] = strtStr - 1;
+		list[1] = strtStr + 0;
+		list[2] = 0;
+	} else {
+		list[0] = strtStr - 1;
+		list[1] = strtStr;
+		list[2] = strtStr + 1;
+	}
+	for(int n = 0; n < 3; n++){
+		if (list[n] >= 0) putstrCenteredXY(width >> 1, starty + (sh >> 1), String(list[n]));
+		starty += hh;
+	}
+	int pos = scrollPos - (strtStr * (hh)) + (gap >> 1);
+	int segh = hh;	
+    DrawFrameBufferAreaXY(WIDGET_BUFFER, 0, pos + hh, width -1, pos + hh + segh, width, 0);
+	if (shadow || highlight){
+		int ab;
+		if (shadow) ab = shadow / (hh >> 1);
+		if (highlight) ab = highlight / (hh >> 1);
+		AlphaBlend(ON);
+		for (int n = 0; n < hh >> 1; n++){
+		    AlphaBlendLevel(shadow - (n * ab));
+			if (highlight){
+			  Hline(width, (hh >> 1) - n - 1, width, WHITE);
+              Hline(width, (hh >> 1) + n, width, WHITE);
+            }
+            if (shadow){
+			  Hline(width, n - 1, width, BLACK);
+              Hline(width, hh - n, width, BLACK);
+            }			
+		}
+		AlphaBlend(OFF);
+	}
+    DrawToframebuffer(tfb);
+    DrawFrameBufferAreaXY(WIDGET_BUFFER, width, 0, width + width - 1, height, xpos, ypos);	
+	ScrollEnable(senbl);
+	TextWrap(tw);
+	RestoreCursPos();
+}
+
+/*********************************************************************************************/
+/*!
+  @brief  Draw multi digit rolling counter
+  @param  xpos - X as left position of counter
+  @param  ypos - Y as top  position of counter
+  @param  width - the total width of counter. digits size if calculated by num and gap
+  @param  height - height of counter
+  @param  digits - number of digits in the counter
+  @param  val - the value to be shown. Always a multiple of 10 eg 126 = 1260 input val
+  @param  gapH - gap between digits. 0 if none
+  @param  shadow - draws and alpha darkened gradient top and bottom 0 - 255
+  @param  highlight - draws and alpha lightened gradient from centre to top and bottom 0 - 255
+  @param  bkgcol - background colour of rolling window. Text color and font set externally
+  @param  InvLast - bool - inverts the last digits fore an backfround colours
+*/
+/*********************************************************************************************/
+void gfx4desp32::RollingCounter(int xpos, int ypos, int width, int height, int digits, int32_t val, int gapH, int shadow, int highlight, uint16_t bkgcol, bool InvLast, int maxNumLeading) {
+	int sh = fsh * textsize;
+	int gap;
+	int32_t mul = 10;
+	int32_t dmul = mul;
+	int32_t lastdmul = mul;
+	uint16_t colf = textcolor;
+    uint16_t colb = textbgcolor;
+	TextColor(textcolor, textcolor);
+	int dw = (width + gapH)/ digits;
+	gap = height - sh - 1;
+	int32_t tempval;
+	int32_t tempmul;
+	int32_t digit0inc9;
+	int32_t digitVal[digits];
+	bool lastDigit9;
+	int dpos = xpos + ((digits - 1) * dw);
+	int equals9 = 0;
+	for (int n = 0; n < digits; n ++){
+		digitVal[n] = val % (dmul * 10);
+		tempmul = dmul;
+		digit0inc9 = digitVal[0] - ((9 * mul));
+		lastDigit9 = ((digitVal[0] / mul) == 9);
+		if (n > 0){
+			if ((digitVal[n - 1] / lastdmul) == 9 && lastDigit9 && equals9 == (n - 1)){
+			    equals9 ++;
+				tempmul = lastdmul;
+				tempval = (digitVal[n] / dmul * lastdmul) + (digit0inc9 * lastdmul / 10);
+			} else {
+			    tempmul = 1;
+				tempval = digitVal[n] / dmul;
+            }			
+			if(n == digits - 1){
+			    RollingDigit(dpos, ypos, dw - gapH, height, tempval, tempmul, shadow, highlight, bkgcol, maxNumLeading);
+			} else {
+				RollingDigit(dpos, ypos, dw - gapH, height, tempval, tempmul, shadow, highlight, bkgcol);
+			}
+		} else {			
+			if (InvLast){
+			    TextColor(bkgcol, bkgcol);
+				RollingDigit(dpos, ypos, dw - gapH, height, digitVal[n], dmul, shadow, highlight, colf);
+		        TextColor(colf, colf);
+			} else {
+				RollingDigit(dpos, ypos, dw - gapH, height, digitVal[n], dmul, shadow, highlight, bkgcol);
+			}
+		}
+		dpos -= dw;
+		lastdmul = dmul;
+		dmul *= 10;
+	}
+	TextColor(colf, colb);
+}
+
+/*************************************************************************************************************/
+/*!
+  @brief  Draw list of strings in Rolling Window
+  @param  xpos - X as left position of rolling window
+  @param  ypos - Y as top  position of rolling window
+  @param  width - the total width of rolling window
+  @param  height - height of rolling window
+  @param  val - position of the list
+  @param  mul - the multiple of the val for smooth rolling
+  @param  strgList - list of pre defined strings
+  @param  len - number of strings in the list
+  @param  shadow - draws and alpha darkened gradient top and bottom 0 - 255
+  @param  highlight - draws and alpha lightened gradient from centre to top and bottom 0 - 255
+  @param  bkgcol - background colour of rolling window  Text color and font set externally
+*/
+/*************************************************************************************************************/
+void gfx4desp32::RollingStrings(int xpos, int ypos, int width, int height, int32_t val, int32_t mul, String* strgList, int len, int shadow, int highlight, uint16_t bkgcol) {
+	int sh = fsh * textsize;
+	int gap;
+	gap = height - sh;
+	int tfb = frame_buffer;
+	bool tw = wrap;
+	bool senbl = sEnable;
+	int dir = 1;
+	float scrollPos;
+	StoreCursPos();
+	TextWrap(false);
+	ScrollEnable(false);
+    uint16_t colf = textcolor;
+    uint16_t colb = textbgcolor;
+	TextColor(textcolor, textcolor);	
+	DrawToframebuffer(WIDGET_BUFFER);
+    int hh = sh + gap;
+	int oh = (hh * len);
+	scrollPos = ((float)oh / (float)len / mul) * val;
+	if (val > (len * mul)) val = val % (len * mul);
+	RectangleFilled(0, 0, width -1, (hh * 3) + (gap >> 1), bkgcol);
+	int starty = gap >> 1;
+	int strtStr = (val / mul);
+	int list[4];
+	if (strtStr >= len - 1){
+		list[0] = strtStr - 1;
+		list[1] = strtStr + 0;
+		list[2] = 0;
+	} else {
+		list[0] = strtStr - 1;
+		list[1] = strtStr;
+		list[2] = strtStr + 1;
+	}
+	for(int n = 0; n < 3; n++){
+		if (list[n] >= 0) putstrCenteredXY(width >> 1, starty + (sh >> 1), strgList[list[n]]);
+		starty += hh;
+	}
+	int pos = scrollPos - (strtStr * (hh)) + (gap >> 1);
+	int segh = hh;	
+    DrawFrameBufferAreaXY(WIDGET_BUFFER, 0, pos + hh, width -1, pos + hh + segh, width, 0);
+	if (shadow || highlight){
+		int ab = 127 / (hh >> 1);
+		AlphaBlend(ON);
+		for (int n = 0; n < hh >> 1; n++){
+		    AlphaBlendLevel(shadow - (n * ab));
+			if (highlight){
+			  Hline(width, (hh >> 1) - n - 1, width, WHITE);
+              Hline(width, (hh >> 1) + n, width, WHITE);
+            }
+            if (shadow){
+			  Hline(width, n - 1, width, BLACK);
+              Hline(width, hh - n, width, BLACK);
+            }			
+		}
+		AlphaBlend(OFF);
+	}
+    DrawToframebuffer(tfb);
+    DrawFrameBufferAreaXY(WIDGET_BUFFER, width, 0, width + width - 1, height, xpos, ypos);	
+	ScrollEnable(senbl);
+	TextWrap(tw);
+	RestoreCursPos();
+	TextColor(colf, colb);
+}
+
+/*************************************************************************************************************/
+/*!
+  @brief  Draw a horizontally scrolled string inside defined window area
+  @param  xpos - X as left position of scrolled string window
+  @param  ypos - Y as top  position of scrolled string window
+  @param  width - the total width of scrolled string window, height is automatic
+  @param  scrollPos - position start point in the string to show
+  @param  strg - string to be shown in window
+  @param  bkgcol - background colour of scroll window  Text color and font set externally
+  @param  bkgBuff - background colour will be replaced with image in the same location at specified framebuffer
+*/
+/*************************************************************************************************************/
+void gfx4desp32::putstrScrolledXYW(int xpos, int ypos, int width, int scrollPos, String strg, uint16_t bkgcol, int bkgBuff) {
+	int sw = strWidth(strg);
+	int sh = fsh * textsize;
+	int strSz = sw - scrollPos;
+	int tfb = frame_buffer;
+	bool tw = wrap;
+	bool senbl = sEnable;
+	int cx1 = clipx1;
+	int cy1 = clipy1;
+	int cx2 = clipx2;
+	int cy2 = clipy2; 
+	int cx1b = clipX1pos;
+	int cy1b = clipY1pos;
+	int cx2b = clipX2pos;
+	int cy2b = clipY2pos; 
+    bool tclip = clippingON;	
+	TextWrap(false);
+	ScrollEnable(false);
+	StoreCursPos();
+	Clipping(OFF);
+	ClipWindow(xpos, ypos, xpos + width - 1, ypos + sh - 1);
+    Clipping(ON);	
+	DrawToframebuffer(WIDGET_BUFFER);	
+	if (bkgBuff != -1){
+		if (bkgBuff  > 9) bkgBuff = 9;
+		DrawFrameBufferArea(bkgBuff, xpos, ypos, xpos + width - 1, ypos + sh - 1); 
+	} else {
+		RectangleFilled(xpos, ypos, xpos + width - 1, ypos + sh - 1, bkgcol);
+	}
+	scrollPos = scrollPos % sw; 
+	MoveTo(xpos - scrollPos, ypos);
+	print(strg);
+	if (strSz < width) print(strg);
+    DrawToframebuffer(tfb);
+    DrawFrameBufferArea(WIDGET_BUFFER, xpos, ypos, xpos + width - 1, ypos + sh - 1);
+    Clipping(OFF);	
+	ScrollEnable(senbl);
+	TextWrap(tw);
+	clipx1 = cx1;
+	clipy1 = cy1;
+	clipx2 = cx2;
+	clipy2 = cy2;
+	clipX1pos = cx1b;
+	clipY1pos = cy1b;
+	clipX2pos = cx2b;
+	clipY2pos = cy2b; 
+    if (tclip) Clipping(tclip);	
+	RestoreCursPos();
+}
+
+/****************************************************************************/
+/*!
+  @brief  Set the frame buffer source of image data for some drawing operations
+  @param  fb - frame buffer number to draw the image data from in the x y aligned area
+  @returns value used by drawing function
+*/
+/****************************************************************************/
+uint32_t gfx4desp32::SelectDataSourceFB(int fb){
+	return FRAMEBUFFER_IMAGE + fb;
+}
+
+/****************************************************************************/
+/*!
+  @brief  Set the GCI image index source of image data for some drawing operations
+  @param  gcImage - Image index to draw the image data from in the x y aligned area
+  @returns value used by drawing function
+*/
+/****************************************************************************/
+uint32_t gfx4desp32::SelectDataSourceGCI(int gcImage){
+	return GCI_IMAGE + gcImage;
+}
+
+/****************************************************************************/
+/*!
+  @brief  Set the GCI image index and frame source of image data for some drawing operations
+  @param  gcImage - Image index to draw the image data from in the x y aligned area
+  @param  frame - frame number in image set
+  @returns value used by drawing function
+*/
+/****************************************************************************/
+uint32_t gfx4desp32::SelectDataSourceGCI(int gcImage, int frame){
+	imageSetWord(gcImage, IMAGE_INDEX, frame);
+	return GCI_IMAGE + gcImage;
+}
+
+/****************************************************************************/
+/*!
+  @brief  Prints an image from an area in a frame buffer to x y cursor coordinates
+  @param  x1 - x top left position
+  @param  y1 - y top left position
+  @param  x1 - x bottom right position
+  @param  y1 - y bottom right position
+  @param  stepSize - Optional, size in pixels of height of chunk to be printed
+*/
+/****************************************************************************/
+void gfx4desp32::PrintImageFromFrameBuffer(int fbuf, int x1, int y1, int x2, int y2, int stepSize){
+	int startx, starty;
+	startx = cursor_x;
+	int cbuf = frame_buffer;
+	int lc = 0;
+	int h = y2 - y1 + 1;
+	int w = x2 - x1 + 1;
+	int w1 = w;
+	int th;
+	int nll = 0;
+	int pipos = 0;
+	int tfsh = fsh;
+	int llastfsh;
+	llastfsh = lastfsh;
+	if (stepSize != -1){
+	  fsh = stepSize;
+	}
+	int stps = h / fsh;
+	int rem = h - (stps * fsh);
+	int trem = rem;
+	startx = cursor_x;
+	if ((startx + w) > textXmax) w = textXmax - (startx + w);
+	if (nl) println("");
+	int tth;
+	while (stps --){
+	  if(stepSize != -1){
+		th = stepSize;
+	  } else {
+	    th = fsh;
+	  }
+	  tth = th;
+	  nll = 0;
+      StartWrite();
+	  while (th --){
+	  	DrawToframebuffer(fbuf);
+	    ReadLine(x1, y1 + pipos + nll, w, linebuff);
+	    DrawToframebuffer(cbuf);
+		//memset(linebuff, 55, 400);
+	    WriteLine(startx, cursor_y + nll, w, linebuff); 
+		nll ++;
+	  }
+	  EndWrite();
+      pipos += tth;
+	  lc ++;
+	  if (stps != 0) println("");
+    }
+	if (rem > 0){
+	  fsh = rem;
+	  lastfsh = rem;
+	  println("");
+	  nll = 0;
+	  int ty;
+	  while (rem --){
+	  	DrawToframebuffer(fbuf);
+	    ReadLine(x1, y1 + pipos + nll, w, linebuff);
+	    DrawToframebuffer(cbuf);
+	    ty = cursor_y + nll + tth - trem;
+		if (ty <= getScrollareaY1()) WriteLine(startx, ty, w, linebuff); 
+		nll ++;
+	  }
+	}
+	fsh = tfsh;
+	lastfsh = llastfsh;
 }

@@ -401,6 +401,17 @@
 
 #define setRotation                 Orientation
 
+#define FLARE_EXTERNAL				1
+#define FLARE_INTERNAL				-1
+
+#define WIDGET_BUFFER				12
+#define RGB888_BUFFER				13
+
+#define SHAPE_NONE					-1
+#define SHAPE_CIRCLE				1
+#define SHAPE_RECTANGLE				2
+#define SHAPE_ROUNDED_RECTANGLE		3
+
 static const uint8_t font1[] = {
 #include "System_FONT1.h"
 };
@@ -699,6 +710,8 @@ public:
     virtual void DrawFrameBuffer(uint8_t fbnum) = 0;
     virtual void DrawFrameBufferArea(uint8_t fbnum, int16_t ui) = 0;
     virtual void DrawFrameBufferArea(uint8_t fbnum, int16_t x1, int16_t y1, int16_t x2, int16_t y2) = 0;
+	virtual void DrawFrameBufferAreaXY(uint8_t fbnum, int16_t ui, int x, int y) = 0;
+	virtual void DrawFrameBufferAreaXY(uint8_t fbnum, int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t x, int16_t y) = 0;
     virtual void MergeFrameBuffers(uint8_t fbto, uint8_t fbfrom1, uint8_t fbfrom2, uint16_t transColor) = 0;
     virtual void MergeFrameBuffers(uint8_t fbto, uint8_t fbfrom1, uint8_t fbfrom2, uint8_t fbfrom3, uint16_t transColor, uint16_t transColor1) = 0;
     // virtual void drawBitmap(int x1, int y1, int x2, int y2, uint16_t* c_data) = 0;
@@ -713,6 +726,7 @@ public:
     virtual void WriteToFrameBuffer(uint32_t offset, uint16_t* data, uint32_t len) = 0;
     virtual void AllocateFB(uint8_t sel) = 0;
     virtual void AllocateDRcache(uint32_t cacheSize) = 0;
+	virtual void DrawDitheredGradientRectToFrameBuffer(uint8_t fb, int x1, int y1, int x2, int y2, int32_t colfrom, int32_t colto, bool Orientation) = 0;
     void Cls();
     void Cls(uint16_t color);
     void begin(String ips = DEFAULT_DISPLAY, int pval = 0, bool backightStartOn = true);
@@ -725,22 +739,28 @@ public:
     void ScrollEnable(bool sEn);
     int16_t getX(void);
     int16_t getY(void);
+	int16_t getAngle(void);
+	void getOrbit(int* lOrbit);
+	void getOrbit(float* lOrbit);
     virtual void ClipWindow(int x1, int y1, int x2, int y2) = 0;
     virtual void Clipping(bool clipping) = 0;
     void PutPixelAlpha(int x, int y, int32_t color, uint8_t alpha);
     void CircleFilled(int16_t xc, int16_t yc, int16_t r, uint16_t color);
     void Circle(int16_t xc, int16_t yc, int16_t r, uint16_t color);
 	void CircleAA(int32_t x, int32_t y, int32_t r, int thk, int32_t fg_color);
-    void drawArc(int32_t x, int32_t y, int32_t r, int32_t ir, uint32_t sA, uint32_t eA, int32_t color);//, uint32_t bg_color, bool smooth);
-	void ArcAA(int32_t x, int32_t y, int32_t r1, int32_t r2, uint32_t sA, uint32_t eA, int32_t color, bool rounded);
+    void drawArc(int32_t x, int32_t y, int32_t r, int32_t ir, int32_t sA, int32_t eA, int32_t color);//, uint32_t bg_color, bool smooth);
+	void drawArcAA(int32_t x, int32_t y, int32_t r, int32_t ir, int32_t sA, int32_t eA, int32_t color);//, uint32_t bg_color, bool smooth);
+	void ArcAA(int32_t x, int32_t y, int32_t r1, int32_t r2, int32_t sA, int32_t eA, int32_t color, bool rounded);
 	void Ellipse(int16_t xe, int16_t ye, int16_t radx, int16_t rady, uint16_t color);
     void EllipseFilled(int16_t xe, int16_t ye, int16_t radx, int16_t rady, uint16_t color);
     void ArcFilled(int16_t xa, int16_t ya, int16_t r, int16_t sa, int16_t ea, uint16_t color);
     void Rectangle(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color);
+	void Rectangle(int16_t x, int16_t y, int16_t x1, int16_t y1, int16_t thk, uint16_t color);
     void Orientation(uint8_t r);
     uint8_t Orientation();
     void RoundRectFilled(int16_t x, int16_t y, int16_t w, int16_t h, int16_t r, uint16_t color);
     void RoundRect(int16_t x, int16_t y, int16_t w, int16_t h, int16_t r, uint16_t color);
+	void RoundRectAA(int16_t x, int16_t y, int16_t x1, int16_t y1, int16_t r, int16_t thk, uint16_t color);
     void RoundRectFilledAA(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, int32_t color);
 	void Arc(int16_t x0, int16_t y0, int16_t r, uint16_t sa, uint16_t color);
     void Triangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t color);
@@ -780,6 +800,8 @@ public:
     void UserImageDRcache(uint16_t ui, int16_t uxpos, int16_t uypos, int16_t uwidth, int16_t uheight, int16_t uix, int16_t uiy);
     virtual size_t write(uint8_t) override;
     void newLine(int f1, int ts, int ux);
+	void StoreCursPos();
+	void RestoreCursPos();
     void drawChar1(int16_t x, int16_t y, unsigned char c, uint16_t color, uint16_t bg, uint8_t sizew, uint8_t sizeht);
     void drawChar2(int16_t x, int16_t y, unsigned char c, uint16_t color, uint16_t bg, uint8_t sizew, uint8_t sizeht);
     void drawChar4D(int16_t x, int16_t y, uint16_t c, uint16_t color, uint16_t bg, uint8_t sizew, uint8_t sizeht);
@@ -791,6 +813,7 @@ public:
     void Font(const uint8_t* f, bool compressed = false);
     uint32_t bevelColor(uint16_t colorb);
     uint32_t HighlightColors(uint16_t colorh, int step);
+	uint16_t ColorFromTo(uint16_t a, uint16_t b, uint8_t step);
     uint16_t RGBs2COL(uint8_t r, uint8_t g, uint8_t b);
     void HLS2RGB(int H, int L, int S);
     uint8_t hue_RGB(int Hin, int M1, int M2);
@@ -801,6 +824,10 @@ public:
     void TextColor(uint16_t c);
     void TextColor(uint16_t c, uint16_t b);
     void TextWrap(boolean w);
+	void TextMarginsXfromScrollWindow();
+	void TextCursorXYfromScrollWindow();
+	void TextMarginMinX(int pixels);
+	void TextMarginMaxX(int pixels);
     int FontHeight(void);
     void ButtonXstyle(byte bs);
     void drawButton(uint8_t updn, int16_t x, int16_t y, int16_t w, int16_t h,
@@ -847,7 +874,30 @@ public:
 		int32_t colorD, int sr3, int gl3, int gtb);
     uint16_t Grad(int GraisSunk, int Gstate, int Gglev, int Gh1, int Gpos,
         uint16_t colToAdj);
-    void drawChar2tw(int16_t x, int16_t y, unsigned char c, uint16_t color,
+	int StartAnim(uint32_t bgColor, int builtBuff, int x1, int y1, int x2, int y2);
+	int StartAnim(int16_t bkgBuff, uint32_t buildBuff, uint16_t builtBuff, int x1, int y1, int x2, int y2);
+	void ContAnim(int animIndex);
+	void ShowAnim(int animIndex);
+	void EndAnim(int animIndex);
+	void GradientRectangleFilled(int x1, int y1, int x2, int y2, int32_t colfrom, int32_t colto, bool Orientation);
+	void AngularImageRotary(int valdeg, int xc, int yc, int sa, int imageArcRange, int imageCTRradius, int numImages, int *imageList, uint8_t opac1, uint8_t opac2, int imageMask, int RRarc = 0, int selectedFrame = -1, uint16_t frameColour = 0, int frameWidth = 0, int frameGap = 0, int frameOpac = 255);
+	void AngularScale(int x, int y, int sa, int ea, int ticks, int tickRadius, int ticksMajor, int ticksMajorRadius, int tickLen, float tickW, uint32_t tickColor, int tickMajorLen, float tickMajorW, uint32_t tickMajorColor, bool hasValues, int valueRadius, float minVal, float maxVal, bool allowFloat, int textColor, const uint8_t * fnt, String* labels = NULL);
+	void AngularScale(int x, int y, int sa, int ea, int ticks, int tickRadius, int ticksMajor, int ticksMajorRadius, int tickLen, float tickW, uint32_t tickColor, int tickMajorLen, float tickMajorW, uint32_t tickMajorColor, bool hasValues, int valueRadius, float minVal, float maxVal, bool allowFloat, int textColor, uint8_t fnt, String* labels = NULL);
+	void AngularScale(int x, int y, int sa, int ea, int ticks, int tickRadius, int ticksMajor, int ticksMajorRadius, int tickLen, float tickW, uint32_t tickColor, int tickMajorLen, float tickMajorW, uint32_t tickMajorColor, bool hasValues, int valueRadius, float minVal, float maxVal, bool allowFloat, int textColor, gfx4d_font fnt, String* labels = NULL);
+	void AngularScale(int x, int y, int sa, int ea, int ticks, int tickRadius, int ticksMajor, int ticksMajorRadius, int tickLen, float tickW, uint32_t tickColor, int tickMajorLen, float tickMajorW, uint32_t tickMajorColor, bool hasValues, int valueRadius, float minVal, float maxVal, bool allowFloat, int textColor, String* labels = NULL);
+	void AngularGauge(float val, int x, int y, int sa, int ea, float min, float max, int gaugeRadius, int gaugeThickness, int32_t gaugeLOcolor, int32_t gaugeHIcolor, bool roundEnds);
+    void AngularGauge(float val, int x, int y, int sa, int ea, float min, float max, int gaugeRadius, int gaugeThickness, uint32_t gaugeLOcolorLO, uint32_t gaugeLOcolorHI, uint32_t gaugeMIDcolorLO, uint32_t gaugeMIDcolorHI, uint32_t gaugeHIcolorLO, uint32_t gaugeHIcolorHI, int midVal, int hiVal);
+	void AngularNeedle(float val, int x, int y, int sa, int ea, int radius, int centreRadius, float minVal, float maxVal, float baseW, float tipW, int32_t color, int baseRadius, int32_t baseColor, int basePivotRadius, int32_t basePivotColor, int flareSize = NULL, int startAlpha = NULL, int endAlpha = NULL, int flareDir = NULL, int32_t color2 = NULL);
+    void AngularNeedleDouble(float val, int x, int y, int sa, int ea, int radius, int centreRadius, int midRadius, float minVal, float maxVal, float baseW, float midW, float tipW, int32_t color, int baseRadius, int32_t baseColor, int basePivotRadius, int32_t basePivotColor);
+	void AngularKnob(float val, int x, int y, int sa, int ea, int radius, float w, float sizeh, float minVal, float maxVal, float outlineSize, int32_t colorOuter, int32_t colorInner, int flareSize = NULL, int startAlpha = NULL, int endAlpha = NULL, int flareDir = NULL, int32_t color2 = NULL);
+	void AngularTickGauge(float val, int x, int y, int sa, int ea, float min, float max, int gaugeRadius, int gaugeThickness, float tickW, int32_t gaugeLOcolor, int32_t gaugeHIcolor, int32_t gaugeblendColor);
+	void CircleFlare(float x, float y, int radius, int flareSize, int startAlpha, int endAlpha, int flareDir, uint16_t color);
+	void RoundRectFlare(int16_t x, int16_t y, int16_t x1, int16_t y1, int16_t r, int flareSize, int startAlpha, int endAlpha, int flareDir, uint16_t color);
+	void RectangleFlare(int16_t x, int16_t y, int16_t x1, int16_t y1, int flareSize, int startAlpha, int endAlpha, int flareDir, uint16_t color);
+	void LineAAflare(float x, float y, float x1, float y1, float r, float r1, int flareSize, int startAlpha, int endAlpha, int flareDir, uint16_t color);
+	void ArcFlare(int x, int y, int baser, int ir, int sa, int ea, int32_t colorfrom, int32_t colorto, bool roundEnds, int flareSize, int flareDir);
+	void AngularGaugeFlare(int x, int y, int sa, int ea, int gaugeRadius, int gaugeThickness, int32_t colorfrom, int32_t colorto, bool roundEnds, int flareSize, int flareDir);
+	void drawChar2tw(int16_t x, int16_t y, unsigned char c, uint16_t color,
         uint16_t bg, uint8_t size);
     void drawChar1tw(int16_t x, int16_t y, unsigned char c, uint16_t color,
         uint16_t bg, uint8_t size);
@@ -940,8 +990,17 @@ public:
     void putstr(const char* strg);
     void putstrXY(int xpos, int ypos, String strg);
     void putstrXY(int xpos, int ypos, const char* strg);
+	void putstrCenteredXY(int xpos, int ypos, String strg);
+	void putstrAngularXY(int xpos, int ypos, int ang, int radius, String strg);
     void putch(char chr);
     void putchXY(int xpos, int ypos, char chr);
+	void putstrScrolledXYW(int xpos, int ypos, int width, int scrollPos, String strg, uint16_t bkgcol, int bkgBuff = -1);
+	void RollingStrings(int xpos, int ypos, int width, int height, int32_t val, int32_t mul, String* strgList, int len, int shadow, int highlight, uint16_t bkgcol);
+    void RollingCounter(int xpos, int ypos, int width, int height, int digits, int32_t val, int gapH, int shadow, int highlight, uint16_t bkgcol, bool InvLast, int maxNumLeading = 10);
+	void RollingDigit(int xpos, int ypos, int width, int height, int32_t val, int32_t mul, int shadow, int highlight, uint16_t bkgcol, int maxNum = 10);
+	uint32_t SelectDataSourceFB(int fb);
+	uint32_t SelectDataSourceGCI(int gcImage);
+	uint32_t SelectDataSourceGCI(int gcImage, int frame);
     int charWidth(uint16_t ch);
     int charHeight(uint16_t ch = 0);
     int strWidth(String ts);
@@ -962,6 +1021,7 @@ public:
         bool certUsed, const char* sha1);
 #endif
     void PrintImageFile(String ifile);
+	void PrintImageFromFrameBuffer(int fbuf, int x1, int y1, int x2, int y2, int steps = -1);
     void UserCharacter(uint32_t* data, uint8_t ucsize, int16_t ucx, int16_t ucy,
         uint16_t color, uint16_t bgcolor);
     void UserCharacterBG(uint32_t* data, uint8_t ucsize, int16_t ucx, int16_t ucy,
@@ -1063,6 +1123,8 @@ public:
     uint8_t* psRAMbuffer4;
     uint8_t* psRAMbuffer5;
     uint8_t* psRAMbuffer6;
+	uint8_t* psRAMbuffer7;
+    uint8_t* psRAMrgb888buffer;
     uint8_t* workbuffer; 
     uint8_t* cache_DAT;
     uint8_t* cache_GCI;
@@ -1078,10 +1140,14 @@ public:
     bool cached;
     int lastui;
     uint8_t frame_buffer;
+	uint8_t visibleFB = 0;
     bool framebufferInit1;
     bool framebufferInit2;
     bool framebufferInit3;
     bool framebufferInit4;
+	bool framebufferInit5;
+	bool framebufferInit12;
+	bool framebufferInit13;
     bool workbufferInit;
     bool IPS_Display = false;
     const uint8_t* DATarray = NULL;
@@ -1120,6 +1186,26 @@ public:
     int scroll_Y2;
 	int st_hres;
 	int st_vres;
+	int lastAngle;
+	int lastOrbit[2];
+	float flastOrbit[2];
+	bool overrideAlphaReadPixel;
+	uint16_t overrideColor;
+	const int* iList  = NULL;
+	int32_t anims[210];
+	int xyCurPos[60];
+	int xystore;
+	bool nlStore;
+	bool noscroll;
+	int scroll_window_store_x1;
+	int scroll_window_store_y1;
+	int scroll_window_store_x2;
+	int scroll_window_store_y2;
+	int clipX1pos;
+    int clipY1pos;
+    int clipX2pos;
+    int clipY2pos;
+	int animIndexCounter;
 };
 
 #endif

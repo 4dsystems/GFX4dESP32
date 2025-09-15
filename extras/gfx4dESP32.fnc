@@ -2,6 +2,7 @@ SdFat& gfx.getSdFatInstance(), SdFat&; // Get the SdFat instance to use from the
 // Syntax	: gfx.getSdFatInstance();
 // Usage	: gfx.getSdFatInstance();
 // Notes 	: Returns a reference to the SdFat instance created during gfx.begin();
+//			: This is only available when using SdFat.
 //
 
 void gfx.Vline(x, y, h, colour), void; // Draw fast vertical line at x, y, with height h and colour.
@@ -116,14 +117,14 @@ void gfx.PutPixel(x, y, colour), void; // Write 1 pixel at co-ordinates x, y and
 
 void gfx.PutPixelAlpha(x, y, colour, alpha), void; // Draws a pixel to the current frame buffer with color parameter switch
 // Syntax	: gfx.PutPixelAlpha(x, y, colour);
-// Usage	: gfx.PutPixelAlpha(10, 10, GCI_IMAGE + 3, 255);
-//			: gfx.PutPixelAlpha(10, 10, FRAMEBUFFER_IMAGE + 3, 127);
+// Usage	: gfx.PutPixelAlpha(10, 10, gfx.SelectDataSourceGCI(3), 255);
+//			: gfx.PutPixelAlpha(10, 10, gfx.SelectDataSourceFB(3), 127);
 //			: gfx.PutPixelAlpha(10, 10, RED, 127);
 // Notes 	: Draws a pixel to the current frame buffer with color parameter switch.
 //			: 'colour' can be a 16bit color or a GCI image or a FrameBuffer
-//			:     ex. gfx.PutPixelAlpha(10, 10, GCI_IMAGE + 3, 255) draws a pixel at 10, 10
+//			:     ex. gfx.PutPixelAlpha(10, 10, gfx.SelectDataSourceGCI(3), 255) draws a pixel at 10, 10
 //			:         from GCI image index 3 and full alpha level. x and y are relative to objects x and y.
-//			:     ex. gfx.PutPixelAlpha(10, 10, FRAMEBUFFER_IMAGE + 3, 127) draws a pixel at 10, 100
+//			:     ex. gfx.PutPixelAlpha(10, 10, gfx.SelectDataSourceGCI(3), 127) draws a pixel at 10, 100
 //			:         from GCI image index 3 with half alpha at the same x and y position.
 //			:     ex. gfx.PutPixelAlpha(10, 10, RED, 127) draws a RED pixel at 10, 10
 //			:         with half alpha at the same x and y position.
@@ -201,22 +202,28 @@ void gfx.WriteLine(x, y, w, data), void; // Writes a line of pixels from the spe
 // Notes 	: Writes a line of pixels from the specified 16-bit array starting from (x, y)
 //
 
-void gfx.DrawFrameBuffer(fbnum), void; // Flush the whole specified framebuffer
+void gfx.DrawFrameBuffer(fbnum), void; // Draw the whole specified framebuffer
 // Syntax	: gfx.DrawFrameBuffer(fbnum);
 // Usage	: gfx.DrawFrameBuffer(fbnum);
-// Notes 	: Flush the whole specified framebuffer
+// Notes 	: Flush the whole specified framebuffer to the current framebuffer
 //
 
-void gfx.DrawFrameBufferArea(fbnum, id), void; // Flush the area occupied by GCI widget specified by id from the selected framebuffer fbnum
+void gfx.DrawFrameBufferArea(fbnum, id), void; // Draw the area occupied by GCI widget specified by id from the selected framebuffer fbnum
 // Syntax	: gfx.DrawFrameBufferArea(fbnum, ui);
-// Usage	: gfx.DrawFrameBufferArea(fbnum, ui);
-// Notes 	: Flush the area occupied by GCI widget specified by id from the selected framebuffer fbnum
+// Usage	: gfx.DrawFrameBufferArea(2, iImage1);
+// Notes 	: Draw the area occupied by GCI widget specified by id from the selected framebuffer fbnum to the current frame buffer
 //
 
-void gfx.DrawFrameBufferArea(fbnum, x1, y1, x2, y2), void; // Flush the rectangular area specified by the diagonal (x1, y1), (x2, y2) from the selected framebuffer fbnum
+void gfx.DrawFrameBufferArea(fbnum, x1, y1, x2, y2), void; // Draw the rectangular area specified by the diagonal (x1, y1), (x2, y2) from the selected framebuffer fbnum
 // Syntax	: gfx.DrawFrameBufferArea(fbnum, x1, y1, x2, y2);
-// Usage	: gfx.DrawFrameBufferArea(fbnum, x1, y1, x2, y2);
-// Notes 	: Flush the rectangular area specified by the diagonal (x1, y1), (x2, y2) from the selected framebuffer fbnum
+// Usage	: gfx.DrawFrameBufferArea(3, 100, 100, 199, 199);
+// Notes 	: Draw the rectangular area specified by the diagonal (x1, y1), (x2, y2) from the selected framebuffer fbnum to the current frame buffer
+//
+
+void gfx.DrawFrameBufferAreaXY(fbnum, x1, y1, x2, y2, x, y), void; // Draw the rectangular area specified by the diagonal (x1, y1), (x2, y2) from the selected framebuffer fbnum at x, y position
+// Syntax	: gfx.DrawFrameBufferAreaXY(fbnum, x1, y1, x2, y2, x, y);
+// Usage	: gfx.DrawFrameBufferAreaXY(1, 200, 200, 399, 399, 100, 100);
+// Notes	: Draw the rectangular area specified by the diagonal (x1, y1), (x2, y2) from the selected framebuffer fbnum at x, y position.
 //
 
 void gfx.MergeFrameBuffers(fbto, fbfrom1, fbfrom2, transColor), void; // Merge 2 frame buffers and send to specified frame buffer.
@@ -233,12 +240,6 @@ void gfx.MergeFrameBuffers(fbto, fbfrom1, fbfrom2, fbfrom3, transColor, transCol
 //			: Using this function without first writing to a frame buffer will cause issue
 //
 
-void gfx.drawBitmap(x1, y1, x2, y2, c_data), void; // Draws a bitmap using the data array (c_data) at the given co-ordinates 
-// Syntax	: gfx.drawBitmap(x1, y1, x2, y2, c_data);
-// Usage	: gfx.drawBitmap(x1, y1, x2, y2, c_data);
-// Notes 	: Draws a bitmap using the data array (c_data) at the given co-ordinates (for SPI displays only)
-//			: Support for RGB displays will be available in the future
-//
 
 void gfx.PinMode(pin, mode), void; // Sets the operation mode of the specified pin
 // Syntax	: gfx.PinMode(pin, mode);
@@ -301,6 +302,41 @@ int16_t gfx.getY(), word; // Returns the current Y position of the cursor.
 // Notes 	: Returns the current Y position of the cursor.
 //
 
+int16_t gfx.getAngle(), word; Returns the last calculated angle in Angular functions
+// Syntax	: gfx.getAngle();
+// Usage	: gfx.getAngle();
+// Notes	: returns the last calculated angle in following Angular functions:
+//			:     - AngularGauge
+//			:     - AngularTickGauge
+//			:     - AngularNeedle
+//			:     - AngularNeedleDouble
+//			:     - AngularKnob
+//
+
+void gfx.TextMarginsXfromScrollWindow(), void; // Sets the text x cursor minimum and maximums to Scroll window X min, max
+// Syntax	: gfx.TextMarginsXfromScrollWindow();
+// Usage	: gfx.TextMarginsXfromScrollWindow();
+// Notes	: Enables text to wrap within the bounds of scroll window size.
+//
+
+void gfx.TextCursorXYfromScrollWindow(), void; // Sets text x and y cursor to top left of scroll window.
+// Syntax	: gfx.TextCursorXYfromScrollWindow();
+// Usage	: gfx.TextCursorXYfromScrollWindow();
+// Notes	: Sets text x and y cursor to top left of scroll window.
+//
+
+void gfx.TextMarginMinX(pixels), void; // Sets the minimum cursor X for text wrapping
+// Syntax	: gfx.TextMarginMinX(pixels);
+// Usage	: gfx.TextMarginMinX(50);
+// Notes	: Sets the minimum cursor X for text wrapping.
+//
+
+void gfx.TextMarginMaxX(pixels), void; // Sets the maximum cursor X for text wrapping
+// Syntax	: gfx.TextMarginMaxX(pixels);
+// Usage	: gfx.TextMarginMaxX(450);
+// Notes	: Sets the maximum cursor X for text wrapping.
+//
+
 void gfx.Clipping(mode), void; // Enables previously defined clipping area.
 // Syntax	: gfx.Clipping(mode);
 // Usage	: gfx.Clipping(true);
@@ -331,10 +367,10 @@ void gfx.Circle(x, y, r, colour), void; // Draw a circle with center at (x, y), 
 // Notes 	: Draw a circle at x, y, with radius r and colour 'colour'.
 //
 
-void gfx.CircleAA(x, y, r, t, colour), void; // Draw a circle with center at (x, y), with radius r and colour 'colour'.
+void gfx.CircleAA(x, y, r, t, colour), void; // Draw an anti aliased circle with center at (x, y), with radius r and colour 'colour'.
 // Syntax	: gfx.CircleAA(x, y, r, t, colour);
 // Usage	: gfx.CircleAA(100, 120, 40, 5, LIME);
-// Notes 	: Draw a circle at x, y, with radius r, thickness t and colour 'colour'.
+// Notes 	: Draw an anti aliased circle at x, y, with radius r, thickness t and colour 'colour'.
 //
 
 void gfx.EllipseFilled(xe, ye, radx, rady, colour), void; // Draw a filled ellipse at x, y, with horizontal and vertical radii 'radx' and 'rady' and colour 'colour'.
@@ -370,15 +406,27 @@ void gfx.Arc(x, y, r, quadrants, colour), void; // Draw a 90-degree Arc with cen
 //			: Support function for outline rounded rectangles and circles
 //
 
+void gfx.ArcAA(x, y, r, ir, sA, eA, color, rounded), void; // Draw an anti aliased Arc at (x, y) using specified option
+// Syntax	: gfx.ArcAA(x, y, r, ir, sA, eA, color, rounded);
+// Usage	: gfx.ArcAA(200, 200, 100, 90, 45, 135, RED, true);
+// Notes	: Draw an anti aliased Arc at (x, y) using specified options with round or straight ends.
+//
+
+void gfx.drawArc(x, y, r1, r2, sA, eA, color), void; // Draw an anti aliased Arc at (x, y) using specified option
+// Syntax	: gfx.drawArc(x, y, r1, r2, sA, eA, color);
+// Usage	: gfx.drawArc(200, 200, 100, 90, 45, 135, RED);
+// Notes	: Draw an anti aliased Arc at (x, y) using specified options without arc ending.
+//
+
 void gfx.RectangleFilledX(x1, y1, x2, y2, colour), void; // Draws a rectangle to the current frame buffer with color parameter switch
 // Syntax	: gfx.RectangleFilledX(x1, y1, x2, y2, colour);
-// Usage	: gfx.RectangleFilledX(10, 10, 100, 100, GCI_IMAGE + 3);
-//			: gfx.RectangleFilledX(10, 10, 100, 100, FRAMEBUFFER_IMAGE + 3);
+// Usage	: gfx.RectangleFilledX(10, 10, 100, 100, gfx.SelectDataSourceGCI(3));
+//			: gfx.RectangleFilledX(10, 10, 100, 100, gfx.SelectDataSourceFB(3));
 // Notes 	: Draws a filled rectangle having a diagonal with endpoints at (x1, y1) and (x2, y2) with colour 'colour'.
 //			: 'colour' can be a 16bit color or a GCI image or a FrameBuffer
-//			:     ex. gfx.RectangleFilledX(10, 10, 100, 100, GCI_IMAGE + 3) draws a rectangle at 10, 10
+//			:     ex. gfx.RectangleFilledX(10, 10, 100, 100, gfx.SelectDataSourceGCI(3)) draws a rectangle at 10, 10
 //			:           from GCI image index 3. x and y are relative to objects x and y.
-//			:     ex. gfx.RectangleFilledX(10, 10, 100, 100, FRAMEBUFFER_IMAGE + 3) draws a rectangle at 10, 10
+//			:     ex. gfx.RectangleFilledX(10, 10, 100, 100, gfx.SelectDataSourceFB(3)) draws a rectangle at 10, 10
 //			:           from framebuffer 3 at the same x and y position.
 //
 
@@ -409,7 +457,7 @@ void gfx.RoundRectFilled(x1, y1, x2, y2, r, colour), void; // Draws a filled rou
 // Notes 	: Draws a filled rounded rectangle having a diagonal with endpoints at (x1, y1) and (x2, y2), corner radius 'r' and colour 'colour'.
 //
 
-void gfx.RoundRectFilledAA(x1, y1, x2, y2, r, colour), void; // Draws a filled anti-aliaised rounded rectangle having a diagonal with endpoints at (x1, y1) and (x2, y2), corner radius 'r' and colour 'colour'.
+void gfx.RoundRectFilledAA(x1, y1, x2, y2, r, colour), void; // Draws a filled anti-aliased rounded rectangle having a diagonal with endpoints at (x1, y1) and (x2, y2), corner radius 'r' and colour 'colour'.
 // Syntax	: gfx.RoundRectFilledAA(x1, y1, x2, y2, r, colour);
 // Usage	: gfx.RoundRectFilledAA(50, 50, 200, 200, 25, RED);
 // Notes 	: Draws a filled anti-aliased rounded rectangle having a diagonal with endpoints at (x1, y1) and (x2, y2), corner radius 'r' and colour 'colour'.
@@ -419,6 +467,12 @@ void gfx.RoundRect(x1, y1, x2, y2, r, colour), void; // Draws a rounded rectangl
 // Syntax	: gfx.RoundRect(x1, y1, x2, y2, r, colour);
 // Usage	: gfx.RoundRect(50, 50, 200, 200, 25, YELLOW);
 // Notes 	: Draws a rounded rectangle having a diagonal with endpoints at (x1, y1) and (x2, y2), corner radius 'r' and colour 'colour'.
+//
+
+void gfx.RoundRectAA(x1, y1, x2, y2, r, thk, colour), void; // Draws a anti-aliased rounded rectangle having a diagonal with endpoints at (x1, y1) and (x2, y2), corner radius 'r' and colour 'colour'.
+// Syntax	: gfx.RoundRectAA(x1, y1, x2, y2, r, thk, colour);
+// Usage	: gfx.RoundRectAA(50, 50, 200, 200, 25, 4, YELLOW);
+// Notes 	: Draws an anti-aliased rounded rectangle having a diagonal with endpoints at (x1, y1) and (x2, y2), corner radius 'r' line thickness thk and colour 'colour'.
 //
 
 void gfx.TriangleFilled(x1, y1, x2, y2, x3, y3, colour), void; // Draw a filled triangle specified by 3 points using the colour 'colour'
@@ -479,6 +533,12 @@ void gfx.Open4dGFX(DATa, DATlen, GCIa, GCIlen), void; // Loads a 4D DAT array an
 // Notes 	: Loads a 4D DAT array and GCI DATA array for reading 4D widgets
 //
 
+void gfx.Open4dGFXtoPSRAM(file4d), void; // Loads 4D DAT and GCI files into PSRAM
+// Syntax	: gfx.Open4dGFXtoPSRAM(file4d);
+// Usage	: gfx.Open4dGFXtoPSRAM("project");
+// Notes	: Loads 4D DAT and GCI files into PSRAM
+//
+
 void gfx.Close4dGFX(), void; // Closes the DAT and GCI files opened by gfx.Open4dGFX(filename)
 // Syntax	: gfx.Close4dGFX();
 // Usage	: gfx.Close4dGFX();
@@ -496,8 +556,8 @@ gfx4d_font gfx.Open4dFont(filename), gfx4d_font; // Opens a Workshop4 font (IFon
 void gfx.UserImage(id [, x, y]), void; // Draw a single frame GCI widget in the default location or as specified by (x, y)
 // Syntax	: gfx.UserImage(id, x, y);
 //			: gfx.UserImage(id);
-// Usage	: gfx.UserImage(id, x, y);
-//			: gfx.UserImage(id);
+// Usage	: gfx.UserImage(iImage1, 10, 10);
+//			: gfx.UserImage(iImage1);
 // Notes 	: Draw a single frame GCI widget in the default location or as specified by (x, y)
 //
 
@@ -559,6 +619,12 @@ void gfx.PrintImage(index), void; // Print image from GCI file at 'index' at cur
 // Syntax	: gfx.PrintImage(index);
 // Usage	: gfx.PrintImage(index);
 // Notes 	: Print image from GCI file at 'index' at current cursor position.
+//
+
+void gfx.PrintImageFromFrameBuffer(fbuf, x1, y1, x2, y2, stepSize), void; // Print image from GCI file at 'index' at current cursor position.
+// Syntax	: gfx.PrintImageFromFrameBuffer(fbuf, x1, y1, x2, y2, stepSize);
+// Usage	: gfx.PrintImageFromFrameBuffer(2, 100, 100, 400, 400);
+// Notes 	: Print image from frame buffer at area x1, y1, x2, y2 to current cursor position.
 //
 
 size_t gfx.write(c), 1; // Writes a single character to current cursor position
@@ -698,6 +764,20 @@ void gfx.GradTriangleFilled(x0, y0, x1, y1, x2, y2, colour, ncCol, h, ypos, lev,
 //			: Please refer to the manual for more information
 //
 
+void gfx.SelectDataSourceFB(fb), void; // Select the source for image data to be specified frame buffer
+// Syntax	: gfx.SelectDataSourceFB(fb);
+// Usage	: gfx.SelectDataSourceFB(3);
+// Notes	: Image data retrieved from the specified frame buffer using the drawing functions parameters
+//
+
+void gfx.SelectDataSourceGCI(gcImage[, frame]), void; // Select the source for image data to be specified image in a GCI file
+// Syntax	: gfx.SelectDataSourceGCI(gcImage);
+// Usage	: gfx.SelectDataSourceGCI(iImage7);
+// Notes	: Image data retrieved from the specified image in the GCI file using the drawing functions parameters
+//			: gcImage - Index of image in the GCI
+//			: frame   - Optional, frame number of image set
+//
+
 void gfx.HlineD(y, x1, x2, colour), void; // Draw fast horizontal line from (x1, y) to (x2, y)
 // Syntax	: gfx.HlineD(y, x1, x2, colour);
 // Usage	: gfx.HlineD(y, x1, x2, colour);
@@ -706,31 +786,31 @@ void gfx.HlineD(y, x1, x2, colour), void; // Draw fast horizontal line from (x1,
 
 void gfx.HlineX(x, y, w, colour), void; // Draws a horizontal line to the current frame buffer with color parameter switch.
 // Syntax	: gfx.HlineX(x, y, h, colour);
-// Usage	: gfx.HlineX(10, 10, 100, GCI_IMAGE + 3);
-//			: gfx.HlineX(10, 10, 100, FRAMEBUFFER_IMAGE + 3);
+// Usage	: gfx.HlineX(10, 10, 100, gfx.SelectDataSourceGCI(3));
+//			: gfx.HlineX(10, 10, 100, gfx.SelectDataSourceFB(3));
 // Notes 	: Draws a horizontal line to the current frame buffer with color parameter switch.
 //			: 'colour' can be a 16bit color or a GCI image or a FrameBuffer
-//			:     ex. gfx.HlineX(10, 10, 100, GCI_IMAGE + 3) draws a horizontal line at 10, 10 and a length of 100 pixels
+//			:     ex. gfx.HlineX(10, 10, 100, gfx.SelectDataSourceGCI(3)) draws a horizontal line at 10, 10 and a length of 100 pixels
 //			:         from GCI image index 3. x and y are relative to objects x and y.
-//			:     ex. gfx.HlineX(10, 10, 100, FRAMEBUFFER_IMAGE + 3) draws a horizontal line at 10, 10 and a length of 100 pixels
+//			:     ex. gfx.HlineX(10, 10, 100, gfx.SelectDataSourceFB(3)) draws a horizontal line at 10, 10 and a length of 100 pixels
 //			:         from GCI image index 3 at the same x and y position.
 //
 
-void gfx.VlineD(x, y1, y2, colour), void; // Draw fast vertical line from (x1, y) to (x2, y)
+void gfx.VlineD(x, y1, y2, colour), void; // Draw fast vertical line from (x, y1) to (x, y2)
 // Syntax	: gfx.VlineD(x, y1, y2, colour);
 // Usage	: gfx.VlineD(x, y1, y2, colour);
-// Notes 	: Draw fast vertical line from (x, y1) to (x, y1) - 4DGL compatible function
+// Notes 	: Draw fast vertical line from (x, y1) to (x, y2) - 4DGL compatible function
 //
 
 void gfx.VlineX(x, y, w, colour), void; // Draws a vertical line to the current frame buffer with color parameter switch.
 // Syntax	: gfx.VlineX(x, y, w, colour);
-// Usage	: gfx.VlineX(10, 10, 100, GCI_IMAGE + 3);
-//			: gfx.VlineX(10, 10, 100, FRAMEBUFFER_IMAGE + 3);
+// Usage	: gfx.VlineX(10, 10, 100, gfx.SelectDataSourceGCI(3));
+//			: gfx.VlineX(10, 10, 100, gfx.SelectDataSourceFB(3));
 // Notes 	: Draws a vertical line to the current frame buffer with color parameter switch.
 //			: 'colour' can be a 16bit color or a GCI image or a FrameBuffer
-//			:     ex. gfx.VlineX(10, 10, 100, GCI_IMAGE + 3) draws a vertical line at 10, 10 and a length of 100 pixels
+//			:     ex. gfx.VlineX(10, 10, 100, gfx.SelectDataSourceGCI(3)) draws a vertical line at 10, 10 and a length of 100 pixels
 //			:         from GCI image index 3. x and y are relative to objects x and y.
-//			:     ex. gfx.VlineX(10, 10, 100, FRAMEBUFFER_IMAGE + 3) draws a vertical line at 10, 10 and a length of 100 pixels
+//			:     ex. gfx.VlineX(10, 10, 100, gfx.SelectDataSourceFB(3)) draws a vertical line at 10, 10 and a length of 100 pixels
 //			:         from GCI image index 3 at the same x and y position.
 //
 
@@ -758,10 +838,10 @@ void gfx.gradientShape(vert, ow, xPos, yPos, w, h, r1, r2, r3, r4, darken, colou
 //			:   gtb     - Split gradient, 0 - no split, 1 - top, 2 - bottom
 //
 
-void gfx.gradientShapeAA(vert, ow, xPos, yPos, w, h, r1, r2, r3, r4, darken, colour, sr1, gl1, colorD, sr3, gl3, gtb), void; // Draw an anti-aliaised shaped color gradient using the supplied parameters
+void gfx.gradientShapeAA(vert, ow, xPos, yPos, w, h, r1, r2, r3, r4, darken, colour, sr1, gl1, colorD, sr3, gl3, gtb), void; // Draw an anti-aliased shaped color gradient using the supplied parameters
 // Syntax	: gfx.gradientShapeAA(vert, ow, xPos, yPos, w, h, r1, r2, r3, r4, darken, colour, sr1, gl1, colorD, sr3, gl3, gtb);
 // Usage	: gfx.gradientShapeAA(vert, ow, xPos, yPos, w, h, r1, r2, r3, r4, darken, colour, sr1, gl1, colorD, sr3, gl3, gtb);
-// Notes 	: Draws an anti-aliaised customizable shape with rounded corners and internal and external gradients
+// Notes 	: Draws an anti-aliased customizable shape with rounded corners and internal and external gradients
 //			:   vert    - Horizontal or Vertical gradient -- 0 or 1
 //			:   ow      - Outer gradient width
 //			:   xPos    - x co-ordinate
@@ -780,6 +860,272 @@ void gfx.gradientShapeAA(vert, ow, xPos, yPos, w, h, r1, r2, r3, r4, darken, col
 //			:   sr3     - Inner gradient type (0 - 3 horizontal, +4 vertical) 0 - Raised, 1 - Sunken, 2 - Raised flatter middle, 3 - Sunken flatter middle
 //			:   gl3     - Inner gradient level 0 - 63
 //			:   gtb     - Split gradient, 0 - no split, 1 - top, 2 - bottom
+//
+
+void gfx.AngularImageRotary(valdeg, xc, yc, sa, imageArcRange, imageCTRradius, numImages, imageList, opac1, opac2, imageMask, RRarc, selectedFrame, frameColour, frameWidth, frameGap, frameOpac), void; // Draws GCI images in a rotary carousel
+// Syntax	: gfx.AngularImageRotary(valdeg, xc, yc, sa, imageArcRange, imageCTRradius, numImages, imageList, opac1, opac2, imageMask, RRarc, selectedFrame, frameColour, frameWidth, frameGap, frameOpac);
+// Syntax	: gfx.AngularImageRotary(50, 300, 300, 90, 270, 100, 10, imageList, 255, 50, SHAPE_ROUNDED_RECTANGLE, 15, SHAPE_ROUNDED_RECTANGLE, ORANGE, 4, 2, 127);
+// Notes	: Draw a angular rotary carousel of GCI images rotated by a degree value
+//			:   valdeg         - Value in degrees of selected rotated position
+//			:   xc             - X position of centre
+//			:   yc             - Y position of centre
+//			:   sa             - Start angle is it would be if valdeg was set to 0 degrees
+//			:   imageArcRange  - The overall angle of movement
+//			:   imageCTRradius - Radius from xc, yc at which the centre of the images will be
+//			:   numImages      - Number of images in array containg image indexes
+//			:   imageList      - Array containg indexes of GCI images
+//			:   opac1          - Opacity of images to fade from
+//			:   opac2          - Opacity of images to fade to
+//			:   imageMask      - The shape of the images to be drawn SHAPE_NONE, SHAPE_CIRCLE, SHAPE_RECTANGLE, SHAPE_ROUNDED_RECTANGLE
+//			:   RRarc          - radius of rounded rectangle corners
+//			:   SelectedFrame  - Currently only supports SHAPE_ROUNDED_RECTANGLE
+//			:   frameColour    - Color of selected frame
+//			:   frameWidth     - Line width of selected frame
+//			:   frameGap       - Gap between image and frame
+//			:   frameOpac      - Opacity of selected frame
+//
+
+void gfx.AngularScale(x, y, sa, ea, ticks, tickRadius, ticksMajor, ticksMajorRadius, tickLen, tickW, tickColor, tickMajorLen, tickMajorW, tickMajorColor, hasValues, valueRadius, minVal, maxVal, allowFloat, textColor, fnt, labels), void; // Draw and angular scale with or without values
+// Syntax	: gfx.AngularScale(x, y, sa, ea, ticks, tickRadius, ticksMajor, ticksMajorRadius, tickLen, tickW, tickColor, tickMajorLen, tickMajorW, tickMajorColor, hasValues, valueRadius, minVal, maxVal, allowFloat, textColor, fnt, labels);
+// Usage	: gfx.AngularScale(100, 100, 45, 315, 60, 80, 10, 75, 5, 1.5, WHITE, 10, 2, WHITE, true, 85, 0, 60, true, WHITE, 2);
+// Notes	: Draw an Angular scale with numeric values or an optional string list or without.
+//			:   x                - X position of centre
+//			:   y                - Y position of centre
+//			:   sa               - Start angle of scale
+//			:   ea               - End angle of scale
+//			:   ticks            - Total amount of ticks
+//			:   tickRadius       - radius of minor ticks
+//			:   ticksMajor       - Number of ticks that are majot ticks
+//			:   ticksMajorRadius - radius of major ticks
+//			:   tickLen          - length of minor ticks
+//			:   tickW            - line width of minor ticks
+//			:   tickColor        - RGB565 color of minor ticks
+//			:   tickMajorLen     - length of major ticks
+//			:   tickMajorW       - line width of major ticks
+//			:   tickMajorColor   - RGB565 color of major ticks
+//			:   hasValues        - true if values are used
+//			:   valueRadius      - Radius of the centre wher values will be positioned
+//			:   minVal           - minimum value of the scale
+//			:   maxVal           - maximum value of the scale
+//			:   allowFloat       - Allow floats to be printed
+//			:   textColor        - color of printed values or strings
+//			:   fnt              - ID of font to be used, can be system, flash or GCI font
+//			:   labels           - optional, if a list of strings to be used instead of values
+//
+
+void gfx.ArcFlare(x, y, baser, ir, sa, ea, colorfrom, colorto, roundEnds, flareSize, flareDir), void; // Draw a flare around an arc
+// Syntax	: gfx.ArcFlare(x, y, baser, ir, sa, ea, colorfrom, colorto, roundEnds, flareSize, flareDir);
+// Usage	: gfx.ArcFlare(200, 200, 100, 90, 180, 270, RED, BLACK, true, 5, FLARE_EXTERNAL);
+// Notes	: Draw a flare around an arc externally or internally
+//			:   x         - X position of centre
+//			:   y         - Y position of centre
+//			:   baser     - outside radius of arc
+//			:   ir        - internal radius of arc
+//			:   sa        - Start angle of arc
+//			:   ea        - End angle of arc
+//			:   colorfrom - color of start of flare
+//			:   colorto   - color of end of flare
+//			:   roundEnds - True if arc has round ends
+//			:   flareSize - Size of flare
+//			:   flareDir  - Direction of flare, FLARE_EXTERNAL, FLARE INTERNAL
+//
+
+void gfx.AngularGaugeFlare(x, y, sa, ea, gaugeRadius, gaugeThickness, colorfrom, colorto, roundEnds, flareSize, flareDir), void; // Draw a flare around an angular gauge
+// Syntax	: gfx.AngularGaugeFlare(x, y, sa, ea, gaugeRadius, gaugeThickness, colorfrom, colorto, roundEnds, flareSize, flareDir);
+// Usage	: gfx.AngularGaugeFlare(300, 300, 0, 270, 100, 80, BLUE, BLACK, true, 10, FLARE_EXTERNAL);
+// Notes	: Draw a flare around an angular gauge externally or internally
+//			:   x              - X position of centre
+//			:   y              - Y position of centre
+//			:   sa             - Start angle of arc
+//			:   ea             - End angle of arc
+//			:   gaugeRadius    - internal radius of arc
+//			:   gaugeThickness - Thickness of angular gauge
+//			:   colorfrom      - color of start of flare
+//			:   colorto        - color of end of flare
+//			:   roundEnds      - True if arc has round ends
+//			:   flareSize      - Size of flare
+//			:   flareDir       - Direction of flare, FLARE_EXTERNAL, FLARE INTERNAL
+//
+
+void gfx.AngularGauge(val, x, y, sa, ea, min, max, gaugeRadius, gaugeThickness, gaugeLOcolor, gaugeHIcolor, roundEnds), void; // Draw an angular gauge
+// Syntax	: gfx.AngularGauge(val, x, y, sa, ea, min, max, gaugeRadius, gaugeThickness, gaugeLOcolor, gaugeHIcolor, roundEnds);
+// Usage	: gfx.AngularGauge(50, 250, 250, 180, 270, 0, 100, 90, 10, BLUE, RED, false);
+// Notes	: Draw an angular gauge
+//			:   val            - Value to be shown on gauge
+//			:   x              - X position of centre
+//			:   y              - Y position of centre
+//			:   sa             - Start angle of gauge
+//			:   ea             - End angle of gauge
+//			:   gaugeRadius    - internal radius of arc
+//			:   gaugeThickness - Thickness of angular gauge
+//			:   gaugeLOcolor   - Low value color of gauge
+//			:   gaugeHIcolor   - High value color of gauge
+//			:   roundEnds      - True if arc has round ends
+//
+      
+void gfx.AngularTickGauge(val, x, y, sa, ea, min, max, gaugeRadius, gaugeThickness, tickW, gaugeLOcolor, gaugeHIcolor, gaugeblendColor), void; // Draw an angular tick gauge
+// Syntax	: gfx.AngularTickGauge(val, x, y, sa, ea, min, max, gaugeRadius, gaugeThickness, tickW, gaugeLOcolor, gaugeHIcolor, gaugeblendColor);
+// Usage	: gfx.AngularTickGauge(75, 400, 200, 45, 315, 0, 270, 120, 20, 4, RED, BLUE, GREEN);
+// Notes	: Draw an angular tick gauge
+// 			:   val             - Value to be shown on gauge
+//			:   x               - X position of centre
+//			:   y               - Y position of centre
+//			:   sa              - Start angle of gauge
+//			:   ea              - End angle of gauge
+//			:   min             - minimum value of the gauge
+//			:   max             - maximum value of the gauge
+//			:   gaugeRadius     - internal radius of arc
+//			:   gaugeThickness  - Thickness of angular gauge
+//			:	tickW			- Thickness of tick
+//			:   gaugeLOcolor    - Low value color of gauge
+//			:   gaugeHIcolor    - High value color of gauge
+//			:   gaugeblendColor - Optional, if set the gauge color will be blend to this color
+//
+
+void gfx.AngularNeedle(val, x, y, sa, ea, radius, centreRadius, minVal, maxVal, baseW, tipW, color, baseRadius, baseColor, basePivotRadius, basePivotColor, flareSize, startAlpha, endAlpha, flareDir, color2), void; // Draw and angular needle with pivot
+// Syntax	: gfx.AngularNeedle(val, x, y, sa, ea, radius, centreRadius, minVal, maxVal, baseW, tipW, color, baseRadius, baseColor, basePivotRadius, basePivotColor, flareSize, startAlpha, endAlpha, flareDir, color2);
+// Usage	: gfx.AngularNeedle(40, 280, 300, 0, 360, 100, 40, 0, 360, 15, 15, WHITE, 20, WHITE, 10, DARKGRAY, 0, 0, 0, FLARE_EXTERNAL, BLACK);
+// Notes	: Draw and angular needle with pivot
+//			: param val       - position of needle
+//			: x               - x center position of needle
+//			: y               - y center position of needle
+//			: sa              - Start angle of needle
+//			: ea              - End angle of needle
+//			: radius          - radius of tip of needle
+//			: centreRadius    - radius of base of needle
+//			: minVal          - Minimum value of needle movement
+//			: maxVal          - Maximum value of needle movement
+//			: baseW           - Thickness of needle at its base
+//			: tipW            - Thickness of needle at its tip
+//			: color           - RGB565 color of needle
+//			: baseRadius      - Radius of circular base of needle
+//			: baseColor       - RGB565 color of circular base of needle
+//			: basePivotRadius - Radius of circular pivot
+//			: basePivotColor  - RGB565 color of circular pivot
+//			: flareSize       - Optional, Size of needle flare
+//			: startAlpha      - Optional, Opacity level of flare start
+//			: endAlpha        - Optional, Opacity level of flare end
+//			: color2          - Optional, RGB565 flare to color
+//
+
+void gfx.AngularNeedleDouble(val, x, y, sa, ea, radius, centreRadius, midRadius, minVal, maxVal, baseW, midW, tipW, color, baseRadius, baseColor, basePivotRadius, basePivotColor), void; // Draw a 2 step needle
+// Syntax	: gfx.AngularNeedleDouble(val, x, y, sa, ea, radius, centreRadius, midRadius, minVal, maxVal, baseW, midW, tipW, color, baseRadius, baseColor, basePivotRadius, basePivotColor);
+// Usage	: gfx.AngularNeedleDouble(80, 399, 399, 45, 315, 100, 1, 65, 0, 100, 20, 24, 1, RED, 26, RED, 10, SILVER);
+// Notes	: Draw a 2 step needle
+//			: val             - position of needle
+//			: x               - x center position of needle
+//			: y               - y center position of needle
+//			: sa              - Start angle of needle
+//			: ea              - End angle of needle
+//			: radius          - radius of tip of needle
+//			: centreRadius    - radius of base of needle
+//			: midRadius       - radius of middle of needle
+//			: minVal          - Minimum value of needle movement
+//			: maxVal          - Maximum value of needle movement
+//			: baseW           - Thickness of needle at its base
+//			: midW            - Thickness of needle at its mid point
+//			: tipW            - Thickness of needle at its tip
+//			: color           - RGB565 color of needle
+//			: baseRadius      - Radius of circular base of needle
+//			: baseColor       - RGB565 color of circular base of needle
+//			: basePivotRadius - Radius of circular pivot
+//			: basePivotColor  - RGB565 color of circular pivot
+//
+
+void gfx.AngularKnob(val, x, y, sa, ea, radius, w, sizeh, minVal, maxVal, outlineSize, colorOuter, colorInner, flareSize, startAlpha, endAlpha, flareDir, color2), void; // Draw an angular knob
+// Syntax	: gfx.AngularKnob(val, x, y, sa, ea, radius, w, sizeh, minVal, maxVal, outlineSize, colorOuter, colorInner, flareSize, startAlpha, endAlpha, flareDir, color2);
+// Usage	: gfx.AngularKnob(22, 220, 220, 180, 270, 100, 20, 10, 0, 100, 4, SILVER, BLACK, 5, 100, 10, FLARE_EXTERNAL, WHITE);
+// Notes	: Draw an angular knob
+//			: val         - position of angular knob
+//			: x           - x center position of angular knob
+//			: y           - y center position of angular knob
+//			: sa          - Start angle of angular knob
+//			: ea          - End angle of angular knob
+//			: radius      - radius of angular knob
+//			: w           - width of angular knob
+//			: sizeh       - height of angular knob
+//			: minVal      - Minimum value of angular knob movement
+//			: maxVal      - Maximum value of angular knob movement
+//			: outlineSize - Thickness of knob outline
+//			: flareSize   - Optional, Size of knob flare
+//			: startAlpha  - Optional, Opacity level of flare start
+//			: endAlpha    - Optional, Opacity level of flare end
+//			: flareDir    - Optional, direction of flare FLARE_EXTERNAL, FLARE_INTERNAL
+//			: color2      - Optional, RGB565 flare to color
+//
+
+void gfx.CircleFlare(x, y, radius, flareSize, startAlpha, endAlpha, flareDir, color), void; // Draw a flare around a circle
+// Syntax	: gfx.CircleFlare(x, y, radius, flareSize, startAlpha, endAlpha, flareDir, color);
+// Usage	: gfx.CircleFlare(100, 100, 50, 12, 100, 0, FLARE_EXTERNAL, WHITE);
+// Notes	: Draw an external flare around a circle or an internal flare inside a circle
+//			: x          - x center position of circle
+//			: y          - y center position of circle
+//			: radius     - radius of circle
+//			: flareSize  - Size of circle flare
+//			: startAlpha - Opacity level of flare start
+//			: endAlpha   - Opacity level of flare end
+//			: flareDir   - Direction of flare FLARE_EXTERNAL, FLARE_INTERNAL
+//			: color      - RGB565 flare color
+//
+
+void gfx.RoundRectFlare(x, y, x1, y1, r, flareSize, startAlpha, endAlpha, flareDir, color), void; // Draw a flare around a rounded rectangle
+// Syntax	: gfx.RoundRectFlare(x, y, x1, y1, r, flareSize, startAlpha, endAlpha, flareDir, color);
+// Usage	: gfx.RoundRectFlare(600, 200, 680, 660, 6, 10, 80, 10, FLARE_EXTERNAL, ORANGE);
+// Notes	: Draw a flare around a rounded rectangle internally of externally
+//			: x          - x top left position
+//			: y          - y top left position
+//			: x1         - x bottom right position
+//			: y1         - y bottom right position
+//			: r          - radius of rounded rectangle corners
+//			: flareSize  - Size of flare
+//			: startAlpha - Opacity level of flare start
+//			: endAlpha   - Opacity level of flare end
+//			: flareDir   - Direction of flare FLARE_EXTERNAL, FLARE_INTERNAL
+//			: color      - RGB565 flare color
+//
+
+void gfx.RectangleFlare(x, y, x1, y1, flareSize, startAlpha, endAlpha, flareDir, color), void; // Draw a flare around a rectangle
+// Syntax	: gfx.RectangleFlare(x, y, x1, y1, flareSize, startAlpha, endAlpha, flareDir, color);
+// Usage	: gfx.RectangleFlare(360, 840, 440, 900, 10, 50, 0, FLARE_INTERNAL, YELLOW);
+// Notes	: Draw an Internal or External flare around a rectangle.
+//			: x          - x top left position
+//			: y          - y top left position
+//			: x1         - x bottom right position
+//			: y1         - y bottom right position
+//			: flareSize  - Size of flare
+//			: startAlpha - Opacity level of flare start
+//			: endAlpha   - Opacity level of flare end
+//			: flareDir   - Direction of flare FLARE_EXTERNAL, FLARE_INTERNAL
+//			: color      - RGB565 flare color
+//
+
+void gfx.LineAAflare(x, y, x1, y1, r, r1, flareSize, startAlpha, endAlpha, flareDir, color), void; // Draw a flare around a Line
+// Syntax	: gfx.LineAAflare(x, y, x1, y1, r, r1, flareSize, startAlpha, endAlpha, flareDir, color);
+// Usage	: gfx.LineAAflare(500, 200, 700, 300, 50, 50, 25, 100, 0, FLARE_EXTERNAL, WHITE);
+// Notes	: Draw an Internal or External flare around a Line.
+//			: x          - x line co-ords 1
+//			: y          - y line co-ords 1
+//			: x1         - x line co-ords 2
+//			: y1         - y line co-ords 2
+//			: r          - radius of line end 1
+//			: r1         - radius of line end 2
+//			: startAlpha - Opacity level of flare start
+//			: endAlpha   - Opacity level of flare end
+//			: flareDir   - Direction of flare FLARE_EXTERNAL, FLARE_INTERNAL
+//			: color      - RGB565 flare color
+//
+
+void gfx.GradientRectangleFilled(x1, y1, x2, y2, colfrom, colto, Orientation), void; // Draw a gradient rectange as RGB88 dithered to RGB565
+// Syntax	: gfx.GradientRectangleFilled(x1, y1, x2, y2, colfrom, colto, Orientation);
+// Usage	: gfx.GradientRectangleFilled(0, 0, 399, 799, BLUE, RED, HORIZONTAL);
+// Notes	: Draw a gradient rectange as RGB88 dithered to RGB565 to reduce blocky gradient effect
+//			: x1          - x top left position
+//			: y1          - y top left position
+//			: x2          - x bottom right position
+//			: y2          - y bottom right position
+//			: colfrom     - RGB565 gradient from color
+//			: colto       - RGB565 gradient to color
+//			: Orientation - Orientation of the gradient HORIZONTAL, VERTICAL
 //
 
 int gfx.Grad(GraisSunk, Gstate, Gglev, Gh1, Gpos, colToAdj), 1; // Support function for gradientShape
@@ -1225,6 +1571,18 @@ void gfx.UserCharacterBG(data, ucsize, ucx, ucy, colour, draw, bgindex), void; /
 //			: Setting draw to true will draw background and character.
 //
 
+void gfx.StoreCursPos(), void // Store cursor co-ordinates
+// Syntax	: gfx.StoreCursPos();
+//			: gfx.StoreCursPos();
+// Notes	: Store cursor_x, cursor_y for later restore.
+//
+
+void gfx.RestoreCursPos(), void // Restore cursor co-ordinates
+// Syntax	: gfx.RestoreCursPos();
+//			: gfx.RestoreCursPos();
+// Notes	: Restore cursor_x, cursor_y previously stored.
+//
+
 boolean gfx.CheckSD(), 1; // Check if the uSD was properly mounted during gfx.begin
 // Syntax	: gfx.CheckSD();
 // Usage	: gfx.CheckSD();
@@ -1236,6 +1594,12 @@ boolean gfx.CheckDL(), 1; // Check if the last download performed was successful
 // Usage	: gfx.CheckDL();
 // Notes 	: Check if the last download performed was successful
 //
+
+void gfx.imageShow(index), void; // Show GCI image as given by index.
+// Syntax	: gfx.imageShow(index);
+// Usage	: gfx.imageShow(3);
+// Notes	: Show image as given by index value.
+// 
 
 void gfx.DrawImageFile(Fname), void; // Draw widget from GCI file
 // Syntax	: gfx.DrawImageFile(Fname);
@@ -1547,21 +1911,6 @@ void gfx.AlphaBlendLevel(value), void; // Sets the level of blend intensity
 //			: gfx.AlphaBlend must be used and set to 'true' or 'ON' for this to take effect
 //
 
-void gfx.DisplayControl(value), void; // Executes various Display initialization functions
-// Syntax	: gfx.DisplayControl(value);
-// Usage	: gfx.DisplayControl(DISP_CTRL_RE_INIT);
-// Notes 	: Executes various Display control functions
-//			: DISP_CTRL_RE_INIT
-//			: DISP_CTRL_RESET
-//			: DISP_CTRL_NEW
-//			: DISP_CTRL_INIT
-//			: DISP_CTRL_STOP
-//			: DISP_CTRL_START_TX
-//			: DISP_CTRL_DEL
-//			: DISP_CTRL_START
-//			: DISP_CTRL_FLUSH
-//
-
 void gfx.WriteToFrameBuffer(offset, data, len), void; // Writes 8bit or 16bit colour data array directly to current frame buffer
 // Syntax	: gfx.WriteToFrameBuffer(offset, data, len);
 // Usage	: gfx.WriteToFrameBuffer(0, colour_data, 100);
@@ -1573,6 +1922,32 @@ void gfx.FlushArea(x1, x2, y1, y2, xpos), void; // Flushes display area
 // Syntax	: gfx.FlushArea(x1, x2, y1, y2, xpos);
 // Usage	: gfx.FlushArea(10, 100, 10, 100, -1);
 // Notes	: xpos is set to -1 for normal use or set to a value to refresh one pixel at xpos position.
+//
+
+int gfx.StartAnim(bgColor [, buildBuff], builtBuff, x1, y1, x2, y2), 1; // Sets frame buffer use for building widgets in layers
+// Syntax	: gfx.StartAnim(animIndex, bgColor, builtBuff, x1, y1, x2, y2);
+// Usage	: gfx.StartAnim(0, BLACK, 1, 100, 100, 249, 249);
+// Notes	: Sets frame buffer use for building widgets in layers. Can be a simple widget based on a defined area with background colour or complex with background image
+//			: bgColor        - RGB565 color of erase rectangle before build, can also be source for background image
+//			: buildBuff      - framebuffer to store background image from above
+//			: builtBuff      - framebuffer that widget layers are built in
+//			: x1, y1, x2, y2 - rectangular area the widget will occupy
+//			: returns animation Index which is used in contAnim, showAnim
+//
+
+void gfx.ContAnim(animIndex), void; // Retrieves framebuffer info and sets framebuffers from previously stored by index StartAnim
+// Syntax	: gfx.ContAnim(int animIndex);
+// Usage	: gfx.ContAnim(1);
+//			: gfx.AngularTickGauge(75, 400, 200, 45, 315, 0, 270, 120, 20, 4, RED, BLUE, GREEN);
+//			: gfx.ShowAnim(1);
+// Notes	: Retrieves framebuffer info and sets framebuffers from previously stored by index StartAnim.
+//			: animIndex - Index set in gfx.StartAnim
+//
+
+void gfx.ShowAnim(animIndex), void; // Show anim on main display frame buffer after layers have been built
+// Syntax	: gfx.ShowAnim(animIndex);
+// Usage	: gfx.ShowAnim(1);
+// Notes	: Show anim on main display frame buffer after layers have been built.
 //
 
 bool gfx.PointWithinRectangle(x, y, area), 1; // Returns true if x & y are within the area specified by area array
