@@ -125,11 +125,11 @@ void gfx4desp32::begin(String ips, int pval, bool backLightStartOn) {
     pinMode(sd_cs, OUTPUT);
     digitalWrite(sd_cs, HIGH);
     SD_MMC.setPins(sd_sck, sd_mosi, sd_miso);
-    if (SD_MMC.begin("/sdcard", true, 50000))
+    if (SD_MMC.begin("/sdcard", true, false, 48000))
 #else
     if (displayBus == DISPLAY_BUS_SPI) SD_MMC.setPins(SPI_SDMMC_4BIT_CLK, SPI_SDMMC_4BIT_CMD, SPI_SDMMC_4BIT_DATA0, SPI_SDMMC_4BIT_DATA1, SPI_SDMMC_4BIT_DATA2, SPI_SDMMC_4BIT_DATA3);
     if (displayBus == DISPLAY_BUS_QSPI) SD_MMC.setPins(QSPI_SDMMC_4BIT_CLK, QSPI_SDMMC_4BIT_CMD, QSPI_SDMMC_4BIT_DATA0, QSPI_SDMMC_4BIT_DATA1, QSPI_SDMMC_4BIT_DATA2, QSPI_SDMMC_4BIT_DATA3);
-    if (SD_MMC.begin("/sdcard", false, 50000))
+    if (SD_MMC.begin("/sdcard", false, false, 48000))
 #endif
     {
         sdok |= true;
