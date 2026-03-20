@@ -2,7 +2,7 @@
 #define __GFX4D_GEN4_50T__
 
 #define DISPLAY_TOUCH_TYPE          DISP_TOUCH_RTP
-#define GEN4_50T_PIXEL_CLOCK_HZ     (20 * 1000 * 1000)
+#define GEN4_50T_PIXEL_CLOCK_HZ     (16 * 1000 * 1000)
 #define GEN4_50T_SWAP_TOUCHY        1
 
 #include "gfx4desp32_rgb_common.h"
