@@ -1,5 +1,5 @@
 ﻿Version     0.0
-Platform    Gen4-ESP32-32-P
+Platform    Gen4-ESP32-28-P
 PlatRes     240x320
 Depends
 end
@@ -20,6 +20,8 @@ Options
     ComPort                      0
     ComTX1pinIdx                 0
     ComRX1pinIdx                 0
+    GCxFormat                    Trad
+    GCxDest                      uSD
 end
 Form
     Name                         Form1

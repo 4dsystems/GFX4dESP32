@@ -1,11 +1,11 @@
 ﻿Version     0.0
-Platform    Gen4-ESP32-32CT-CLB-P
+Platform    Gen4-ESP32-28CT-P
 PlatRes     240x320
 Depends
 end
 Options
     Arduino_uSD
-    FQBN                         esp32:esp32:gen4-ESP32-S3R8n16
+    FQBN                         esp32:esp32:gen4-ESP32-S3R8n16:LoopCore=1,DebugLevel=none,CPUFreq=240,DisplayModel=esp32s3_24,EraseFlash=none,EventsCore=1,FlashSize=16M,PartitionScheme=gen4esp32scheme1,UploadMode=default,UploadSpeed=921600,CDCOnBoot=cdc,DFUOnBoot=default,MSCOnBoot=default,USBMode=default
     Speed                        9600
     Checksum                     No
     ResponseSize                 2
@@ -20,6 +20,8 @@ Options
     ComPort                      0
     ComTX1pinIdx                 0
     ComRX1pinIdx                 0
+    GCxFormat                    JPEG
+    GCxDest                      uSD
 end
 Form
     Name                         Form1

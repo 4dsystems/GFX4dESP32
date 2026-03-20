@@ -16,7 +16,7 @@ void setup()
   gfx.ScrollEnable(true);
   gfx.BacklightOn(true);
   gfx.Orientation(LANDSCAPE);
-  gfx.SmoothScrollSpeed(5);
+  gfx.SmoothScrollSpeed(1);
   gfx.TextColor(WHITE);
   gfx.Font(1);
   gfx.TextSize(1);

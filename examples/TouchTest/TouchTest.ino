@@ -6,9 +6,9 @@
 // When using Arduino, you need to set the correct include file and class initialization to match your display.
 // To save the hassle of doing this is manually, it is recommended to use Workshop4.
 
-#include "gfx4desp32_gen4_ESP32_32CT_CLB.h"
+#include "gfx4desp32_gen4_ESP32_28CT.h"
 
-gfx4desp32_gen4_ESP32_32CT_CLB gfx = gfx4desp32_gen4_ESP32_32CT_CLB();
+gfx4desp32_gen4_ESP32_28CT gfx = gfx4desp32_gen4_ESP32_28CT();
 
 uint16_t tx, lastTx;
 uint16_t ty, lastTy;
@@ -30,35 +30,36 @@ void setup()
 
 void loop()
 {
-  gfx.touch_Update();
-  tx = gfx.touch_GetX();
-  ty = gfx.touch_GetY();
-  TOUCHED = gfx.touch_GetPen();
+  if(gfx.touch_Update()){
+    tx = gfx.touch_GetX();
+    ty = gfx.touch_GetY();
+    TOUCHED = gfx.touch_GetPen();
 
-  // If the screen gets touched
-  if (TOUCHED == TOUCH_PRESSED)
-  {
-    // First touch of the screen, draw a pixel where it was touched
-    if (firstTouch)
+    // If the screen gets touched
+    if (TOUCHED == TOUCH_PRESSED)
     {
-      gfx.PutPixel(tx, ty, BLUE);
-      firstTouch = false;
+      // First touch of the screen, draw a pixel where it was touched
+      if (firstTouch)
+      {
+        gfx.PutPixel(tx, ty, BLUE);
+        firstTouch = false;
+      }
+      // Screen previously touched and pixel drawn, so draw a line from first touch to this location
+      else
+      {
+        gfx.Line(lastTx, lastTy, tx, ty, BLUE);
+      }
+      // Save the current touch location so it can be referred to next time
+      lastTx = tx;
+      lastTy = ty;
     }
-    // Screen previously touched and pixel drawn, so draw a line from first touch to this location
-    else
-    {
-      gfx.Line(lastTx, lastTy, tx, ty, BLUE);
-    }
-    // Save the current touch location so it can be referred to next time
-    lastTx = tx;
-    lastTy = ty;
-  }
 
-  // If the screen touch is released after previously touching it, draw a circle to mark the release point
-  if (TOUCHED == NOTOUCH || TOUCHED == TOUCH_RELEASED)
-  {
-    gfx.CircleFilled(tx, ty, 3, RED);
-    firstTouch = true;
+    // If the screen touch is released after previously touching it, draw a circle to mark the release point
+    if (TOUCHED == NOTOUCH || TOUCHED == TOUCH_RELEASED)
+    {
+      gfx.CircleFilled(tx, ty, 3, RED);
+      firstTouch = true;
+    }
   }
 }
 

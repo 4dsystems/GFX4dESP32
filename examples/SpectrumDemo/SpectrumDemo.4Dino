@@ -8,6 +8,9 @@ gfx4desp32_%%displaynm%% gfx = gfx4desp32_%%displaynm%%();
 
 #include "SpectrumDemoConst.h"    // Note. This file will not be created if there are no generated graphics
 
+// Uncomment if using GC* in program flash.
+#include "SpectrumDemoGCx.h"     // Note. This file will be generated when graphics destination program flash
+
 void setup()
 {
   gfx.begin();
@@ -17,7 +20,11 @@ void setup()
   gfx.Orientation(%%orientation%%);
   gfx.SmoothScrollSpeed(5);
   gfx.TextColor(WHITE, BLACK); gfx.Font(2);  gfx.TextSize(1);
-  gfx.Open4dGFX("SpectrumDemo"); // Opens DAT and GCI files for read using filename without extension.
+  // Uncomment one of the three followin statements depending on the type of graphics file you are using GCI, GCJ, or GC* in program flash.
+//gfx.Open4dGFX("SpectrumDemo"); // Opens DAT and GCI files for read using filename without extension.
+//gfx.Open4dGFX("SpectrumDemo.gcj"); // Opens GCJ file for read using complete filename.
+  gfx.Open4dGFX(SpectrumDemo, SpectrumDemo_size); // Opens GCJ from program space using array name and size
+//gfx.Open4dGFX(SpectrumDemo_dat, SpectrumDemo_dat_size, SpectrumDemo_gci, SpectrumDemo_gci_size); // Opens DAT/GCI from program space using array name and size
   gfx.UserImage(iSpectrum1) ;                                // init_Spectrum1 show initial spectrum
 } // end Setup **do not alter, remove or duplicate this line**
 

@@ -15,9 +15,9 @@
 // When using Arduino, you need to set the correct include file and class initialization to match your display.
 // To save the hassle of doing this is manually, it is recommended to use Workshop4.
 
-#include "gfx4desp32_gen4_ESP32_32.h"
+#include "gfx4desp32_gen4_ESP32_28CT.h"
 
-gfx4desp32_gen4_ESP32_32 gfx = gfx4desp32_gen4_ESP32_32();
+gfx4desp32_gen4_ESP32_28CT gfx = gfx4desp32_gen4_ESP32_28CT();
 
 #include "WiFiScanConst.h"    // Note. This file will not be created if there are no generated graphics
 
@@ -28,7 +28,7 @@ void setup()
   gfx.ScrollEnable(true);
   gfx.BacklightOn(true);
   gfx.Orientation(PORTRAIT);
-  gfx.SmoothScrollSpeed(5);
+  gfx.SmoothScrollSpeed(1);
   gfx.TextColor(WHITE);
   gfx.Font(2);
   gfx.TextSize(1);
