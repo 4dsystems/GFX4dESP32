@@ -311,11 +311,13 @@ esp_lcd_panel_handle_t gfx4desp32_spi_panel::__begin() {
         fb = (uint8_t*)malloc(__fbSize);
     }
     else {
-        fb = (uint8_t*)ps_malloc(__fbSize);
+        fb = (uint8_t*)heap_caps_aligned_alloc(64, __fbSize, MALLOC_CAP_DMA | MALLOC_CAP_SPIRAM);
+		//fb = (uint8_t*)ps_malloc(__fbSize);
     }
     /*** if ILI9488 Initialize 18bit buffer ***/
     if (DisplayModel == GFX4d_DISPLAY_ILI9488) {
-        fb35 = (uint8_t*)ps_malloc(460800);
+        fb35 = (uint8_t*)heap_caps_aligned_alloc(64, 460800, MALLOC_CAP_DMA | MALLOC_CAP_SPIRAM);
+		//fb35 = (uint8_t*)ps_malloc(460800);
         lvglBufferInit = true;
     }
     DisplayType = DISP_INTERFACE_SPI;
@@ -602,7 +604,7 @@ void gfx4desp32_spi_panel::SetGRAM(int16_t x1, int16_t y1, int16_t x2,
     GRAMxpos = x1;
     GRAMypos = y1;
     pixelPos = 0;
-    pixelCount = (x2 - x1) * (y2 - y1);
+    pixelCount = (x2 - x1 + 1) * (y2 - y1 + 1);
 }
 
 /****************************************************************************/
@@ -661,10 +663,12 @@ void gfx4desp32_spi_panel::EndWrite() {
         return;
     if (!lvglBufferInit) {
         if (DisplayModel != GFX4d_DISPLAY_ILI9488) {
-            psRAMlvglBuffer = (uint16_t*)ps_malloc(__fbSize);
+            //psRAMlvglBuffer = (uint16_t*)ps_malloc(__fbSize);
+			psRAMlvglBuffer = (uint16_t*)heap_caps_aligned_alloc(64, __fbSize, MALLOC_CAP_DMA | MALLOC_CAP_SPIRAM);
         }
         else {
-            fb35 = (uint8_t*)ps_malloc(__fbSize + (__fbSize >> 1));
+            //fb35 = (uint8_t*)ps_malloc(__fbSize + (__fbSize >> 1));
+			fb35 = (uint8_t*)heap_caps_aligned_alloc(64, __fbSize + (__fbSize >> 1), MALLOC_CAP_DMA | MALLOC_CAP_SPIRAM);
         }
         lvglBufferInit = true;
     }
@@ -1349,10 +1353,12 @@ void gfx4desp32_spi_panel::FlushArea(int x1, int x2, int y1, int y2, int xpos) {
 
     if (!lvglBufferInit) {
         if (DisplayModel != GFX4d_DISPLAY_ILI9488) {
-            psRAMlvglBuffer = (uint16_t*)ps_malloc(__fbSize);
+            //psRAMlvglBuffer = (uint16_t*)ps_malloc(__fbSize);
+			psRAMlvglBuffer = (uint16_t*)heap_caps_aligned_alloc(64, __fbSize, MALLOC_CAP_DMA | MALLOC_CAP_SPIRAM);
         }
         else {
-            fb35 = (uint8_t*)ps_malloc(__fbSize + (__fbSize >> 1));
+            //fb35 = (uint8_t*)ps_malloc(__fbSize + (__fbSize >> 1));
+			fb35 = (uint8_t*)heap_caps_aligned_alloc(64, __fbSize + (__fbSize >> 1), MALLOC_CAP_DMA | MALLOC_CAP_SPIRAM);
         }
         lvglBufferInit = true;
     }
@@ -1562,10 +1568,12 @@ void gfx4desp32_spi_panel::pushColors(uint16_t* color_data, uint32_t len) {
     if (bufferToggle == 0) {
         if (!lvglBufferInit) {
             if (DisplayModel != GFX4d_DISPLAY_ILI9488) {
-                psRAMlvglBuffer = (uint16_t*)ps_malloc(__fbSize);
+                //psRAMlvglBuffer = (uint16_t*)ps_malloc(__fbSize);
+				psRAMlvglBuffer = (uint16_t*)heap_caps_aligned_alloc(64, __fbSize, MALLOC_CAP_DMA | MALLOC_CAP_SPIRAM);
             }
             else {
-                fb35 = (uint8_t*)ps_malloc(__fbSize + (__fbSize >> 1));
+                //fb35 = (uint8_t*)ps_malloc(__fbSize + (__fbSize >> 1));
+				fb35 = (uint8_t*)heap_caps_aligned_alloc(64, __fbSize + (__fbSize >> 1), MALLOC_CAP_DMA | MALLOC_CAP_SPIRAM);
             }
             lvglBufferInit = true;
         }
@@ -1610,10 +1618,12 @@ void gfx4desp32_spi_panel::pushColors(uint16_t* color_data, uint32_t len) {
     else {
         if (!lvglBufferInit2) {
             if (DisplayModel != GFX4d_DISPLAY_ILI9488) {
-                psRAMlvglBuffer2 = (uint16_t*)ps_malloc(__fbSize);
+                //psRAMlvglBuffer2 = (uint16_t*)ps_malloc(__fbSize);
+				psRAMlvglBuffer2 = (uint16_t*)heap_caps_aligned_alloc(64, __fbSize, MALLOC_CAP_DMA | MALLOC_CAP_SPIRAM);
             }
             else {
-                fb352 = (uint8_t*)ps_malloc(__fbSize + (__fbSize >> 1));
+                //fb352 = (uint8_t*)ps_malloc(__fbSize + (__fbSize >> 1));
+				fb352 = (uint8_t*)heap_caps_aligned_alloc(64, __fbSize + (__fbSize >> 1), MALLOC_CAP_DMA | MALLOC_CAP_SPIRAM);
             }
             lvglBufferInit2 = true;
         }
@@ -1679,10 +1689,12 @@ void gfx4desp32_spi_panel::pushColors(uint8_t* color_data, uint32_t len) {
     if (bufferToggle == 0) {
         if (!lvglBufferInit) {
             if (DisplayModel != GFX4d_DISPLAY_ILI9488) {
-                psRAMlvglBuffer = (uint16_t*)ps_malloc(__fbSize);
+                //psRAMlvglBuffer = (uint16_t*)ps_malloc(__fbSize);
+				psRAMlvglBuffer = (uint16_t*)heap_caps_aligned_alloc(64, __fbSize, MALLOC_CAP_DMA | MALLOC_CAP_SPIRAM);
             }
             else {
-                fb35 = (uint8_t*)ps_malloc(__fbSize + (__fbSize >> 1));
+                //fb35 = (uint8_t*)ps_malloc(__fbSize + (__fbSize >> 1));
+				fb35 = (uint8_t*)heap_caps_aligned_alloc(64, __fbSize + (__fbSize >> 1), MALLOC_CAP_DMA | MALLOC_CAP_SPIRAM);
             }
             lvglBufferInit = true;
         }
@@ -1735,10 +1747,12 @@ void gfx4desp32_spi_panel::pushColors(uint8_t* color_data, uint32_t len) {
     else {
         if (!lvglBufferInit2) {
             if (DisplayModel != GFX4d_DISPLAY_ILI9488) {
-                psRAMlvglBuffer2 = (uint16_t*)ps_malloc(__fbSize);
+                //psRAMlvglBuffer2 = (uint16_t*)ps_malloc(__fbSize);
+				psRAMlvglBuffer2 = (uint16_t*)heap_caps_aligned_alloc(64, __fbSize, MALLOC_CAP_DMA | MALLOC_CAP_SPIRAM);
             }
             else {
-                fb352 = (uint8_t*)ps_malloc(__fbSize + (__fbSize >> 1));
+                //fb352 = (uint8_t*)ps_malloc(__fbSize + (__fbSize >> 1));
+				fb352 = (uint8_t*)heap_caps_aligned_alloc(64, __fbSize + (__fbSize >> 1), MALLOC_CAP_DMA | MALLOC_CAP_SPIRAM);
             }
             lvglBufferInit2 = true;
         }
@@ -1812,10 +1826,12 @@ void gfx4desp32_spi_panel::pushColors(const uint8_t* color_data, uint32_t len) {
     if (bufferToggle == 0) {
         if (!lvglBufferInit) {
             if (DisplayModel != GFX4d_DISPLAY_ILI9488) {
-                psRAMlvglBuffer = (uint16_t*)ps_malloc(__fbSize);
+                //psRAMlvglBuffer = (uint16_t*)ps_malloc(__fbSize);
+				psRAMlvglBuffer = (uint16_t*)heap_caps_aligned_alloc(64, __fbSize, MALLOC_CAP_DMA | MALLOC_CAP_SPIRAM);
             }
             else {
-                fb35 = (uint8_t*)ps_malloc(__fbSize + (__fbSize >> 1));
+                //fb35 = (uint8_t*)ps_malloc(__fbSize + (__fbSize >> 1));
+				fb35 = (uint8_t*)heap_caps_aligned_alloc(64, __fbSize + (__fbSize >> 1), MALLOC_CAP_DMA | MALLOC_CAP_SPIRAM);
             }
             lvglBufferInit = true;
         }
@@ -1868,10 +1884,12 @@ void gfx4desp32_spi_panel::pushColors(const uint8_t* color_data, uint32_t len) {
     else {
         if (!lvglBufferInit2) {
             if (DisplayModel != GFX4d_DISPLAY_ILI9488) {
-                psRAMlvglBuffer2 = (uint16_t*)ps_malloc(__fbSize);
+                //psRAMlvglBuffer2 = (uint16_t*)ps_malloc(__fbSize);
+				psRAMlvglBuffer2 = (uint16_t*)heap_caps_aligned_alloc(64, __fbSize, MALLOC_CAP_DMA | MALLOC_CAP_SPIRAM);
             }
             else {
-                fb352 = (uint8_t*)ps_malloc(__fbSize + (__fbSize >> 1));
+                //fb352 = (uint8_t*)ps_malloc(__fbSize + (__fbSize >> 1));
+				fb352 = (uint8_t*)heap_caps_aligned_alloc(64, __fbSize + (__fbSize >> 1), MALLOC_CAP_DMA | MALLOC_CAP_SPIRAM);
             }
             lvglBufferInit2 = true;
         }
@@ -2560,7 +2578,8 @@ void gfx4desp32_spi_panel::AllocateDRcache(uint32_t cacheSize) {
 
 void gfx4desp32_spi_panel::AllocateFB(uint8_t sel) {
     if (sel == 0) {
-        psRAMbuffer1 = (uint8_t*)ps_malloc(1024000);
+        psRAMbuffer1 = (uint8_t*)heap_caps_aligned_alloc(64, 1048576, MALLOC_CAP_DMA | MALLOC_CAP_SPIRAM);
+		//psRAMbuffer1 = (uint8_t*)ps_malloc(1024000);
     }
     if (sel == 1) {
         psRAMbuffer3 = (uint8_t*)ps_malloc(__fbSize);

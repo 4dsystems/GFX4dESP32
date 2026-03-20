@@ -227,6 +227,21 @@ bool gfx4desp32_rgb_panel_rt::touch_Update() {
                         }
                     }
                 }
+				if (animIndexCounter > 0){
+					int aPos;
+					for (int n = 0; n < animIndexCounter; n++) {
+						aPos = n << 3;
+						if ((anims[aPos + 7] & 0x1) == 1){
+							if (touchXpos >= anims[aPos + 3] &&
+                                touchXpos <= anims[aPos + 5] &&
+                                touchYpos >= anims[aPos + 4] &&
+                                touchYpos <= anims[aPos + 6]) {
+                                gciobjtouched = -32767 + n;
+                                break;
+                            }
+						}
+					}
+				}
             }
         }
     }

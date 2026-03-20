@@ -31,6 +31,7 @@ SdFat& gfx4desp32::getSdFatInstance() { return uSD; }
 #include "SD_MMC.h"   
 #endif
 #endif
+#include "esp_psram.h"
 
 /****************************************************************************/
 /*!
@@ -107,6 +108,7 @@ void gfx4desp32::begin(String ips, int pval, bool backLightStartOn) {
     twcolnum = 13; // set default text window column number
     tchen = true;
     twcurson = true; // set default text window cursor on
+	rx_buffer_size = 1048576;
 #ifdef USE_LITTLEFS_FILE_SYSTEM // resolve File system method
 #ifdef LITTLEFS_FORMAT_ON_FAIL
     if (LittleFS.begin(true))         // init flash file system
@@ -125,7 +127,7 @@ void gfx4desp32::begin(String ips, int pval, bool backLightStartOn) {
     pinMode(sd_cs, OUTPUT);
     digitalWrite(sd_cs, HIGH);
     SD_MMC.setPins(sd_sck, sd_mosi, sd_miso);
-    if (SD_MMC.begin("/sdcard", true, false, 48000))
+    if (SD_MMC.begin("/sdcard", true, false, 38000))
 #else
     if (displayBus == DISPLAY_BUS_SPI) SD_MMC.setPins(SPI_SDMMC_4BIT_CLK, SPI_SDMMC_4BIT_CMD, SPI_SDMMC_4BIT_DATA0, SPI_SDMMC_4BIT_DATA1, SPI_SDMMC_4BIT_DATA2, SPI_SDMMC_4BIT_DATA3);
     if (displayBus == DISPLAY_BUS_QSPI) SD_MMC.setPins(QSPI_SDMMC_4BIT_CLK, QSPI_SDMMC_4BIT_CMD, QSPI_SDMMC_4BIT_DATA0, QSPI_SDMMC_4BIT_DATA1, QSPI_SDMMC_4BIT_DATA2, QSPI_SDMMC_4BIT_DATA3);
@@ -153,6 +155,22 @@ void gfx4desp32::begin(String ips, int pval, bool backLightStartOn) {
     if (bkStartOn) {
         Contrast(BK_LIGHT_STARTUP_LEVEL);
     }
+	JPEGinp = (uint8_t*)heap_caps_malloc(32*1024, MALLOC_CAP_DMA);
+	AMconfig = ASYNC_MEMCPY_DEFAULT_CONFIG();
+	AMconfig.backlog = 64;
+    //AMconfig.flags = 0;
+	//AMconfig.sram_trans_align = 8;
+	//AMconfig.psram_trans_align = 8;
+	//AMconfig.dma_burst_size  = 1024;
+    esp_async_memcpy_install_gdma_ahb(&AMconfig, &AMdriver);
+}
+
+void gfx4desp32::MemCopy(void* to, void* from, uint32_t len){
+	esp_async_memcpy(AMdriver, to, from, len, NULL, NULL);
+}
+
+void gfx4desp32::MemCopy(uint8_t* to, uint8_t* from, uint32_t len){
+	esp_async_memcpy(AMdriver, to, from, len, NULL, NULL);
 }
 
 /****************************************************************************/
@@ -308,7 +326,6 @@ void gfx4desp32::Cls() {
     FillScreen(BLACK);
     cursor_x = 0;
     cursor_y = 0;
-    // Scroll(0);
     scrolled = false;
     nl = false;
     _nlh = height;
@@ -1169,7 +1186,7 @@ void gfx4desp32::ArcAA(int32_t x, int32_t y, int32_t r1, int32_t r2, int32_t sA,
     float stxy1[2], stxy2[2];
     float enxy1[2], enxy2[2];
     float str[2], enr[2];
-	float thk = abs(r2 - r1);
+	float thk = abs(r1 - r2);
 	MoveTo(x, y);
     if (!rounded)
     {
@@ -1180,8 +1197,8 @@ void gfx4desp32::ArcAA(int32_t x, int32_t y, int32_t r1, int32_t r2, int32_t sA,
       LineAA(stxy1[0], stxy1[1], stxy2[0], stxy2[1], 0.3, 0.3, color);
       LineAA(enxy1[0], enxy1[1], enxy2[0], enxy2[1], 0.3, 0.3, color);
     } else {
-      Orbit(sA + 180, r1 + (thk / 2.0)/*(r1 + r2)/2.0*/, str);
-      Orbit(eA + 180, r1 + (thk / 2.0)/*(r1 + r2)/2.0*/, enr);
+      Orbit(sA + 180, r2 + (thk / 2.0)/*(r1 + r2)/2.0*/, str);
+      Orbit(eA + 180, r2 + (thk / 2.0)/*(r1 + r2)/2.0*/, enr);
       CircleFilledAA(str[0], str[1], abs(r1 - r2) >> 1, color);
       CircleFilledAA(enr[0], enr[1], abs(r1 - r2) >> 1, color);
     }
@@ -1248,17 +1265,9 @@ void gfx4desp32::drawArcAA(int32_t x, int32_t y, int32_t r, int32_t ir,
                        int32_t color)//, uint32_t bg_color,
                        //bool smooth)
 {
-  	
-  //if (eA > 360) eA = 360;
-  //if (sA > 360) sA = 360;
   if (sA == eA) return;
   if (r < ir) gfx_Swap(r, ir);  // Required that r > ir
   if (r <= 0 || ir < 0) return;  // Invalid r, ir can be zero (circle sector)
-  //if (eA < sA) {
-  //  if (sA < 360) drawArc(x, y, r, ir, sA, 360, color);//, bg_color, smooth);
-  //  if (eA == 0) return;
-  //  sA = 0;
-  //}
   bool needsEndWrite = StartWrite();
   int32_t x0, x1, y0, y1;
   float al;
@@ -1341,7 +1350,6 @@ void gfx4desp32::drawArcAA(int32_t x, int32_t y, int32_t r, int32_t ir,
         al = sqrt(hyp);
         alpha = (int)((al - (int)al) * 255);
       }
-      //if (alpha < 16) continue;  // Skip low alpha pixels
       slope = ((r - cy)<<16)/(r - cx);
       x0 = x + cx - r; y0 = y - cy + r; x1 = x - cx + r; y1 = y + cy - r;
       if (slope <= ss[0] && slope >= es[0]) PutPixelAlpha((int)x0, (int)y0, color, (uint8_t)alpha); //{ // BL
@@ -1865,7 +1873,28 @@ void gfx4desp32::AllocatePSRAMgciSpace(uint32_t datS, uint32_t gciS) {
 */
 /****************************************************************************/
 void gfx4desp32::Open4dGFXtoPSRAM(String file4d) {
-    dat4d = file4d + ".dat";
+    String fnTemp = file4d;
+    fnTemp.toUpperCase();
+    if (fnTemp.indexOf(".GCJ") == (fnTemp.length() - 4)) {
+		gcjFname = "/" + file4d;
+        //userImag = SD_MMC.open((char*)file4d.c_str());
+	#ifdef USE_SDMMC_FILE_SYSTEM
+		userImag = SD_MMC.open(gcjFname);
+    #else 
+		userImag = uSD.open(file4d);
+	#endif
+		//userImag = SD_MMC.open("/" + file4d);
+		uint64_t fSize = userImag.size();
+		if (fSize > 0) cache_GCI = (uint8_t*)ps_malloc(fSize);
+		userImag.read(cache_GCI, fSize);
+		userImag.close();
+		GCIarray = cache_GCI;
+		gciIsInPSRAM = true;
+		gciArraySize = fSize;
+		_Open4dGFXjpeg("", GCI_SYSTEM_JPEG_FLASH);
+		return;
+	}
+	dat4d = file4d + ".dat";
     gci4d = file4d + ".gci";
 #ifdef USE_LITTLEFS_FILE_SYSTEM
     dat4d = "/" + dat4d;
@@ -1922,22 +1951,150 @@ void gfx4desp32::Open4dGFXtoPSRAM(String file4d) {
   objects
 */
 /****************************************************************************/
+
 void gfx4desp32::Open4dGFX(String file4d) {
-    if (!gciImagesUsed) {
-        gciImagesUsed = true;
-        cdv = (uint8_t*)malloc(MAX_WIDGETS);
-        gciobjframes = (uint16_t*)malloc(MAX_WIDGETS << 1);
-        tuix = (int16_t*)malloc(MAX_WIDGETS << 1);
-        tuiy = (int16_t*)malloc(MAX_WIDGETS << 1);
-        tuiw = (int16_t*)malloc(MAX_WIDGETS << 1);
-        tuih = (int16_t*)malloc(MAX_WIDGETS << 1);
-        tuiImageIndex = (uint16_t*)malloc(MAX_WIDGETS << 1);
-        tuiIndex = (uint32_t*)malloc(MAX_WIDGETS << 2);
-        tuiExtra1 = (uint16_t*)malloc(MAX_WIDGETS << 1);
-        tuiExtra2 = (uint16_t*)malloc(MAX_WIDGETS << 1);
+    String fnTemp = file4d;
+    fnTemp.toUpperCase();
+    if (fnTemp.indexOf(".GCJ") == (fnTemp.length() - 4)) {
+	    _Open4dGFXjpeg(file4d, GCI_SYSTEM_JPEG_USD);
+	    opgfx = 1;
+    } else {  
+        if (!gciImagesUsed) {
+            gciImagesUsed = true;
+            cdv = (uint8_t*)malloc(MAX_WIDGETS);
+            gciobjframes = (uint16_t*)malloc(MAX_WIDGETS << 1);
+            tuix = (int16_t*)malloc(MAX_WIDGETS << 1);
+            tuiy = (int16_t*)malloc(MAX_WIDGETS << 1);
+            tuiw = (int16_t*)malloc(MAX_WIDGETS << 1);
+            tuih = (int16_t*)malloc(MAX_WIDGETS << 1);
+            tuiImageIndex = (uint16_t*)malloc(MAX_WIDGETS << 1);
+            tuiIndex = (uint32_t*)malloc(MAX_WIDGETS << 2);
+            tuiExtra1 = (uint16_t*)malloc(MAX_WIDGETS << 1);
+            tuiExtra2 = (uint16_t*)malloc(MAX_WIDGETS << 1);
+        }
+        _Open4dGFX(file4d, false);
+        opgfx = 1;
     }
-    _Open4dGFX(file4d, false);
-    opgfx = 1;
+}
+
+void gfx4desp32::_Open4dGFXjpeg(String file4d, uint8_t jpType){
+    GCItype = jpType;
+    uint32_t fSize;
+	if (GCItype == GCI_SYSTEM_JPEG_USD){
+		gcjFname = "/" + file4d;
+	#ifdef USE_SDMMC_FILE_SYSTEM
+		userImag = SD_MMC.open("/" + file4d);
+		fSize = userImag.size();
+    #else 
+		userImag = uSD.open(file4d);
+	    fSize = userImag.size();
+	#endif
+		//fSize = userImag.size();
+    } else {
+	    fSize = gciArraySize;
+	    GCIseek(0);  
+    }
+    if (fSize > 0){
+        uint8_t gcjdat[16];
+	    GCIread(gcjdat, 12);
+		uint32_t framesPos = 0x200;
+        gciobjnum = (gcjdat[8] << 24) + (gcjdat[9] << 16) + (gcjdat[10] << 8) + gcjdat[11]; 
+        if (gciobjnum > 0){
+            cdv = (uint8_t*)malloc(gciobjnum);
+	        tuiIndex = (uint32_t*)malloc(gciobjnum << 2);
+            tuix = (int16_t*)malloc(gciobjnum << 1);
+            tuiy = (int16_t*)malloc(gciobjnum << 1);
+            tuiw = (int16_t*)malloc(gciobjnum << 1);
+            tuih = (int16_t*)malloc(gciobjnum << 1);
+	        tuiImageIndex = (uint16_t*)malloc(gciobjnum << 1);
+	        tuiExtra1 = (uint16_t*)malloc(gciobjnum << 1);
+            tuiExtra2 = (uint16_t*)malloc(gciobjnum << 1);
+            gciobjframes = (uint16_t*)malloc(gciobjnum << 1);
+            jpegOFFSETSpos = (uint32_t*)malloc(gciobjnum << 2);
+        }
+        uint32_t totframes = 0;
+        uint32_t framesCount = 0;
+        for (int n = 0; n < gciobjnum; n++){
+	        GCIread(gcjdat, 16);
+            tuiIndex[n] = (gcjdat[0] << 24) + (gcjdat[1] << 16) + (gcjdat[2] << 8) + gcjdat[3]; 
+            tuix[n] = (gcjdat[4] << 8) + gcjdat[5];
+            tuiy[n] = (gcjdat[6] << 8) + gcjdat[7];
+            tuiw[n] = (gcjdat[8] << 8) + gcjdat[9];
+            tuih[n] = (gcjdat[10] << 8) + gcjdat[11];
+            gciobjframes[n] = (gcjdat[12] << 8) + gcjdat[13];
+            totframes += gciobjframes[n];
+        }
+        uint32_t readAddr;
+		if (GCItype == GCI_SYSTEM_JPEG_FLASH && !gciIsInPSRAM){
+			framesPos = (16 * gciobjnum) + 16;
+		} else {
+			if (gciobjframes[0] > 1){
+				framesPos = tuiIndex[0];
+			} else {	
+				while (framesPos < fSize){
+					GCIseek(framesPos);
+					GCIread(gcjdat, 4);
+					readAddr = (gcjdat[0] << 24) + (gcjdat[1] << 16) + (gcjdat[2] << 8) + gcjdat[3]; 
+					if (readAddr == tuiIndex[0]){
+						//if (gciobjnum > 1){
+						//	GCIread(gcjdat, 4);
+						//	readAddr = (gcjdat[0] << 24) + (gcjdat[1] << 16) + (gcjdat[2] << 8) + gcjdat[3];
+						//	if (readAddr == tuiIndex[1]) break;
+						//} else {
+							break;
+						//}
+					}
+					framesPos += 0x200;
+				}
+			}
+		}
+		jpegOFFSETS = (uint32_t*)malloc(totframes << 2);
+        jpegSIZES = (uint32_t*)malloc(totframes << 2);
+		GCIseek(framesPos); 
+		uint32_t prev, next;
+		GCIread(gcjdat, 4);
+        if(totframes == 1){
+			prev = tuiIndex[0];
+		} else {
+			prev = (gcjdat[0] << 24) + (gcjdat[1] << 16) + (gcjdat[2] << 8) + gcjdat[3];
+		}
+		int32_t af;
+		if (totframes > 1){
+			for (af = 0; af < totframes - 1; af++){
+				GCIread(gcjdat, 4);
+				next = (gcjdat[0] << 24) + (gcjdat[1] << 16) + (gcjdat[2] << 8) + gcjdat[3]; 
+				jpegSIZES[af] = next - prev;
+				prev = next;
+			}
+		} else {
+			af = 0;
+		}
+		jpegSIZES[af] = fSize - prev;
+		uint32_t jSize; // = tuiIndex[1] - (4 * gciobjframes[0]);
+        GCIseek(framesPos);
+		if (totframes == 1){
+			jpegOFFSETS[framesCount] = tuiIndex[0];
+			jpegOFFSETSpos[0] = 0;
+		} else {
+			for (int n = 0; n < gciobjnum; n++){
+				jpegOFFSETSpos[n] = framesCount;
+				if(gciobjframes[n] == 1){
+					GCIread(gcjdat, 4);
+					tuiIndex[n] = (gcjdat[0] << 24) + (gcjdat[1] << 16) + (gcjdat[2] << 8) + gcjdat[3];
+					jpegOFFSETS[framesCount] = (gcjdat[0] << 24) + (gcjdat[1] << 16) + (gcjdat[2] << 8) + gcjdat[3]; 
+					framesCount ++;
+				} else {
+					for (int i = 0; i < gciobjframes[n]; i++){
+						GCIread(gcjdat, 4);
+						if (i == 0) tuiIndex[n] = (gcjdat[0] << 24) + (gcjdat[1] << 16) + (gcjdat[2] << 8) + gcjdat[3];
+						jpegOFFSETS[framesCount] = (gcjdat[0] << 24) + (gcjdat[1] << 16) + (gcjdat[2] << 8) + gcjdat[3]; 
+						jSize = jpegOFFSETS[framesCount];
+						framesCount ++;
+					}
+				}
+			}
+		}
+    }
 }
 
 /****************************************************************************/
@@ -2202,7 +2359,7 @@ uint32_t gfx4desp32::getCoordfromString(String strval, uint8_t indx) {
 /****************************************************************************/
 void gfx4desp32::Close4dGFX() {
     if (userImag) {
-        if (GCItype == GCI_SYSTEM_USD)
+        if (GCItype == GCI_SYSTEM_USD || GCItype == GCI_SYSTEM_JPEG_USD)
             userImag.close();
         if (GCItype == GCI_SYSTEM_PROGMEM) {
             gcidatArray = false;
@@ -2210,6 +2367,150 @@ void gfx4desp32::Close4dGFX() {
         }
         gciobjnum = 0;
     }
+}
+
+/****************************************************************************/
+/*!
+  @brief  JPEG decode functions
+*/
+/****************************************************************************/
+#ifdef USE_LITTLEFS_FILE_SYSTEM
+int16_t gfx4desp32::DecodeJPEGfromFile(File tfile, int w, int h, int swp){
+#else
+#ifdef USE_SDMMC_FILE_SYSTEM
+int16_t gfx4desp32::DecodeJPEGfromFile(File tfile, int w, int h, int swp){
+#else
+int16_t gfx4desp32::DecodeJPEGfromFile(FsFile tfile, int w, int h, int swp){	
+#endif
+#endif
+	if (!tfile) return -1;
+	uint32_t out_size = 0;
+	uint32_t jpSize = tfile.size();
+	int ttwO;
+	if (jpegConfig == false){
+		jpeg_cfg.outbuf = (uint8_t *)psRAMbuffer1;
+		jpeg_cfg.outbuf_size = rx_buffer_size;
+		jpeg_cfg.out_format = JPEG_IMAGE_FORMAT_RGB565;
+		jpeg_cfg.out_scale = JPEG_IMAGE_SCALE_0;
+		jpeg_cfg.flags.swap_color_bytes = swp;
+		jpegConfig = true;
+	}
+	jpeg_cfg.indata_size = jpSize;
+	if(jpSize < 32768){
+		tfile.read(JPEGinp, jpSize);
+		jpeg_cfg.indata = (uint8_t *)JPEGinp;
+		esp_jpeg_decode(&jpeg_cfg, &outimg);
+		ttwO = outimg.width - w;
+	} else {
+		if(!jpegInPsramInit){
+			JPEGinpPSRAM = (uint8_t*)heap_caps_aligned_alloc(64, 512*1024, MALLOC_CAP_DMA | MALLOC_CAP_SPIRAM);
+			jpegInPsramInit = true;
+		}
+		tfile.read(JPEGinpPSRAM, jpSize);
+		jpeg_cfg.indata = (uint8_t *)JPEGinpPSRAM;
+		esp_jpeg_decode(&jpeg_cfg, &outimg);
+		ttwO = outimg.width - w;
+	}
+	JPEGiSize[0] = outimg.width;
+	JPEGiSize[1] = outimg.height;
+	return ttwO;
+}
+
+int16_t gfx4desp32::DecodeJPEGfromGCJ(uint64_t ofst, uint32_t jpSize, int w, int h, int swp){
+	if (!userImag) return -1;
+	uint32_t out_size = 0;
+	int ttwO;
+	GCIseek(ofst);
+	if (jpegConfig == false){
+		jpeg_cfg.outbuf = (uint8_t *)psRAMbuffer1;
+		jpeg_cfg.outbuf_size = rx_buffer_size;
+		jpeg_cfg.out_format = JPEG_IMAGE_FORMAT_RGB565;
+		jpeg_cfg.out_scale = JPEG_IMAGE_SCALE_0;
+		jpeg_cfg.flags.swap_color_bytes = swp;
+		jpegConfig = true;
+	}
+	jpeg_cfg.indata_size = jpSize;
+	if(jpSize < 32768){
+		GCIread(JPEGinp, jpSize);
+		jpeg_cfg.indata = (uint8_t *)JPEGinp;
+		esp_jpeg_decode(&jpeg_cfg, &outimg);
+		ttwO = outimg.width - w;
+	} else {
+		if(!jpegInPsramInit){
+			JPEGinpPSRAM = (uint8_t*)heap_caps_aligned_alloc(64, 512*1024, MALLOC_CAP_DMA | MALLOC_CAP_SPIRAM);
+			jpegInPsramInit = true;
+		}
+		userImag.read(JPEGinpPSRAM, jpSize);
+		jpeg_cfg.indata = (uint8_t *)JPEGinpPSRAM;
+		esp_jpeg_decode(&jpeg_cfg, &outimg);
+		ttwO = outimg.width - w;
+	}
+	return ttwO;
+}
+
+int16_t gfx4desp32::DecodeJPEGfromGCJinFlash(uint32_t ofst, uint32_t jpSize, int w, int h, int swp){
+	//if (!GCIarray) return -1;
+	uint32_t out_size = 0;
+	int ttwO;
+	if (jpegConfig == false){
+		jpeg_cfg.outbuf = (uint8_t *)psRAMbuffer1;
+		jpeg_cfg.outbuf_size = rx_buffer_size;
+		jpeg_cfg.out_format = JPEG_IMAGE_FORMAT_RGB565;
+		jpeg_cfg.out_scale = JPEG_IMAGE_SCALE_0;
+		jpeg_cfg.flags.swap_color_bytes = 1;
+		jpegConfig = true;
+	}
+	jpeg_cfg.indata_size = jpSize;
+	if(jpSize < 32768){
+		//memcpy(JPEGinp, GCIarray + ofst, jpSize);
+		jpeg_cfg.indata = (uint8_t *)GCIarray + ofst;
+		esp_jpeg_decode(&jpeg_cfg, &outimg);
+		ttwO = outimg.width - w;
+	} else {
+		if(!jpegInPsramInit){
+			JPEGinpPSRAM = (uint8_t*)heap_caps_aligned_alloc(64, 512*1024, MALLOC_CAP_DMA | MALLOC_CAP_SPIRAM);
+			jpegInPsramInit = true;
+		}
+		//memcpy(JPEGinpPSRAM, GCIarray + ofst, jpSize);
+		jpeg_cfg.indata = (uint8_t *)GCIarray + ofst;
+		esp_jpeg_decode(&jpeg_cfg, &outimg);
+		ttwO = outimg.width - w;
+	}
+	return ttwO;
+}
+
+int16_t gfx4desp32::DecodeJPEGfromArray(uint8_t* tArray, uint32_t ofst, int w, int h, int swp){
+	uint32_t jpSize = ofst;//sizeof(tArray);
+	uint32_t out_size = 0;
+	int ttwO;
+	if (jpegConfig == false){
+		jpeg_cfg.outbuf = (uint8_t *)psRAMbuffer1;
+		jpeg_cfg.outbuf_size = rx_buffer_size;
+		jpeg_cfg.out_format = JPEG_IMAGE_FORMAT_RGB565;
+		jpeg_cfg.out_scale = JPEG_IMAGE_SCALE_0;
+		jpeg_cfg.flags.swap_color_bytes = swp;
+		jpegConfig = true;
+	}
+	jpeg_cfg.indata_size = jpSize;
+	jpeg_cfg.indata = (uint8_t *)tArray;//JPEGinp;
+	esp_jpeg_decode(&jpeg_cfg, &outimg);
+	ttwO = outimg.width - w;
+	return ttwO;
+}
+
+/****************************************************************************/
+/*!
+  @brief  Simple draw contents of main work buffer
+  @param  x - x position of draw window
+  @param  y - y position of draw window
+  @param  w - width of draw window
+  @param  h - height of draw window
+  @note no clipping and out of bounds is not handled and will crash if exceeded
+*/
+/****************************************************************************/
+void gfx4desp32::DrawPSRAMbuffer(int x, int y, int w, int h){
+	SetGRAM(x, y, x + w - 1, y + h - 1);
+	pushColors(psRAMbuffer1, w * h);
 }
 
 /****************************************************************************/
@@ -2228,56 +2529,83 @@ void gfx4desp32::Close4dGFX() {
 */
 /****************************************************************************/
 void gfx4desp32::DrawWidget(uint32_t Index, int16_t uix, int16_t uiy,
-    int16_t uiw, int16_t uih, uint16_t frame,
-    int16_t bar, bool images, byte cdv) {
-    if (bar != 0)
+		int16_t uiw, int16_t uih, uint16_t frame,
+		int16_t bar, bool images, byte cdv, int ui) {
+	if (ui > (gciobjnum - 1)) return;
+	if (bar != 0)
         uix = uix + bar;
-    if ((GCItype == GCI_SYSTEM_USD && (!userImag)) ||
-        (GCItype == GCI_SYSTEM_PROGMEM && (!gcidatArray)))
+    if ((GCItype == GCI_SYSTEM_USD && (!userImag)) || (GCItype == GCI_SYSTEM_JPEG_USD && (!userImag)) ||
+		(GCItype == GCI_SYSTEM_PROGMEM && (!gcidatArray)) || (GCItype == GCI_SYSTEM_JPEG_FLASH && (!GCIarray)))
         return;
-    byte ofst = 6;
-    if (images)
-        ofst = 8;
-
-    int mul = 2;
-    uint32_t isize;
-
-    uint32_t pos;
-    if (cdv == 8)
-        mul = 1;
-    isize = (uiw * uih) << (mul - 1);
-    int x1 = uix + uiw - 1;
-    int y1 = uiy + uih - 1;
-    usePushColors = (DisplayType == DISP_INTERFACE_RGB) && (uix >= clipx1) &&
-        (uiy >= clipy1) && (x1 <= clipx2) && (y1 <= clipy2) &&
+	uint32_t isize;
+	int uix1 = uix + uiw - 1;
+    int uiy1 = uiy + uih - 1;
+    usePushColors = /*(DisplayType == DISP_INTERFACE_RGB) && */(uix >= clipx1) &&
+        (uiy >= clipy1) && (uix1 <= clipx2) && (uiy1 <= clipy2) &&
         (!transalpha) && (!WriteFBonly) && (frame_buffer == 0);
-    SetGRAM(uix, uiy, x1, y1);
-    pos = (isize * frame);
-    //GCIreadToBuff(Index + ofst + pos, isize);
-    if (GCItype == GCI_SYSTEM_USD) {
-        GCIreadToBuff(Index + ofst + pos, isize);
-        if (usePushColors && frame_buffer == 0) {
-            pushColors(psRAMbuffer1, isize >> 1);
-        }
-        else {
-            WrGRAMs(psRAMbuffer1, isize >> 1);
-        }
-    }
-    else {
-        if (usePushColors && frame_buffer == 0) {
-            pushColors(GCIarray + Index + ofst + pos, isize >> 1);
-        }
-        else {
-            WrGRAMs(GCIarray + Index + ofst + pos, isize >> 1);
-        }
-    }
+	if (GCItype == GCI_SYSTEM_JPEG_USD || GCItype == GCI_SYSTEM_JPEG_FLASH){
+		uint32_t jpegsize = jpegSIZES[jpegOFFSETSpos[ui] + frame];
+		int twO;
+		if (_lastObject != ui ||  _lastFrame != frame){
+			if(GCItype == GCI_SYSTEM_JPEG_USD){
+				twO = DecodeJPEGfromGCJ(jpegOFFSETS[jpegOFFSETSpos[ui] + frame], jpegsize, uiw, uih);
+			} else {
+				twO = DecodeJPEGfromGCJinFlash(jpegOFFSETS[jpegOFFSETSpos[ui] + frame], jpegsize, uiw, uih);
+			}
+		} else {
+			twO = lasttwO;
+		}
+		isize = ((uiw) * uih) << 1;; 
+		SetGRAM(uix, uiy, uix1, uiy1);	
+		if (twO == 0){
+			if (usePushColors && frame_buffer == 0) {
+				pushColors(psRAMbuffer1, isize >> 1);
+			} else {
+				WrGRAMs(psRAMbuffer1, isize >> 1);
+			}
+		} else {
+			uint32_t pos = 0;
+			while (uih --){
+				WrGRAMs(psRAMbuffer1 + pos, uiw);
+				pos += ((uiw + twO) << 1);
+			}
+		}
+		lasttwO = twO;
+		_lastFrame = frame; _lastObject = ui;
+	}
+    if (GCItype == GCI_SYSTEM_USD || GCItype == GCI_SYSTEM_PROGMEM){
+		byte ofst = 6;
+		if (images)
+			ofst = 8;
+		int mul = 2;
+		uint32_t pos;
+		if (cdv == 8)
+			mul = 1;
+		isize = (uiw * uih) << (mul - 1);
+		pos = (isize * frame);
+		SetGRAM(uix, uiy, uix1, uiy1);
+		if (GCItype == GCI_SYSTEM_USD) {
+			GCIreadToBuff(Index + ofst + pos, isize);
+			if (usePushColors && frame_buffer == 0) {
+				pushColors(psRAMbuffer1, isize >> 1);
+			} else {
+				WrGRAMs(psRAMbuffer1, isize >> 1);
+			}
+		} else {
+			if (usePushColors && frame_buffer == 0) {
+				pushColors(GCIarray + Index + ofst + pos, isize >> 1);
+			} else {
+				WrGRAMs(GCIarray + Index + ofst + pos, isize >> 1);
+			}
+		}
+	}
 }
 
 void gfx4desp32::UserImages2image(int16_t ui, int16_t val, int16_t range,
     bool orientation, int16_t gap1,
     int16_t gap2) {
-    if ((GCItype == GCI_SYSTEM_USD && (!userImag)) ||
-        (GCItype == GCI_SYSTEM_PROGMEM && (!gcidatArray)))
+    if ((GCItype == GCI_SYSTEM_USD && (!userImag)) || (GCItype == GCI_SYSTEM_JPEG_USD && (!userImag)) ||
+		(GCItype == GCI_SYSTEM_PROGMEM && (!gcidatArray)) || (GCItype == GCI_SYSTEM_JPEG_FLASH && (!GCIarray)))
         return;
     if (val > range)
         val = range;
@@ -2315,15 +2643,12 @@ void gfx4desp32::UserImages2image(int16_t ui, int16_t val, int16_t range,
 void gfx4desp32::UserImages3image(int16_t ui, int16_t val, int16_t range,
     bool orientation, int16_t gap1, int16_t gap2,
     int32_t tc) {
-    if ((GCItype == GCI_SYSTEM_USD && (!userImag)) ||
-        (GCItype == GCI_SYSTEM_PROGMEM && (!gcidatArray)))
-        return;
+    if ((GCItype == GCI_SYSTEM_USD && (!userImag)) || (GCItype == GCI_SYSTEM_PROGMEM && (!gcidatArray)) || GCItype == GCI_SYSTEM_JPEG_USD || GCItype == GCI_SYSTEM_JPEG_FLASH) return;
     if (val > range)
         val = range;
     if (val < 0)
         val = 0;
     int16_t ui2 = ui + 1;
-
     int pixelRange;
     uint32_t w = tuiw[ui];
     uint32_t h = tuih[ui];
@@ -2449,29 +2774,43 @@ int16_t gfx4desp32::getLastPointerPos() { return LastLinearPointerPosition; }
 */
 /****************************************************************************/
 void gfx4desp32::DrawImageFile(String Fname) {
+	String fnTemp = Fname;
+    fnTemp.toUpperCase();
 #ifndef USE_LITTLEFS_FILE_SYSTEM
 #ifdef USE_SDMMC_FILE_SYSTEM
-    dataFile = SD_MMC.open((char*)Fname.c_str());
+    Fname = "/" + Fname;
+	dataFile = SD_MMC.open((char*)Fname.c_str());
 #else
-    dataFile = uSD.open((char*)Fname.c_str());
+	dataFile = uSD.open((char*)Fname.c_str());
 #endif
 #else
     Fname = "/" + Fname;
-    dataFile = LittleFS.open((char*)Fname.c_str(), "r");
+	dataFile = LittleFS.open((char*)Fname.c_str(), "r");
 #endif
     if (!dataFile)
         return;
     byte ofst = 6;
     int uix = cursor_x;
     int uiy = cursor_y;
-    int uiw = (DATAread() << 8) + DATAread();
-    int uih = (DATAread() << 8) + DATAread();
+	int uiw;
+    int uih;
     uint32_t isize;
+	bool jpegGC;
+    if (fnTemp.indexOf(".JPG") == (fnTemp.length() - 4) || fnTemp.indexOf(".JPEG") == (fnTemp.length() - 5)) {
+		int dmy = DecodeJPEGfromFile(dataFile, 0, 0); // may be padded out
+		jpegGC = true;
+		uiw = JPEGiSize[0];
+		uih = JPEGiSize[1];
+	} else {
+		uiw = (DATAread() << 8) + DATAread();
+		uih = (DATAread() << 8) + DATAread();
+	}
     isize = (uiw * uih) << 1;
     SetGRAM(uix, uiy, uix + uiw - 1, uiy + uih - 1);
-    DATAreadToBuff(ofst, isize);
+    if (jpegGC) DATAreadToBuff(ofst, isize);
     WrGRAMs(psRAMbuffer1, isize >> 1);
     dataFile.close();
+	_lastFrame = -1; _lastObject = -1;
 }
 
 /****************************************************************************/
@@ -2482,29 +2821,7 @@ void gfx4desp32::DrawImageFile(String Fname) {
 */
 /****************************************************************************/
 void gfx4desp32::DrawImageFile(const char* Fname) {
-#ifndef USE_LITTLEFS_FILE_SYSTEM
-#ifdef USE_SDMMC_FILE_SYSTEM
-    dataFile = SD_MMC.open(Fname);
-#else
-    dataFile = uSD.open(Fname);
-#endif
-#else
-    String temp = "/" + String(Fname);
-    dataFile = LittleFS.open((char*)temp.c_str(), "r");
-#endif
-    if (!dataFile)
-        return;
-    byte ofst = 6;
-    int uix = cursor_x;
-    int uiy = cursor_y;
-    int uiw = (DATAread() << 8) + DATAread();
-    int uih = (DATAread() << 8) + DATAread();
-    uint32_t isize;
-    isize = (uiw * uih) << 1;
-    SetGRAM(uix, uiy, uix + uiw - 1, uiy + uih - 1);
-    DATAreadToBuff(ofst, isize);
-    WrGRAMs(psRAMbuffer1, isize >> 1);
-    dataFile.close();
+    DrawImageFile(String(Fname));
 }
 
 /****************************************************************************/
@@ -2567,11 +2884,11 @@ void gfx4desp32::UserImage(uint16_t ui, int altx, int alty) {
     ScrollEnable(false);
     if (altx == 0x7fff && alty == 0x7fff) {
         DrawWidget(tuiIndex[ui], tuix[ui], tuiy[ui], tuiw[ui], tuih[ui], 0, 0,
-            false, cdv[ui]);
+            false, cdv[ui], ui);
     }
     else {
         DrawWidget(tuiIndex[ui], altx, alty, tuiw[ui], tuih[ui], 0, 0, false,
-            cdv[ui]);
+            cdv[ui], ui);
     }
     ScrollEnable(setemp);
 }
@@ -2586,7 +2903,7 @@ void gfx4desp32::UserImage(uint16_t ui, int altx, int alty) {
 */
 /****************************************************************************/
 void gfx4desp32::UserImages(uint16_t uisnb, int16_t framenb) {
-    tuiImageIndex[uisnb] = framenb;
+	tuiImageIndex[uisnb] = framenb;
     boolean setemp = sEnable;
     ScrollEnable(false);
     if (framenb > (gciobjframes[uisnb] - 1) || framenb < 0) {
@@ -2594,7 +2911,7 @@ void gfx4desp32::UserImages(uint16_t uisnb, int16_t framenb) {
     }
     else {
         DrawWidget(tuiIndex[uisnb], tuix[uisnb], tuiy[uisnb], tuiw[uisnb], tuih[uisnb], framenb, 0,
-            true, cdv[uisnb]);
+            true, cdv[uisnb], uisnb);
     }
     ScrollEnable(setemp);
 }
@@ -2604,11 +2921,11 @@ void gfx4desp32::imageShow(uint16_t uisnb) {
     ScrollEnable(false);
     if (gciobjframes[uisnb] > 0) {
         DrawWidget(tuiIndex[uisnb], tuix[uisnb], tuiy[uisnb], tuiw[uisnb], tuih[uisnb], tuiImageIndex[uisnb], 0,
-            true, cdv[uisnb]);
+            true, cdv[uisnb], uisnb);
     }
     else {
         DrawWidget(tuiIndex[uisnb], tuix[uisnb], tuiy[uisnb], tuiw[uisnb], tuih[uisnb], 0, 0,
-            false, cdv[uisnb]);
+            false, cdv[uisnb], uisnb);
     }
     ScrollEnable(setemp);
 }
@@ -2635,7 +2952,7 @@ void gfx4desp32::UserImages(uint16_t uis, int16_t frame, int offset,
     }
     else {
         DrawWidget(tuiIndex[uis], altx, alty, tuiw[uis], tuih[uis], frame, offset,
-            true, cdv[uis]);
+            true, cdv[uis], uis);
     }
     ScrollEnable(setemp);
 }
@@ -2794,7 +3111,7 @@ void gfx4desp32::UserImages(uint16_t uisnb, int16_t framenb, int16_t newx,
     }
     else {
         DrawWidget(tuiIndex[uisnb], newx, newy, tuiw[uisnb], tuih[uisnb], framenb,
-            0, true, cdv[uisnb]);
+            0, true, cdv[uisnb], uisnb);
     }
     ScrollEnable(setemp);
 }
@@ -2818,7 +3135,7 @@ void gfx4desp32::UserImages(uint16_t uis, int16_t frame, int offset) {
     }
     else {
         DrawWidget(tuiIndex[uis], tuix[uis], tuiy[uis], tuiw[uis], tuih[uis], frame,
-            offset, true, cdv[uis]);
+            offset, true, cdv[uis], uis);
     }
     ScrollEnable(setemp);
 }
@@ -2850,64 +3167,87 @@ void gfx4desp32::UserImagesDR(uint16_t uino, int frames, int16_t uxpos,
         uwidth = tuiw[uino] - uxpos;
     if (uypos + uheight > tuih[uino])
         uheight = tuih[uino] - uypos;
-    if ((GCItype == GCI_SYSTEM_USD && !userImag) ||
-        (GCItype == GCI_SYSTEM_PROGMEM && (!gcidatArray)))
+    if ((GCItype == GCI_SYSTEM_USD && (!userImag)) || (GCItype == GCI_SYSTEM_JPEG_USD && (!userImag)) ||
+		(GCItype == GCI_SYSTEM_PROGMEM && (!gcidatArray)) || (GCItype == GCI_SYSTEM_JPEG_FLASH && (!GCIarray)))
         return;
-    uint32_t isize = tuiw[uino] * tuih[uino];
-    uint32_t isize2 = uwidth * uheight;
-    int16_t wuid = uwidth;
-    int16_t huid = uheight;
-    uint32_t pos;
-    uint32_t uoff;
-    int16_t x0 = 0;
-    int16_t y0 = 0;
-    int16_t x1 = 0;
-    int16_t y1 = 0;
-    pos = (isize * frames) << 1;
-    uoff = ((uypos * tuiw[uino]) + uxpos) << 1;
-    bgoff = tuiIndex[uino] + 8 + pos + uoff + 0;
-    if (frames > (gciobjframes[uino] - 1) || frames < 0) {
-        outofrange(tuix[uino] + uxpos, tuiy[uino] + uypos, uwidth, uheight);
-        ScrollEnable(setemp);
-        return;
-    }
-    x0 = tuix[uino] + uxpos;
-    y0 = tuiy[uino] + uypos;
-    x1 = tuix[uino] + uxpos + uwidth - 1;
-    y1 = tuiy[uino] + uypos + huid - 1;
-    usePushColors = (DisplayType == DISP_INTERFACE_RGB) && (x0 >= clipx1) &&
-        (y0 >= clipy1) && (x1 <= clipx2) && (y1 <= clipy2) &&
-        (!transalpha) && (!WriteFBonly) && (frame_buffer == 0);
-    SetGRAM(x0, y0, x1, y1);
-    GCIseek(bgoff);
-    uint32_t p = 0;
-    while (huid--) {
-        if (GCItype == GCI_SYSTEM_USD) {
-            GCIreadToBuf(p, wuid << 1);
-            p += (wuid << 1);
-            bgoff += (tuiw[uino] << 1);
-            GCIseek(bgoff);
+    if (GCItype == GCI_SYSTEM_JPEG_USD || GCItype == GCI_SYSTEM_JPEG_FLASH){
+		int twO; 
+		uint32_t jpegsize;
+		if (_lastObject != uino || _lastFrame != frames){
+	        jpegsize = jpegSIZES[jpegOFFSETSpos[uino] + frames];
+			if(GCItype != GCI_SYSTEM_JPEG_USD){
+				twO = DecodeJPEGfromGCJinFlash(jpegOFFSETS[jpegOFFSETSpos[uino] + frames], jpegsize, tuiw[uino], tuiw[uino], 0);
+			} else {
+				twO = DecodeJPEGfromGCJ(jpegOFFSETS[jpegOFFSETSpos[uino] + frames], jpegsize, tuiw[uino], tuiw[uino], 0);
+			}
+			if (twO == 16) twO = 0;
+			_lastFrame = frames; _lastObject = uino;
+		} else {
+			twO = lasttwO;
+		}
+		lasttwO = twO;
+		int th1 = uheight;
+		uint32_t pos = (((tuiw[uino] + twO) * uypos) + uxpos) << 1;
+		SetGRAM (uxpos + tuix[uino], uypos + tuiy[uino], uxpos + tuix[uino] + uwidth - 1, uypos + tuiy[uino] + uheight - 1);
+		while(th1--){
+			WrGRAMs(psRAMbuffer1 + pos, uwidth);
+			pos += (tuiw[uino] + twO) << 1;
+		}
+	} else {
+	    uint32_t isize = tuiw[uino] * tuih[uino];
+        uint32_t isize2 = uwidth * uheight;
+        int16_t wuid = uwidth;
+        int16_t huid = uheight;
+        uint32_t pos;
+        uint32_t uoff;
+        int16_t x0 = 0;
+        int16_t y0 = 0;
+        int16_t x1 = 0;
+        int16_t y1 = 0;
+        pos = (isize * frames) << 1;
+        uoff = ((uypos * tuiw[uino]) + uxpos) << 1;
+        bgoff = tuiIndex[uino] + 8 + pos + uoff + 0;
+        if (frames > (gciobjframes[uino] - 1) || frames < 0) {
+            outofrange(tuix[uino] + uxpos, tuiy[uino] + uypos, uwidth, uheight);
+            ScrollEnable(setemp);
+            return;
+        }
+        x0 = tuix[uino] + uxpos;
+        y0 = tuiy[uino] + uypos;
+        x1 = tuix[uino] + uxpos + uwidth - 1;
+        y1 = tuiy[uino] + uypos + huid - 1;
+        usePushColors = (DisplayType == DISP_INTERFACE_RGB) && (x0 >= clipx1) &&
+            (y0 >= clipy1) && (x1 <= clipx2) && (y1 <= clipy2) &&
+            (!transalpha) && (!WriteFBonly) && (frame_buffer == visibleFB);
+        SetGRAM(x0, y0, x1, y1);
+        GCIseek(bgoff);
+        uint32_t p = 0;
+        while (huid--) {
+            if (GCItype == GCI_SYSTEM_USD) {
+                GCIreadToBuf(p, wuid << 1);
+                p += (wuid << 1);
+                bgoff += (tuiw[uino] << 1);
+                GCIseek(bgoff);
 
-        }
-        else {
-            if (usePushColors && frame_buffer == 0) {
-                pushColors(GCIarray + bgoff, wuid);
+            } else {
+               if (usePushColors && frame_buffer == visibleFB) {
+                   pushColors(GCIarray + bgoff, wuid);
+               } else {
+                   WrGRAMs(GCIarray + bgoff, wuid);
+               }
+               bgoff += (tuiw[uino] << 1);
             }
-            else {
-                WrGRAMs(GCIarray + bgoff, wuid);
+        }
+        if (GCItype == GCI_SYSTEM_USD) {
+            if (usePushColors && frame_buffer == visibleFB) {
+                pushColors(psRAMbuffer1, isize2);
+            } else {
+                WrGRAMs(psRAMbuffer1, isize2);
             }
-            bgoff += (tuiw[uino] << 1);
         }
-    }
-    if (GCItype == GCI_SYSTEM_USD) {
-        if (usePushColors && frame_buffer == 0) {
-            pushColors(psRAMbuffer1, isize2);
-        }
-        else {
-            WrGRAMs(psRAMbuffer1, isize2);
-        }
-    }
-    ScrollEnable(setemp);
+        _lastFrame = -1; _lastObject = -1;
+	}
+	ScrollEnable(setemp);
 }
 
 /****************************************************************************/
@@ -2943,47 +3283,68 @@ void gfx4desp32::PrintImage(uint16_t ui) {
     }
     if (cursor_y > (height - 1))
         return;
-    if ((GCItype == GCI_SYSTEM_USD && !userImag) ||
-        (GCItype == GCI_SYSTEM_PROGMEM && (!gcidatArray)))
+    if ((GCItype == GCI_SYSTEM_USD && (!userImag)) || (GCItype == GCI_SYSTEM_JPEG_USD && (!userImag)) ||
+		(GCItype == GCI_SYSTEM_PROGMEM && (!gcidatArray))/* || (GCItype == GCI_SYSTEM_JPEG_FLASH && (!GCIarray))*/)
         return;
     uint16_t iwidth = tuiw[ui];
     uint16_t iheight = tuih[ui];
     uint8_t mul = cdv[ui] / 8;
     uint32_t pos = tuiIndex[ui] + 6;
-    GCIseek(pos);
+	int twO;
+    bool jpegGC = (GCItype == GCI_SYSTEM_JPEG_USD) || (GCItype == GCI_SYSTEM_JPEG_FLASH);
+	if (jpegGC) {
+		pos = 0;
+		uint32_t jpegsize = jpegSIZES[jpegOFFSETSpos[ui]];
+		if(_lastObject != ui || _lastFrame != 0){
+			if(GCItype == GCI_SYSTEM_JPEG_USD){
+				twO = DecodeJPEGfromGCJ(jpegOFFSETS[jpegOFFSETSpos[ui]], jpegsize, iwidth, iheight);
+			} else {
+				twO = DecodeJPEGfromGCJinFlash(jpegOFFSETS[jpegOFFSETSpos[ui]], jpegsize, iwidth, iheight);
+			}
+		}
+		_lastFrame = 0; _lastObject = ui;
+	} else {
+		GCIseek(pos);
+	}
     uint16_t ichunk = iwidth << (mul - 1);
-    uint8_t buf[width << (mul - 1)];
-    if (sEnable == false) {
-        if (((cursor_y + iheight) - 1) > height - 1)
-            iheight = iheight - ((cursor_y + iheight) - height);
-    }
-    boolean off = false;
-    int cuiw = iwidth;
-    if ((cursor_x + iwidth - 1) >= width) {
-        cuiw = iwidth - ((cursor_x + iwidth - 1) - width) - 1;
-        off = true;
-    }
-    for (int idraw = 0; idraw < iheight; idraw++) {
-        nl = true;
-        newLine(1, 1, cursor_x);
-        if ((cursor_y - 1) < 0) {
-            setGRAM(cursor_x, cursor_y + height - 1, cursor_x + cuiw - 1,
-                cursor_y + height - 1);
-        }
-        else {
-            setGRAM(cursor_x, cursor_y - 1, cursor_x + cuiw - 1, cursor_y - 1);
-        }
-        if (off) {
-            GCIread(buf, cuiw << (mul - 1));
-            WrGRAMs(buf, cuiw);
-            pos = pos + (iwidth << (mul - 1));
-            GCIseek(pos);
-        }
-        else {
-            GCIread(buf, ichunk);
-            WrGRAMs(buf, ichunk >> 1);
-        }
-    }
+	if (sEnable == false) {
+		if (((cursor_y + iheight) - 1) > height - 1)
+			iheight = iheight - ((cursor_y + iheight) - height);
+	}
+	boolean off = false;
+	int cuiw = iwidth;
+	if ((cursor_x + iwidth - 1) >= width) {
+		cuiw = iwidth - ((cursor_x + iwidth - 1) - width) - 1;
+		off = true;
+	}
+	for (int idraw = 0; idraw < iheight; idraw++) {
+		nl = true;
+		newLine(1, 1, cursor_x);
+		if ((cursor_y - 1) < 0) {
+			setGRAM(cursor_x, cursor_y + height - 1, cursor_x + cuiw - 1, cursor_y + height - 1);
+		} else {
+			setGRAM(cursor_x, cursor_y - 1, cursor_x + cuiw - 1, cursor_y - 1);
+		}
+		if (off) {
+			if (jpegGC){
+				WrGRAMs(psRAMbuffer1 + pos, cuiw << 0);
+				pos = pos + ((iwidth + twO) << 1);
+			} else {
+				GCIread(buff, cuiw << (mul - 1));
+				WrGRAMs(buff, cuiw);
+				pos = pos + (iwidth << (mul - 1));
+				GCIseek(pos);
+			}
+		} else {
+			if (jpegGC){
+				WrGRAMs(psRAMbuffer1 + pos, tuiw[ui]);
+				pos += ((tuiw[ui] + twO) << 1);
+			} else {
+				GCIread(buff, ichunk);
+				WrGRAMs(buff, ichunk >> 1);
+			}
+		}
+	}
     if (tempnl) {
         nl = true;
         lastfsh = 1;
@@ -3013,39 +3374,55 @@ void gfx4desp32::UserImageDR(uint16_t ui, int16_t uxpos, int16_t uypos,
         return;
     ScrollEnable(false);
     uint32_t bgoff;
-    if ((GCItype == GCI_SYSTEM_USD && !userImag) ||
-        (GCItype == GCI_SYSTEM_PROGMEM && (!gcidatArray)))
+    if ((GCItype == GCI_SYSTEM_USD && (!userImag)) || (GCItype == GCI_SYSTEM_JPEG_USD && (!userImag)) ||
+		(GCItype == GCI_SYSTEM_PROGMEM && (!gcidatArray)) || (GCItype == GCI_SYSTEM_JPEG_FLASH && (!GCIarray)))
         return;
     if (uxpos + uwidth > tuiw[ui])
         uwidth = tuiw[ui] - uxpos;
     if (uypos + uheight > tuih[ui])
         uheight = tuih[ui] - uypos;
-    uint32_t isize2 = uwidth * uheight;
-    uint32_t p = 0;
-    uint32_t uoff;
-    uoff = ((uypos * tuiw[ui]) + uxpos) << 1;
-    bgoff = tuiIndex[ui] + 6 + uoff + 0;
-    GCIseek(bgoff);
-    uint32_t ichunk = isize2 << 1;
-    uint16_t steps;
-    int bufsize = uwidth << 1;
-    SetGRAM(uix, uiy, uix + uwidth - 1, uiy + uheight - 1);
-    uint32_t fgap = tuiw[ui] << 1;
-    steps = ichunk / bufsize;
-    while (steps--) {
-        if (GCItype == GCI_SYSTEM_USD) {
-            GCIreadToBuf(p, bufsize);
-            p += bufsize;
-            bgoff = bgoff + fgap;
-            GCIseek(bgoff);
+    if (GCItype == GCI_SYSTEM_JPEG_USD || GCItype == GCI_SYSTEM_JPEG_FLASH){
+		int twO; 
+		int frame = 0;
+		uint32_t out_size = 0;
+		uint32_t jpegsize;
+	    twO = DecodeJpeg(ui, 0);
+		if (twO == 16) twO = 0;
+		lasttwO = twO;
+		//twO = 0;
+		int th1 = uheight;
+		uint32_t pos = (((tuiw[ui] + twO) * uypos) + uxpos) << 1;
+		SetGRAM (uix, uiy, uix + uwidth - 1, uiy + uheight - 1);
+		while(th1--){
+			WrGRAMs(psRAMbuffer1 + pos, uwidth);
+			pos += (tuiw[ui] + twO) << 1;
+		}
+	} else {
+	    uint32_t isize2 = uwidth * uheight;
+        uint32_t p = 0;
+        uint32_t uoff;
+        uoff = ((uypos * tuiw[ui]) + uxpos) << 1;
+        bgoff = tuiIndex[ui] + 6 + uoff + 0;
+        GCIseek(bgoff);
+        uint32_t ichunk = isize2 << 1;
+        uint16_t steps;
+        int bufsize = uwidth << 1;
+        SetGRAM(uix, uiy, uix + uwidth - 1, uiy + uheight - 1);
+        uint32_t fgap = tuiw[ui] << 1;
+        steps = ichunk / bufsize;
+        while (steps--) {
+            if (GCItype == GCI_SYSTEM_USD) {
+                GCIreadToBuf(p, bufsize);
+                p += bufsize;
+                bgoff = bgoff + fgap;
+                GCIseek(bgoff);
+            } else {
+                WrGRAMs(GCIarray + bgoff, uwidth);
+                bgoff += fgap;
+            }
         }
-        else {
-            WrGRAMs(GCIarray + bgoff, uwidth);
-            bgoff += fgap;
-        }
-    }
-    if (GCItype == GCI_SYSTEM_USD)
-        WrGRAMs(psRAMbuffer1, p >> 1);
+        if (GCItype == GCI_SYSTEM_USD) WrGRAMs(psRAMbuffer1, p >> 1);
+	}
 }
 
 void gfx4desp32::UserImageDRcache(uint16_t ui, int16_t uxpos, int16_t uypos,
@@ -3062,6 +3439,7 @@ void gfx4desp32::UserImageDRcache(uint16_t ui, int16_t uxpos, int16_t uypos,
     if ((GCItype == GCI_SYSTEM_USD && !userImag) ||
         (GCItype == GCI_SYSTEM_PROGMEM && (!gcidatArray)))
         return;
+	if (GCItype == GCI_SYSTEM_JPEG_USD || GCItype == GCI_SYSTEM_JPEG_FLASH) return;  
     if (!cache_Enabled) {
         AllocateDRcache(DRcache);
         //psRAMbuffer2 = (uint8_t*)ps_malloc(DRcache);
@@ -5324,20 +5702,59 @@ uint8_t gfx4desp32::GetFrameBuffer() {
   @note returns 16bit colour value.
 */
 /****************************************************************************/
+
 uint16_t gfx4desp32::ReadImagePixel(int inum, int x, int y) {
-    if ((GCItype == GCI_SYSTEM_USD && (!userImag)) ||
-        (GCItype == GCI_SYSTEM_PROGMEM && (!gcidatArray)))
+    if ((GCItype == GCI_SYSTEM_USD && (!userImag)) || (GCItype == GCI_SYSTEM_JPEG_USD && (!userImag)) ||
+		(GCItype == GCI_SYSTEM_PROGMEM && (!gcidatArray)) || (GCItype == GCI_SYSTEM_JPEG_FLASH && (!GCIarray)))
         return 0;
     int yc = y - tuiy[inum];
     int xc = x - tuix[inum];
     if (y < tuiy[inum] || x < tuix[inum]) return 0;
     if (y > tuiy[inum] + tuih[inum] - 1 || x > tuix[inum] + tuiw[inum] - 1) return 0;
-    uint32_t ofst = 6;
-    ofst += ((gciobjframes[inum] > 0) << 1);
-    uint32_t pos = ((yc * tuiw[inum]) << 1) + (xc << 1);
-    if (ofst == 8) ofst += (((tuiw[inum] * tuih[inum]) * tuiImageIndex[inum]) << 1);
-    GCIreadToBuff(tuiIndex[inum] + ofst + pos, 2);
-    return psRAMbuffer1[1] + (psRAMbuffer1[0] << 8);
+    int fr =  tuiImageIndex[inum];
+	if (gciobjframes[inum] == 1) fr = 0;
+	if (GCItype == GCI_SYSTEM_JPEG_USD || GCItype == GCI_SYSTEM_JPEG_FLASH){
+		int twO = DecodeJpeg(inum, fr); 
+		uint32_t pos = ((yc * (tuiw[inum] + twO)) << 1) + (xc << 1);
+		return psRAMbuffer1[pos + 1] + (psRAMbuffer1[pos] << 8);
+	} else {
+		uint32_t ofst = 6;
+		ofst += ((gciobjframes[inum] > 0) << 1);
+		uint32_t pos = ((yc * tuiw[inum]) << 1) + (xc << 1);
+		if (ofst == 8) ofst += (((tuiw[inum] * tuih[inum]) * tuiImageIndex[inum]) << 1);
+		GCIreadToBuff(tuiIndex[inum] + ofst + pos, 2);
+		return psRAMbuffer1[1] + (psRAMbuffer1[0] << 8);
+	}
+	return 0;
+}
+
+/****************************************************************************/
+/*!
+  @brief  Decode a JPEG object in opened GCJ.
+  @param  ui - GCJ object index.
+  @param  frame - individual frame of GCJ object 
+  @note returns the decoded difference in width value .
+*/
+/****************************************************************************/
+int gfx4desp32::DecodeJpeg(uint16_t ui, uint16_t frame){
+	int twO; 
+	uint32_t out_size = 0;
+	uint32_t jpegsize;
+	if (gciobjframes[ui] == 1) frame = 0;
+	if (_lastObject != ui || _lastFrame != frame){
+	    jpegsize = jpegSIZES[jpegOFFSETSpos[ui] + frame];
+		if(GCItype == GCI_SYSTEM_JPEG_USD){
+			twO = DecodeJPEGfromGCJ(jpegOFFSETS[jpegOFFSETSpos[ui] + frame], jpegsize, tuiw[ui], tuih[ui]);
+		} else {
+			twO = DecodeJPEGfromGCJinFlash(jpegOFFSETS[jpegOFFSETSpos[ui] + frame], jpegsize, tuiw[ui], tuih[ui]);
+		}
+		if (twO == 16) twO = 0;
+	} else {
+		twO = lasttwO;
+	}
+	_lastObject = ui; _lastFrame = frame;
+	lasttwO = twO;
+	return twO;
 }
 
 /****************************************************************************/
@@ -5350,6 +5767,7 @@ uint16_t gfx4desp32::ReadImagePixel(int inum, int x, int y) {
   @note returns nothing.
 */
 /****************************************************************************/
+
 void gfx4desp32::CopyImageLine(int inum, int x, int y, int w) {
     if (y > tuiy[inum] + tuih[inum] - 1 || y < 0)
         return;
@@ -5364,29 +5782,41 @@ void gfx4desp32::CopyImageLine(int inum, int x, int y, int w) {
         w += x;
         x = 0;
     }
-    //if ((x + w - 1) >= tuix[inum] + tuiw[inum] - 1)
-    //    w = tuiw[inum] - x;
     int yc = y - tuiy[inum];
     int xc = x - tuix[inum];
-    if ((GCItype == GCI_SYSTEM_USD && (!userImag)) ||
-        (GCItype == GCI_SYSTEM_PROGMEM && (!gcidatArray)))
+    int fr =  tuiImageIndex[inum];
+	if (gciobjframes[inum] == 1) fr = 0;
+	 if ((GCItype == GCI_SYSTEM_USD && (!userImag)) || (GCItype == GCI_SYSTEM_JPEG_USD && (!userImag)) ||
+		(GCItype == GCI_SYSTEM_PROGMEM && (!gcidatArray)) || (GCItype == GCI_SYSTEM_JPEG_FLASH && (!GCIarray)))
         return;
-    uint32_t ofst = 6;
-    ofst += ((gciobjframes[inum] > 0) << 1);
-    uint32_t pos = ((yc * tuiw[inum]) << 1) + (xc << 1);
-    if (ofst == 8) ofst += (((tuiw[inum] * tuih[inum]) * tuiImageIndex[inum]) << 1);
-    GCIreadToBuff(tuiIndex[inum] + ofst + pos, w << 1);
-    usePushColors = (DisplayType == DISP_INTERFACE_RGB) && (x >= clipx1) &&
-        (y >= clipy1) && (x + w <= clipx2) && (y <= clipy2) &&
-        (!transalpha) && (!WriteFBonly) && (frame_buffer == 0);
-    SetGRAM(x, y, x + w - 1, y + 1);
-    //  if (GCItype == GCI_SYSTEM_USD) {
-    if (usePushColors) {
-        pushColors(psRAMbuffer1, w);
-    }
-    else {
-        WrGRAMs(psRAMbuffer1, w);
-    }
+	if (GCItype == GCI_SYSTEM_JPEG_USD || GCItype == GCI_SYSTEM_JPEG_FLASH){
+		int twO;
+		twO = DecodeJpeg(inum, fr);
+		uint32_t pos = ((yc * (tuiw[inum] + twO)) + xc) << 1;
+		SetGRAM(x, y, x + w - 1, y + 1);
+		usePushColors = (x >= clipx1) && (y >= clipy1) && (x + w <= clipx2) && (y <= clipy2) &&
+			(!transalpha) && (!WriteFBonly) && (frame_buffer == visibleFB);
+		SetGRAM(x, y, x + w - 1, y + 1);
+		if (usePushColors) {
+			pushColors(psRAMbuffer1 + pos, w);
+		} else {
+			WrGRAMs(psRAMbuffer1 + pos, w);
+		}
+	} else {
+		uint32_t ofst = 6;
+		ofst += ((gciobjframes[inum] > 0) << 1);
+		uint32_t pos = ((yc * tuiw[inum]) << 1) + (xc << 1);
+		if (ofst == 8) ofst += (((tuiw[inum] * tuih[inum]) * tuiImageIndex[inum]) << 1);
+		GCIreadToBuff(tuiIndex[inum] + ofst + pos, w << 1);
+		usePushColors = (x >= clipx1) && (y >= clipy1) && (x + w <= clipx2) && (y <= clipy2) &&
+			(!transalpha) && (!WriteFBonly) && (frame_buffer == visibleFB);
+		SetGRAM(x, y, x + w - 1, y + 1);
+		if (usePushColors) {
+			pushColors(psRAMbuffer1, w);
+		} else {
+			WrGRAMs(psRAMbuffer1, w);
+		}
+	}
 }
 
 /****************************************************************************/
@@ -5496,16 +5926,18 @@ void gfx4desp32::RectangleFilledX(int x0, int y0, int x1, int y1, int32_t color)
         DrawFrameBufferArea(fB, x0, y0, x1, y1);
     }
     else if (imageNum != -1) {
-        ClipWindow(x0, y0, x1, y1);
+        /*
+		ClipWindow(x0, y0, x1, y1);
         int tclipx1, tclipy1, tclipx2, tclipy2;
         bool tclippingON = clippingON;
         tclipx1 = clipx1; tclipy1 = clipy1; tclipx2 = clipx2; tclipy2 = clipy2;
         Clipping(ON);
         imageShow(imageNum);
-        //UserImage(imageNum/*, imageGetWord(imageNum, IMAGE_INDEX)*/);
+        //UserImage(imageNum, imageGetWord(imageNum, IMAGE_INDEX));
         if (!tclippingON) Clipping(OFF);
         clipx1 = tclipx1; clipy1 = tclipy1; clipx2 = tclipx2; clipy2 = tclipy2;
-        //UserImageDR(imageNum, x0, y0, w, h, x0, y0);
+        */
+		UserImageDR(imageNum, x0, y0, w, h + 1, x0, y0);
     }
     else {
         RectangleFilled(x0, y0, x1, y1, color);
@@ -5973,10 +6405,24 @@ void gfx4desp32::Opacity(bool opacity) {
     }
 }
 
+/*************************************************************************************************************/
+/*!
+  @brief  Print a string at current cursor position 
+  @param  strg - string to be written at XY position. Cursor pos is moved to end of string position
+*/
+/*************************************************************************************************************/
 void gfx4desp32::putstr(String strg) { print(strg); }
 
 void gfx4desp32::putstr(const char* strg) { print(strg); }
 
+/*************************************************************************************************************/
+/*!
+  @brief  Print a constant string at XY location 
+  @param  xpos - X position of String
+  @param  ypos - Y position of String
+  @param  strg - string to be written at XY position. Cursor pos is moved to end of string position
+*/
+/*************************************************************************************************************/
 void gfx4desp32::putstrXY(int xpos, int ypos, String strg) {
     MoveTo(xpos, ypos);
     print(strg);
@@ -5987,11 +6433,29 @@ void gfx4desp32::putstrXY(int xpos, int ypos, const char* strg) {
     print(strg);
 }
 
+/*************************************************************************************************************/
+/*!
+  @brief  Print a centered string at XY location 
+  @param  xpos - X as axis for center of printed string
+  @param  ypos - Y as axis for center of printed string
+  @param  strg - string to be printed. Cursor is moved to end of centered text
+*/
+/*************************************************************************************************************/
 void gfx4desp32::putstrCenteredXY(int xpos, int ypos, String strg) {
 	MoveTo(xpos - (strWidth(strg) >> 1), ypos - (fsh >> 1));
     print(strg);
 }
 
+/*************************************************************************************************************/
+/*!
+  @brief  Print a centered string at a angular location 
+  @param  xpos - X as axis for angular location
+  @param  ypos - Y as axis for angular location
+  @param  ang - angle 0 to 359
+  @param  radius - radius from XY axis
+  @param  strg - string to be printed. Cursor is moved to end of centered text
+*/
+/*************************************************************************************************************/
 void gfx4desp32::putstrAngularXY(int xpos, int ypos, int ang, int radius, String strg) {
 	int xy1[2];
 	int curX = cursor_x; int curY = cursor_y;
@@ -6002,8 +6466,22 @@ void gfx4desp32::putstrAngularXY(int xpos, int ypos, int ang, int radius, String
 	cursor_y = curY; cursor_x = curX;
 }
 
+/****************************************************************************/
+/*!
+  @brief  Write a character at the current cursor position
+  @param  chr - character to write
+*/
+/****************************************************************************/
 void gfx4desp32::putch(char chr) { write(chr); }
 
+/****************************************************************************/
+/*!
+  @brief  write a character at x, y co-ordinate
+  @param  xpos - x co-ordinate
+  @param  ypos - y co-ordinate
+  @param  chr - character to write
+*/
+/****************************************************************************/
 void gfx4desp32::putchXY(int xpos, int ypos, char chr) {
     MoveTo(xpos, ypos);
     write(chr);
@@ -6302,39 +6780,54 @@ void gfx4desp32::Download(String Address, uint16_t port, String hfile,
 #endif
 }
 #endif
+
 void gfx4desp32::PrintImageFile(String ifile) {
     if (cursor_x >= textXmax /*(width - 1)*/)
         return;
     boolean tempnl = false;
+	bool jpegGC = false;
     if (nl) {
         tempnl = true;
         newLine(lastfsh, textsizeht, textXmin);
     }
     if (cursor_y > (height - 1) && (sEnable == false))
         return;
+	String fnTemp = ifile;
+    fnTemp.toUpperCase();
 #ifndef USE_LITTLEFS_FILE_SYSTEM
 #ifdef USE_SDMMC_FILE_SYSTEM
-    dataFile = SD_MMC.open("/" + ifile);
+	dataFile = SD_MMC.open("/" + ifile);
 #else
-    dataFile = uSD.open(ifile);
+	dataFile = uSD.open(ifile);
 #endif
 #else
-    ifile = "/" + ifile;
-    dataFile = LittleFS.open((char*)ifile.c_str(), "r");
+	ifile = "/" + ifile;
+	dataFile = LittleFS.open((char*)ifile.c_str(), "r");
 #endif
-    if (!dataFile)
-        return;
-    if (DATAsize() < 6)
-        return;
-    Piwidth = (DATAread() << 8);
-    Piwidth = Piwidth + DATAread();
-    Piheight = (DATAread() << 8);
-    Piheight = Piheight + DATAread();
-    uint8_t mul = DATAread() / 8;
-    DATAread(); // dummy read to move pointer
-    uint32_t pos = 6;
-    uint16_t ichunk = Piwidth << (mul - 1);
-    uint8_t buf[width << (mul - 1)];
+	if (!dataFile)
+		return;
+	if (DATAsize() < 6)
+		return;
+	uint8_t mul;
+	uint32_t pos;
+	uint16_t ichunk;
+	if (fnTemp.indexOf(".JPG") == (fnTemp.length() - 4) || fnTemp.indexOf(".JPEG") == (fnTemp.length() - 5)) {
+		int dmy = DecodeJPEGfromFile(dataFile, 0, 0); // may be padded out
+		_lastFrame = -1; _lastObject = -1;
+		jpegGC = true;
+		pos = 0;
+		Piwidth = JPEGiSize[0];
+		Piheight = JPEGiSize[1];
+	} else {
+		Piwidth = (DATAread() << 8);
+		Piwidth = Piwidth + DATAread();
+		Piheight = (DATAread() << 8);
+		Piheight = Piheight + DATAread();
+		mul = DATAread() / 8;
+		DATAread(); // dummy read to move pointer
+		pos = 6;
+		ichunk = Piwidth << (mul - 1);
+	}
     if (sEnable == false) {
         if (((cursor_y + Piheight) - 1) > height - 1) {
             Piheight = Piheight - ((cursor_y + Piheight) - height);
@@ -6357,20 +6850,32 @@ void gfx4desp32::PrintImageFile(String ifile) {
             setGRAM(cursor_x, cursor_y - 1, cursor_x + cuiw - 1, cursor_y - 1);
         }
         if (off) {
-            DATAread(buf, cuiw << (mul - 1));
-            WrGRAMs(buf, cuiw << (mul - 1));
-            pos = pos + (Piwidth << (mul - 1));
-            DATAseek(pos);
+            if (jpegGC){
+				WrGRAMs(psRAMbuffer1 + pos, cuiw << 0);
+				pos = pos + (Piwidth << 1);
+			} else {
+				DATAread(buff, cuiw << (mul - 1));
+				WrGRAMs(buff, cuiw << (mul - 1));
+				pos = pos + (Piwidth << (mul - 1));
+				DATAseek(pos);
+			}
         }
         else {
-            DATAread(buf, ichunk);
-            WrGRAMs(buf, ichunk);
+            if (jpegGC){
+				WrGRAMs(psRAMbuffer1 + pos, Piwidth);
+				pos += (Piwidth << 1);
+			} else {
+				DATAread(buff, ichunk);
+				WrGRAMs(buff, ichunk);
+			}
         }
     }
     if (tempnl) {
         nl = true;
         lastfsh = 1;
     }
+	dataFile.close();
+	_lastFrame = -1; _lastObject = -1;
 }
 
 void gfx4desp32::UserCharacterBG(uint32_t* data, uint8_t ucsize, int16_t ucx,
@@ -6606,7 +7111,14 @@ void gfx4desp32::GCIread(uint8_t* dest, uint32_t len) {
     case GCI_SYSTEM_USD:
         userImag.read(dest, len);
         break;
+	case GCI_SYSTEM_JPEG_USD:
+		userImag.read(dest, len);
+        break;
     case GCI_SYSTEM_PROGMEM:
+        memcpy(dest, GCIarray + gciArrayPos, len);
+        gciArrayPos += len;
+        break;
+	case GCI_SYSTEM_JPEG_FLASH:
         memcpy(dest, GCIarray + gciArrayPos, len);
         gciArrayPos += len;
         break;
@@ -6652,7 +7164,13 @@ void gfx4desp32::GCIseek(uint32_t Index) {
     case GCI_SYSTEM_USD:
         userImag.seek(Index);
         break;
+	case GCI_SYSTEM_JPEG_USD:
+		userImag.seek(Index);
+        break;
     case GCI_SYSTEM_PROGMEM:
+        gciArrayPos = Index;
+        break;
+	case GCI_SYSTEM_JPEG_FLASH:
         gciArrayPos = Index;
         break;
     }
@@ -6672,6 +7190,13 @@ void gfx4desp32::Open4dGFX(const uint8_t* DATa, uint32_t DATlen,
     Open4dGFX("gfx4dDummy");
 }
 
+void gfx4desp32::Open4dGFX(const uint8_t* JPEGa, uint32_t FLsize) {
+    GCIarray = JPEGa;
+    gciArraySize = FLsize;
+    //GCItype = GCI_SYSTEM_JPEG_FLASH;
+	_Open4dGFXjpeg("", GCI_SYSTEM_JPEG_FLASH); 
+}
+
 void gfx4desp32::UserImageHide(int hndl) { UserImageHide(hndl, BLACK); }
 
 void gfx4desp32::UserImageHide(int hndl, uint16_t color) {
@@ -6679,7 +7204,7 @@ void gfx4desp32::UserImageHide(int hndl, uint16_t color) {
         RectangleFilled(tuix[hndl], tuiy[hndl], tuiw[hndl], tuih[hndl], color);
     }
     else {
-        for (int n = 0; n < MAX_WIDGETS; n++) {
+        for (int n = 0; n < gciobjnum; n++) {
             RectangleFilled(tuix[n], tuiy[n], tuiw[n], tuih[n], color);
         }
     }
@@ -6691,7 +7216,7 @@ void gfx4desp32::UserImageHideBG(int hndl, int objBG) {
             tuix[hndl], tuiy[hndl]);
     }
     else {
-        for (int n = 0; n < MAX_WIDGETS; n++) {
+        for (int n = 0; n < gciobjnum; n++) {
             UserImageDR(objBG, tuix[n], tuiy[n], tuiw[n], tuih[n], tuix[n], tuiy[n]);
         }
     }
@@ -6779,7 +7304,7 @@ void gfx4desp32::LineAA(float xpos1, float ypos1, float xpos2, float ypos2, floa
         }
         if (Count > 0) {
             if (Count == 1 && cxofst == 0) {
-                PutPixelAlpha(srtCount, cy, fgcol, 255);
+                PutPixelAlpha(srtCount, cy, fgcol, alpha * lineAAparam0);
             }
             else {
                 WriteLine(srtCount + cxofst, cy, Count, linebuff);
@@ -6832,7 +7357,7 @@ void gfx4desp32::LineAA(float xpos1, float ypos1, float xpos2, float ypos2, floa
         }
         if (Count > 0) {
             if (Count == 1 && cxofst == 0) {
-                PutPixelAlpha(srtCount, cy, fgcol, 255);
+                PutPixelAlpha(srtCount, cy, fgcol, alpha * lineAAparam0);
             }
             else {
                 WriteLine(srtCount + cxofst, cy, Count, linebuff);
@@ -7009,7 +7534,7 @@ int gfx4desp32::StartAnim(uint32_t bgColor, int builtBuff, int x1, int y1, int x
 */
 /****************************************************************************/
 int gfx4desp32::StartAnim(int16_t bkgBuff, uint32_t buildBuff, uint16_t builtBuff, int x1, int y1, int x2, int y2){
-  int arraypos = 7 * animIndexCounter;
+  int arraypos = 8 * animIndexCounter;
   if(bkgBuff != -1){
     DrawToframebuffer(buildBuff);
     DrawFrameBufferArea(bkgBuff, x1, y1, x2, y2);
@@ -7022,7 +7547,7 @@ int gfx4desp32::StartAnim(int16_t bkgBuff, uint32_t buildBuff, uint16_t builtBuf
   anims[arraypos + 1] = buildBuff;
   anims[arraypos + 2] = builtBuff;
   anims[arraypos + 3] = x1; anims[arraypos + 4] = y1; anims[arraypos +5] = x2; anims[arraypos + 6] = y2;  
-  return animIndexCounter++;
+  return -32767 + (animIndexCounter++);
 }
 
 /****************************************************************************/
@@ -7032,7 +7557,7 @@ int gfx4desp32::StartAnim(int16_t bkgBuff, uint32_t buildBuff, uint16_t builtBuf
 */
 /****************************************************************************/
 void gfx4desp32::ContAnim(int animIndex){
-  int arraypos = 7 * animIndex;
+  int arraypos = 8 * (animIndex + 32767);
   DrawToframebuffer(anims[arraypos + 2]);
   if(anims[arraypos] != -1){
     DrawFrameBufferArea(anims[arraypos + 1], anims[arraypos + 3], anims[arraypos + 4], anims[arraypos + 5], anims[arraypos + 6]);
@@ -7047,9 +7572,9 @@ void gfx4desp32::ContAnim(int animIndex){
   @param  animIndex - index given for retreiving anim parameters
 */
 /****************************************************************************/
-void gfx4desp32::ShowAnim(int animIndex){
-  int arraypos = 7 * animIndex;
-  DrawToframebuffer(0);
+void gfx4desp32::ShowAnim(int animIndex, int fb){
+  int arraypos = 8 * (animIndex + 32767);
+  DrawToframebuffer(fb);
   DrawFrameBufferArea(anims[arraypos + 2], anims[arraypos + 3], anims[arraypos + 4], anims[arraypos + 5], anims[arraypos + 6]); 
   if(anims[arraypos] != -1){
     DrawToframebuffer(anims[arraypos + 2]);
@@ -7058,7 +7583,7 @@ void gfx4desp32::ShowAnim(int animIndex){
 	DrawToframebuffer(anims[arraypos + 2]);
     RectangleFilled(anims[arraypos + 3], anims[arraypos + 4], anims[arraypos + 5], anims[arraypos + 6], anims[arraypos + 1]);	
   }
-  //DrawToframebuffer(0);
+  DrawToframebuffer(fb);
 }
 
 /****************************************************************************/
@@ -7438,7 +7963,7 @@ void gfx4desp32::AngularGauge(float val, int x, int y, int sa, int ea, float min
 void gfx4desp32::AngularTickGauge(float val, int x, int y, int sa, int ea, float min, float max, int gaugeRadius, int gaugeThickness, float tickW, int32_t gaugeLOcolor, int32_t gaugeHIcolor, int32_t gaugeblendColor){
   ea += 180; sa += 180;
   float angularRange = ea - sa;
-  float range = fabs(max - min);
+  float range = fabs(max - min) + 1;
   float gaugeSeg = angularRange / range;
   float pos;   
   int dir = (max < min);
@@ -7528,7 +8053,7 @@ void gfx4desp32::AngularTickGauge(float val, int x, int y, int sa, int ea, float
 /****************************************************************************/
 void gfx4desp32::AngularGauge(float val, int x, int y, int sa, int ea, float min, float max, int gaugeRadius, int gaugeThickness, uint32_t gaugeLOcolorLO, uint32_t gaugeLOcolorHI, uint32_t gaugeMIDcolorLO, uint32_t gaugeMIDcolorHI, uint32_t gaugeHIcolorLO, uint32_t gaugeHIcolorHI, int midVal, int hiVal){
   float angularRange = ea - sa;
-  float range = fabs(max - min);
+  float range = fabs(max - min) + 1;
   float gaugeSeg = angularRange / range;
   if(midVal > range) midVal = range;
   if(hiVal > range) hiVal = range;
@@ -7609,7 +8134,7 @@ void gfx4desp32::AngularNeedle(float val, int x, int y, int sa, int ea, int radi
   int dir = (maxVal < minVal);
   ea += 180; sa += 180;
   float angularRange = ea - sa;
-  float range = abs(maxVal - minVal);
+  float range = abs(maxVal - minVal) + 1;
   float angularSegment = angularRange / range;
   float pos;
   int curX = cursor_x;
@@ -7676,7 +8201,7 @@ void gfx4desp32::AngularNeedleDouble(float val, int x, int y, int sa, int ea, in
   int dir = (maxVal < minVal);
   ea += 180; sa += 180;
   float angularRange = ea - sa;
-  float range = abs(maxVal - minVal);
+  float range = abs(maxVal - minVal) + 1;
   float angularSegment = angularRange / range;
   float pos;
   int curX = cursor_x;
@@ -7744,7 +8269,7 @@ void gfx4desp32::AngularKnob(float val, int x, int y, int sa, int ea, int radius
   ea += 180; sa += 180;
   float krad = sizeh;// / 2;
   float angularRange = ea - sa - w;
-  float range = abs(maxVal - minVal);
+  float range = abs(maxVal - minVal) + 1;
   float angularSegment = angularRange / range;
   float pos;
   int curX = cursor_x;
@@ -8270,7 +8795,6 @@ void gfx4desp32::PrintImageFromFrameBuffer(int fbuf, int x1, int y1, int x2, int
 	  	DrawToframebuffer(fbuf);
 	    ReadLine(x1, y1 + pipos + nll, w, linebuff);
 	    DrawToframebuffer(cbuf);
-		//memset(linebuff, 55, 400);
 	    WriteLine(startx, cursor_y + nll, w, linebuff); 
 		nll ++;
 	  }
@@ -8296,4 +8820,151 @@ void gfx4desp32::PrintImageFromFrameBuffer(int fbuf, int x1, int y1, int x2, int
 	}
 	fsh = tfsh;
 	lastfsh = llastfsh;
+}
+
+/****************************************************************************/
+/*!
+  @brief  Opens a MJPEG video file and set playback parameters
+  @param  fname - Filname of MJPEG file stored in uSD
+  @param  x - x top left position of video
+  @param  y - y top left position
+  @param  TargetFPS - Target FPS, may not meet this target dependant on size
+  @param  bool - true if video restarts at the end
+  @returns true if vido open successful
+*/
+/****************************************************************************/
+bool gfx4desp32::OpenMJPEGvideoFile(String fname, int x, int y, float TargetFPS, bool loop){
+	if (mjpegV) mjpegV.close();
+	#ifdef USE_SDMMC_FILE_SYSTEM
+		mjpegV = SD_MMC.open("/" + fname);
+    #else 
+		mjpegV = uSD.open(fname);
+	#endif
+    if(mjpegV) _videoOK = true;
+	_videoIsFile = true;
+    _videoRestart = loop;
+	_videoFileSize = mjpegV.size();
+	OpenMJPEGvideo(TargetFPS, x, y);
+	return _videoOK;
+}
+
+bool gfx4desp32::OpenMJPEGvideoArray(const uint8_t* array, uint32_t arraySize, int x, int y, float TargetFPS, bool loop){
+	_videoArray = array;
+	_videoOK = true;
+	_videoIsFile = false;
+    _videoRestart = loop;
+	_videoFileSize = arraySize;
+	OpenMJPEGvideo(TargetFPS, x, y);
+	return _videoOK;
+}
+
+bool gfx4desp32::OpenMJPEGvideoArray(uint8_t* array, uint32_t arraySize, int x, int y, float TargetFPS, bool loop){
+	_videoArray = array;
+	_videoOK = true;
+	_videoIsFile = false;
+    _videoRestart = loop;
+	_videoFileSize = arraySize;
+	OpenMJPEGvideo(TargetFPS, x, y);
+	return _videoOK;
+}
+
+void gfx4desp32::OpenMJPEGvideo(float Tfps, int x, int y){
+	if (!_videoBufInit){
+		_videoBuf = (uint8_t*)heap_caps_aligned_alloc(64, MJPEG_BUFFER_SIZE, MALLOC_CAP_DMA);
+		_videoBufInit = true;
+	}
+	float tfps = 1000000;
+	tfps = tfps / (Tfps * 1000) * 1000;
+	_videoTFtimeInt = (int64_t)tfps;
+	_videoTFtime = _videoTFtimeInt / 1000;
+	_videoReadSize = 65536;
+	_videoChunk = _videoReadSize;
+    _videoOfst = 0;
+    _videoAddr = 0;
+    _videoRestarting = true;
+    _videoPos = 0;
+    _videoFrameNum = 0;
+	_videoX = x;
+	_videoY = y;
+	_videoW = 0;
+	_videoH = 0;
+	_videoArrayPos = 0;
+    _videoTnow = millis();
+}
+
+/****************************************************************************/
+/*!
+  @brief  Plat the next frame of previously opened MJPEG vide file
+  @returns The number of current video frame
+*/
+/****************************************************************************/
+int64_t gfx4desp32::PlayMJPEGnextFrame(){
+	_videoWaitTime = micros() - _videoTnow;
+	if (_videoWaitTime < (_videoTFtimeInt - _videoTofset)/* && _videoFrameNum > 0*/) return _videoFrameNum;
+	_videoTnow = micros();
+	if (_videoFrameNum > 0) _videoTofset += (_videoWaitTime - _videoTFtimeInt) ;
+	_videoTnow = micros();
+	_videoDel = 1;
+	_videoTnow = millis();
+	if(!_videoOK) return 0;
+	if(_videoAddr < _videoFileSize || _videoChunk > 1){
+		if (_videoIsFile){
+			if (_videoChunk > 0) mjpegV.read(_videoBuf + _videoOfst, _videoChunk);
+		} else {
+			if (_videoChunk > 0) memcpy(_videoBuf + _videoOfst, _videoArray + _videoArrayPos, _videoChunk);
+			_videoArrayPos += _videoChunk;
+		}
+		while (!(_videoBuf[_videoPos] == 0xff && _videoBuf[_videoPos + 1] == 0xd9)){
+			_videoPos ++;
+			if (((_videoAddr + _videoPos) >= _videoFileSize) || _videoArrayPos >= _videoFileSize){
+				_videoPos = 0;
+				if (_videoIsFile){
+					mjpegV.seek(0);
+				} else {
+					_videoArrayPos = 0;
+				}
+				_videoChunk = _videoReadSize;
+				_videoOfst = 0;
+				_videoAddr = 0;
+				_videoPos = 0;
+				_videoFrameNum = 0;
+				_videoSkippedFrames = 0;
+				if (_videoRestart == true){
+					_videoRestarting = true;
+				} else {
+					_videoRestarting = false;
+					return -1;
+				}
+			}
+		}
+		if(!_videoRestarting){
+			_videoPos += 1;
+			_videoFrameNum ++;
+			_videoAddr += _videoPos;
+			int twO;
+			twO = DecodeJPEGfromArray(_videoBuf, _videoPos + 2, _videoW, _videoH, true);	
+			memcpy(_videoBuf, _videoBuf + _videoPos, _videoReadSize - _videoPos);
+			_videoW = outimg.width ;
+			_videoH = outimg.height;
+			int uix1 = _videoX + _videoW - 1;
+			int uiy1 = _videoY + _videoH - 1;
+			//MemCopy(_videoBuf, _videoBuf + _videoPos, _videoReadSize - _videoPos);
+			usePushColors = /*(DisplayType == DISP_INTERFACE_RGB) && */(_videoX >= clipx1) &&
+				(_videoY >= clipy1) && (uix1 <= clipx2) && (uiy1 <= clipy2) &&
+				(!transalpha) && (!WriteFBonly) && (frame_buffer == 0);
+			uint32_t isize = (_videoW * _videoH) << 1;; 
+			SetGRAM(_videoX, _videoY, uix1, uiy1);	
+			if (usePushColors && frame_buffer == 0) {
+				pushColors(psRAMbuffer1, isize >> 1);
+			} else {
+				WrGRAMs(psRAMbuffer1, isize >> 1);
+			}
+			_videoChunk = _videoPos;
+			_videoOfst = _videoReadSize - _videoPos;
+			_videoPos = 0;
+		}
+		_videoRestarting = false;
+		_videoAddr = (_videoPos + 2);
+	}
+	return _videoFrameNum;
 }

@@ -261,10 +261,10 @@ public:
 	virtual void DrawFrameBufferAreaXY(uint8_t fbnum, int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t x, int16_t y) override;
     virtual void MergeFrameBuffers(uint8_t fbto, uint8_t fbfrom1, uint8_t fbfrom2, uint16_t transColor) override;
     virtual void MergeFrameBuffers(uint8_t fbto, uint8_t fbfrom1, uint8_t fbfrom2, uint8_t fbfrom3, uint16_t transColor, uint16_t transColor1) override;
-    // virtual void drawBitmap(int x1, int y1, int x2, int y2, uint16_t* c_data) override;
+    virtual void drawBitmap(int x1, int y1, int x2, int y2, uint16_t* c_data) override;
     virtual void CopyFrameBuffer(uint8_t fbto, uint8_t fbfrom1) override;
     virtual void CopyFrameBufferLine(int16_t x, int16_t y, int16_t w, int fb) override;
-    void drawBitmap(int x1, int y1, int x2, int y2, uint16_t* c_data);
+    //void drawBitmap(int x1, int y1, int x2, int y2, uint16_t* c_data);
     void draw_bitmap(int x1, int y1, int x2, int y2, uint16_t* c_data);
     virtual void PinMode(byte pin, uint8_t mode) override;
     virtual void DigitalWrite(byte pin, bool state) override;
@@ -291,7 +291,7 @@ public:
     void Clipping(bool clipping);
     void setScrollArea(int x1, int y1, int x2, int y2);
     void setScrollDirection(uint8_t scrDir);
-    uint8_t* SelectFB(uint8_t sel);
+    virtual uint8_t* SelectFB(uint8_t sel) override;
     virtual uint8_t* SelectINIT(bool sel) = 0;
 
     uint8_t InitCommandsST[160];

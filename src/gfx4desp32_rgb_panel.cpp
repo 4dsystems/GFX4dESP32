@@ -196,10 +196,10 @@ esp_lcd_panel_handle_t gfx4desp32_rgb_panel::__begin() {
     PinMode(GFX4d_TOUCH_INT, INPUT);
     IOexpInit = true;
     DisplayType = DISP_INTERFACE_RGB;
-    config = ASYNC_MEMCPY_DEFAULT_CONFIG();
-	config.backlog = 64;
-    config.flags = 0;
-	esp_async_memcpy_install_gdma_ahb(&config, &driver); // install driver with default DMA engine
+    //config = ASYNC_MEMCPY_DEFAULT_CONFIG();
+	//config.backlog = 64;
+    //config.flags = 0;
+	//esp_async_memcpy_install_gdma_ahb(&config, &driver); // install driver with default DMA engine
     return panel_handle;
 }
 
@@ -393,7 +393,7 @@ void gfx4desp32_rgb_panel::SetGRAM(int16_t x1, int16_t y1, int16_t x2,
     GRAMxpos = x1;
     GRAMypos = y1;
     pixelPos = 0;
-    pixelCount = (GRAMx2 - GRAMx1) * (GRAMy2 - GRAMy1);
+    pixelCount = (GRAMx2 - GRAMx1 + 1) * (GRAMy2 - GRAMy1 + 1);
 }
 
 /****************************************************************************/
@@ -1621,7 +1621,7 @@ void gfx4desp32_rgb_panel::pushColors(uint16_t* color_data, uint32_t len) {
         pto = tpto + (GRAMypos * __scrWidth) +
             (GRAMxpos << 1); // set pointer to frame buffer
         while (pcheight--) {
-            memcpy(pto, pfrom, pcwidth << 1); // copy 'from' to 'to'
+            MemCopy(pto, pfrom, pcwidth << 1); // copy 'from' to 'to'
             GRAMypos++;
             pto = tpto + (GRAMypos * __scrWidth) +
                 (GRAMxpos << 1); // set new frame buffer pointer
@@ -2768,7 +2768,8 @@ void gfx4desp32_rgb_panel::AllocateDRcache(uint32_t cacheSize) {
 void gfx4desp32_rgb_panel::AllocateFB(uint8_t sel) {
     size_t psram_trans_align = rgb_panel->psram_trans_align;
     if (sel == 0) {
-        psRAMbuffer1 = (uint8_t*)ps_malloc (1024*1000);
+		psRAMbuffer1 = (uint8_t*)heap_caps_aligned_alloc(64, 1048576, MALLOC_CAP_DMA | MALLOC_CAP_SPIRAM);
+		//psRAMbuffer1 = (uint8_t*)ps_malloc (1048576);
     }
     if (sel == 1) {
         psRAMbuffer3 = (uint8_t*)ps_malloc(__fbSize);
@@ -3183,10 +3184,10 @@ void gfx4desp32_rgb_panel::Vline(int16_t x, int16_t y, int16_t w,
     }
 }
 
-// void gfx4desp32_rgb_panel::drawBitmap(int x1, int y1, int x2, int y2,
-//     uint16_t* c_data) {
-//     esp_lcd_panel_draw_bitmap(panel_handle, x1, y1, x2, y2, &c_data);
-// }
+void gfx4desp32_rgb_panel::drawBitmap(int x1, int y1, int x2, int y2,
+     uint16_t* c_data) {
+     esp_lcd_panel_draw_bitmap(panel_handle, x1, y1, x2, y2, &c_data);
+}
 
 /****************************************************************************/
 /*!

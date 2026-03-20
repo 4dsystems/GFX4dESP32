@@ -77,7 +77,7 @@ bool gfx4desp32_rgb_panel_t::touch_Update() {
     // *** if touch is not enabled and no touch int or touch status is not no touch
     // then just return ***
     // *** need to create touch release state before no touch ***
-    if (!_TouchEnable || (intStatus && tPen == 0))
+	if (!_TouchEnable || (intStatus && tPen == 0))
         return false;
     bool update = false;
     bool validTouch;
@@ -186,6 +186,21 @@ bool gfx4desp32_rgb_panel_t::touch_Update() {
                         }
                     }
                 }
+				if (animIndexCounter > 0){
+					int aPos;
+					for (int n = 0; n < animIndexCounter; n++) {
+						aPos = n << 3;
+						if ((anims[aPos + 7] & 0x1) == 1){
+							if (touchXpos >= anims[aPos + 3] &&
+                                touchXpos <= anims[aPos + 5] &&
+                                touchYpos >= anims[aPos + 4] &&
+                                touchYpos <= anims[aPos + 6]) {
+                                gciobjtouched = -32767 + n;
+                                break;
+                            }
+						}
+					}
+				}
             }
         }
     }

@@ -6,7 +6,7 @@
 #include "gfx4desp32.h"
 #include "gfx4desp32_rtc.h"
 #include "Wire.h"
-#include "esp_async_memcpy.h"
+//#include "esp_async_memcpy.h"
 
 #define RGB_LCD_PANEL_MAX_FB_NUM         1 // maximum supported frame buffer number
 #define RGB_LCD_PANEL_BOUNCE_BUF_NUM     2 // bounce buffer number
@@ -140,8 +140,8 @@ private:
     bool __lcd_rgb_panel_fill_bounce_buffer(uint8_t* buffer);
 
     void FlushArea(int y1, int y2, int xpos);
-	async_memcpy_config_t config;//ASYNC_MEMCPY_DEFAULT_CONFIG();
-    async_memcpy_handle_t driver = NULL;
+	//async_memcpy_config_t config;//ASYNC_MEMCPY_DEFAULT_CONFIG();
+    //async_memcpy_handle_t driver = NULL;
 
 protected:
     int touchXraw;
@@ -151,7 +151,7 @@ protected:
 public:
     gfx4desp32_rgb_panel(esp_lcd_rgb_panel_config_t* panel_config, int bk_pin = DEFAULT_PIN_NUM_BK_LIGHT, int bk_on_level = DEFAULT_BK_LIGHT_ON_LEVEL, int bk_off_level = DEFAULT_BK_LIGHT_OFF_LEVEL, int sd_gpio_SCK = DEFAULT_SD_SCK, int sd_gpio_MISO = DEFAULT_SD_MISO, int sd_gpio_MOSI = DEFAULT_SD_MOSI, int sd_gpio_CS = DEFAULT_SD_CS, bool touchYinvert = false);
     ~gfx4desp32_rgb_panel();
-    //esp_lcd_panel_handle_t begin();
+    esp_lcd_panel_handle_t panel_handle;
     virtual esp_lcd_panel_handle_t __begin() override;
     virtual void FlushArea(int x1, int x2, int y1, int y2, int xpos) override;
     virtual void WriteToFrameBuffer(uint32_t offset, uint8_t* data, uint32_t len) override;
@@ -202,7 +202,7 @@ public:
 	virtual void DrawFrameBufferAreaXY(uint8_t fbnum, int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t x, int16_t y) override;
     virtual void MergeFrameBuffers(uint8_t fbto, uint8_t fbfrom1, uint8_t fbfrom2, uint16_t transColor) override;
     virtual void MergeFrameBuffers(uint8_t fbto, uint8_t fbfrom1, uint8_t fbfrom2, uint8_t fbfrom3, uint16_t transColor, uint16_t transColor1) override;
-    // virtual void drawBitmap(int x1, int y1, int x2, int y2, uint16_t* c_data) override;
+    virtual void drawBitmap(int x1, int y1, int x2, int y2, uint16_t* c_data) override;
     virtual void CopyFrameBuffer(uint8_t fbto, uint8_t fbfrom1) override;
     virtual void CopyFrameBufferLine(int16_t x, int16_t y, int16_t w, int fb) override;
     virtual void PinMode(byte pin, uint8_t mode) override;
@@ -228,7 +228,7 @@ public:
     virtual void Clipping(bool clipping) override;
     void setScrollArea(int x1, int y1, int x2, int y2);
     void setScrollDirection(uint8_t scrDir);
-    uint8_t* SelectFB(uint8_t sel);
+    virtual uint8_t* SelectFB(uint8_t sel) override;
 
     int calx1, calx2, caly1, caly2;
     int touchType;

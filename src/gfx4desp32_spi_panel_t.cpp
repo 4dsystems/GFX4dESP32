@@ -81,9 +81,16 @@ int gfx4desp32_spi_panel_t::touch_GetTouchPoints(int* tpx, int* tpy){
 */
 /****************************************************************************/
 bool gfx4desp32_spi_panel_t::touch_Update() {
-    if (!_TouchEnable /*|| digitalRead(GFX4d_TOUCH_INT)*/ )
+    //if (!_TouchEnable /*|| digitalRead(GFX4d_TOUCH_INT)*/ )
+        //return false;
+	bool intStatus = DigitalRead(GFX4d_TOUCH_INT);
+    // *** if touch is not enabled and no touch int or touch status is not no touch
+    // then just return ***
+    // *** need to create touch release state before no touch ***
+	if (!_TouchEnable || (intStatus && tPen == 0))
         return false;
     bool update = false;
+	bool validTouch;
     //int n = -1;
     Wire.beginTransmission(0x38);
     Wire.write((byte)2);
@@ -91,6 +98,7 @@ bool gfx4desp32_spi_panel_t::touch_Update() {
     uint8_t bytesReceived = Wire.requestFrom(0x38, 6);
     uint8_t gCTPData[bytesReceived];
     Wire.readBytes(gCTPData, bytesReceived);
+	Wire.endTransmission();
     int i = 0; int tps = 0; //int tid = 0;
     tps = gCTPData[0];
     if (tps != 0xff) { // some FT chips return garbage before first valid read,
@@ -156,6 +164,9 @@ bool gfx4desp32_spi_panel_t::touch_Update() {
                 break;
             }
         }
+		validTouch = true;
+	}
+	if(validTouch){
         if (tPen == 1 && (lasttouchXpos != touchXpos || lasttouchYpos != touchYpos))
             update = true;
         if (tPen != lasttPen) {
@@ -180,8 +191,24 @@ bool gfx4desp32_spi_panel_t::touch_Update() {
                         }
                     }
                 }
+				if (animIndexCounter > 0){
+					int aPos;
+					for (int n = 0; n < animIndexCounter; n++) {
+						aPos = n << 3;
+						if ((anims[aPos + 7] & 0x1) == 1){
+							if (touchXpos >= anims[aPos + 3] &&
+                                touchXpos <= anims[aPos + 5] &&
+                                touchYpos >= anims[aPos + 4] &&
+                                touchYpos <= anims[aPos + 6]) {
+                                gciobjtouched = -32767 + n;
+                                break;
+                            }
+						}
+					}
+				}
             }
         }
     }
+
     return update;
 }

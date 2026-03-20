@@ -30,16 +30,17 @@
 #include "hal/gpio_hal.h"
 #include "hal/lcd_hal.h"
 #include "hal/lcd_ll.h"
-
+#include "jpeg_decoder4D.h"
 
 #include "rom/cache.h"
+#include "esp_async_memcpy.h"
 
 //**** Uncomment below if LittleFS File sysem is used instead of uSD ****
 // #define USE_LITTLEFS_FILE_SYSTEM
 //#define LITTLEFS_FORMAT_ON_FAIL
 
 //**** Uncomment below if SD_MMC File sysem is used instead of SdFat. Note, SPI is not available to user on RGB displays when SDMMC is enabled ****
-#define USE_SDMMC_FILE_SYSTEM
+//#define USE_SDMMC_FILE_SYSTEM
 
 //**** Uncomment below if external SDMMC slot is used instead of on-board slot, Note, not available on RGB displays ****
 //#define SDMMC_4BIT
@@ -346,6 +347,8 @@
 #define GCI_SYSTEM_LITTLEFS         0x01
 #define GCI_SYSTEM_PROGMEM          0x02
 #define GCI_SYSTEM_SPECIAL          0x03
+#define GCI_SYSTEM_JPEG_USD			0x04
+#define GCI_SYSTEM_JPEG_FLASH		0x05
 
 #define FILE_SYSTEM_DEFAULT         0x00
 #define FILE_SYSTEM_USD             0x01
@@ -412,6 +415,8 @@
 #define SHAPE_RECTANGLE				2
 #define SHAPE_ROUNDED_RECTANGLE		3
 
+#define MJPEG_BUFFER_SIZE 			65536
+
 static const uint8_t font1[] = {
 #include "System_FONT1.h"
 };
@@ -455,7 +460,9 @@ static const uint16_t RGB3322565[] = {
 class gfx4desp32 : public Print {
 
 private:
-    const char* TAG = "gfx4desp32";
+    async_memcpy_config_t AMconfig;//ASYNC_MEMCPY_DEFAULT_CONFIG();
+    async_memcpy_handle_t AMdriver = NULL;
+	const char* TAG = "gfx4desp32";
     uint16_t width;
     uint16_t height;
     bool sdok;
@@ -512,6 +519,13 @@ protected:
         .on_level = DEFAULT_BK_LIGHT_ON_LEVEL,
         .off_level = DEFAULT_BK_LIGHT_OFF_LEVEL
     };
+	
+	esp_jpeg_image_cfg_t jpeg_cfg;
+	esp_jpeg_image_output_t outimg;
+	
+	uint32_t* jpegOFFSETS;
+	uint32_t* jpegSIZES;
+	uint32_t* jpegOFFSETSpos;
 
     int8_t GCItype = GCI_SYSTEM_USD;
     uint8_t DisplayType;
@@ -636,13 +650,15 @@ protected:
     };
 
 public:
-
+    
 #ifdef USE_SDMMC_FILE_SYSTEM
     File dataFile;
     File dataFileDI;
     File userImag;
     File userDat;
     File Dwnload;
+	File mjpeg;
+	File mjpegV;
 #else
 #ifdef USE_LITTLEFS_FILE_SYSTEM
     File dataFile;
@@ -650,12 +666,16 @@ public:
     File userImag;
     File userDat;
     File Dwnload;
+	File mjpeg;
+	File mjpegV;
 #else
     FsFile dataFile;
     FsFile dataFileDI;
     FsFile userImag;
     FsFile userDat;
     FsFile Dwnload;
+	FsFile mjpeg;
+	FsFile mjpegV;
 #endif
 #endif
 
@@ -714,7 +734,7 @@ public:
 	virtual void DrawFrameBufferAreaXY(uint8_t fbnum, int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t x, int16_t y) = 0;
     virtual void MergeFrameBuffers(uint8_t fbto, uint8_t fbfrom1, uint8_t fbfrom2, uint16_t transColor) = 0;
     virtual void MergeFrameBuffers(uint8_t fbto, uint8_t fbfrom1, uint8_t fbfrom2, uint8_t fbfrom3, uint16_t transColor, uint16_t transColor1) = 0;
-    // virtual void drawBitmap(int x1, int y1, int x2, int y2, uint16_t* c_data) = 0;
+    virtual void drawBitmap(int x1, int y1, int x2, int y2, uint16_t* c_data) = 0;
     virtual void CopyFrameBuffer(uint8_t fbto, uint8_t fbfrom1) = 0;
     virtual void CopyFrameBufferLine(int16_t x, int16_t y, int16_t w, int fb) = 0;
     void CopyImageLine(int inum, int x, int y, int w);
@@ -771,8 +791,10 @@ public:
     uint8_t getGCIsystem();
     void AllocatePSRAMgciSpace(uint32_t datS, uint32_t gciS);
     virtual void Open4dGFX(String file4d);
-    void Open4dGFXtoPSRAM(String file4d);
-    void Open4dGFX(const uint8_t* DATa, uint32_t DATlen, const uint8_t* GCIa, uint32_t GCIlen);
+    virtual void Open4dGFXtoPSRAM(String file4d);
+    virtual void Open4dGFX(const uint8_t* DATa, uint32_t DATlen, const uint8_t* GCIa, uint32_t GCIlen);
+	virtual void Open4dGFX(const uint8_t* JPEGa, uint32_t FLsize);
+	virtual void _Open4dGFXjpeg(String file4d, uint8_t jpType);
     gfx4d_font Open4dFont(String font4d);
     void SetMaxWidgets(int mw);
     virtual void _Open4dGFX(String file4d, bool scan);
@@ -780,7 +802,8 @@ public:
     uint32_t getIndexfromString(String strval, uint8_t indx);
     uint32_t getCoordfromString(String strval, uint8_t indx);
     virtual void Close4dGFX();
-    void DrawWidget(uint32_t Index, int16_t uix, int16_t uiy, int16_t uiw, int16_t uih, uint16_t frame, int16_t bar, bool images, byte cdv);
+    void DrawWidget(uint32_t Index, int16_t uix, int16_t uiy, int16_t uiw, int16_t uih, uint16_t frame, int16_t bar, bool images, byte cdv, int ui);
+	void DrawPSRAMbuffer(int x, int y, int w, int h);
     void UserImage(uint16_t ui);
     void UserImage(uint16_t ui, int altx, int alty);
     virtual void UserImages(uint16_t uisnb, int16_t framenb);
@@ -877,7 +900,7 @@ public:
 	int StartAnim(uint32_t bgColor, int builtBuff, int x1, int y1, int x2, int y2);
 	int StartAnim(int16_t bkgBuff, uint32_t buildBuff, uint16_t builtBuff, int x1, int y1, int x2, int y2);
 	void ContAnim(int animIndex);
-	void ShowAnim(int animIndex);
+	void ShowAnim(int animIndex, int fb = 0);
 	void EndAnim(int animIndex);
 	void GradientRectangleFilled(int x1, int y1, int x2, int y2, int32_t colfrom, int32_t colto, bool Orientation);
 	void AngularImageRotary(int valdeg, int xc, int yc, int sa, int imageArcRange, int imageCTRradius, int numImages, int *imageList, uint8_t opac1, uint8_t opac2, int imageMask, int RRarc = 0, int selectedFrame = -1, uint16_t frameColour = 0, int frameWidth = 0, int frameGap = 0, int frameOpac = 255);
@@ -1044,6 +1067,7 @@ public:
     void GCIread(uint8_t* dest, uint32_t len);
     void DATAreadToBuff(uint32_t Index, uint32_t len);
     void DATAread(uint8_t* dest, uint32_t len);
+	virtual uint8_t* SelectFB(uint8_t sel) = 0;
     int16_t GCIread();
     int16_t DATread();
     int16_t DATAread();
@@ -1060,6 +1084,27 @@ public:
     void LineAA(float xpos1, float ypos1, float xpos2, float ypos2, float xy1r, float xy2r, int32_t fg_color);
     void CircleFilledAA(float x, float y, float r, uint32_t color);
     void LineAA(float x, float y, float x1, float y1, float w, uint32_t color);
+#ifdef USE_LITTLEFS_FILE_SYSTEM
+	int16_t DecodeJPEGfromFile(File tfile, int w, int h, int swp = 1);
+#else
+#ifdef USE_SDMMC_FILE_SYSTEM
+	int16_t DecodeJPEGfromFile(File tfile, int w, int h, int swp = 1);
+#else	
+	int16_t DecodeJPEGfromFile(FsFile tfile, int w, int h, int swp = 1);
+#endif
+#endif
+	int16_t DecodeJPEGfromGCJ(uint64_t ofst, uint32_t jpSize, int w, int h, int swp = 1);
+	int16_t DecodeJPEGfromGCJinFlash(uint32_t ofst, uint32_t jpSize, int w, int h, int swp = 1);
+	int16_t DecodeJPEGfromArray(uint8_t* tArray, uint32_t ofst, int w, int h, int swp = 1);
+	int DecodeJpeg(uint16_t ui, uint16_t frame);
+	void MemCopy(void* to, void* from, uint32_t len);
+	void MemCopy(uint8_t* to, uint8_t* from, uint32_t len);
+	//bool OpenMJPEGvideoFile(String fname, int x, int y, int TargetFPS, bool loop = false);
+	bool OpenMJPEGvideoFile(String fname, int x, int y, float TargetFPS, bool loop = false);
+	bool OpenMJPEGvideoArray(const uint8_t* array, uint32_t arraySize, int x, int y, float TargetFPS, bool loop = false);
+	bool OpenMJPEGvideoArray(uint8_t* array, uint32_t arraySize, int x, int y, float TargetFPS, bool loop = false);
+	void OpenMJPEGvideo(float tfps, int x, int y);
+	int64_t PlayMJPEGnextFrame();
 
     uint8_t GFX4dESP32_RED;
     uint8_t GFX4dESP32_BLUE;
@@ -1192,7 +1237,7 @@ public:
 	bool overrideAlphaReadPixel;
 	uint16_t overrideColor;
 	const int* iList  = NULL;
-	int32_t anims[210];
+	int32_t anims[240];
 	int xyCurPos[60];
 	int xystore;
 	bool nlStore;
@@ -1206,6 +1251,46 @@ public:
     int clipX2pos;
     int clipY2pos;
 	int animIndexCounter;
+	uint8_t* JPEGinp;
+	uint8_t* JPEGinpPSRAM;
+	bool JPEGinit;
+	uint32_t rx_buffer_size;
+	bool jpegInBuffAllocated;
+	String gcjFname = "";
+	bool jpegConfig;
+	int lasttwO;
+	int _lastObject = -1;
+	int _lastFrame = -1;
+	uint16_t JPEGiSize[2];
+	bool jpegInPsramInit;
+	bool gciIsInPSRAM;
+	uint8_t* _videoBuf;
+	uint32_t _videoPos;
+	uint32_t _videoChunk;
+	uint32_t _videoOfst;
+	uint64_t _videoAddr;
+	uint64_t _videoFileSize = 0;
+	bool _videoRestart = true;
+	bool _videoRestarting = false;
+	uint32_t _videoReadSize;
+	uint32_t frames;
+	int64_t _videoTnow;
+	float _videoTFtime = 0;
+	int64_t _videoTFtimeInt;
+	int _videoX;
+	int _videoY;
+	int _videoW;
+	int _videoH;
+	bool _videoOK;
+	uint64_t _videoFrameNum;
+	float _videoDel;
+	bool _videoBufInit;
+	int _videoSkippedFrames;
+	bool _videoIsFile;
+	const uint8_t* _videoArray = NULL;
+	uint32_t _videoArrayPos;
+	int64_t _videoWaitTime;
+	int64_t _videoTofset;
 };
 
 #endif

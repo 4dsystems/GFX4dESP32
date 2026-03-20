@@ -54,6 +54,10 @@ public:
 
     virtual void Open4dGFX(String file4d) override;
     virtual void _Open4dGFX(String file4d, bool scan) override;
+	virtual void _Open4dGFXjpeg(String file4d, uint8_t jpType) override;
+	virtual void Open4dGFX(const uint8_t* DATa, uint32_t DATlen, const uint8_t* GCIa, uint32_t GCIlen) override;
+	virtual void Open4dGFXtoPSRAM(String file4d) override;
+	virtual void Open4dGFX(const uint8_t* JPEGa, uint32_t FLsize) override;
     virtual void Close4dGFX() override;
 
     using gfx4desp32::UserImages;
@@ -82,6 +86,10 @@ public:
 
     uint16_t GetSliderValue(uint16_t ui, uint8_t axis, uint16_t uiv,
         uint16_t ming, uint16_t maxg);
+	uint16_t GetSliderValue(int16_t ui, uint8_t axis, uint16_t uiv,
+        uint16_t ming, uint16_t maxg, int range);
+	uint16_t GetRotaryValue(int hndl, int uix, int uiy, int minarc,
+		int maxarc, int ming, int maxg);
 
     int DecodeKeypad(int kpad, int kpress, byte* kbks, int8_t* kbck);
     void ResetKeypad();

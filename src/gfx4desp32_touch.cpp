@@ -62,24 +62,172 @@ int16_t gfx4desp32_touch::touch_GetLastY() { return lasttouchYpos; }
   objects
 */
 /****************************************************************************/
+
 void gfx4desp32_touch::Open4dGFX(String file4d) {
-  if (!gciImagesUsed) {
-    gciImagesUsed = true;
-    gciobjtouchenable = (uint8_t*)malloc(MAX_WIDGETS);
-    memset(gciobjtouchenable, 0, MAX_WIDGETS);
-    cdv = (uint8_t*)malloc(MAX_WIDGETS);
-    gciobjframes = (uint16_t*)malloc(MAX_WIDGETS << 1);
-    tuix = (int16_t*)malloc(MAX_WIDGETS << 1);
-    tuiy = (int16_t*)malloc(MAX_WIDGETS << 1);
-    tuiw = (int16_t*)malloc(MAX_WIDGETS << 1);
-    tuih = (int16_t*)malloc(MAX_WIDGETS << 1);
-    tuiImageIndex = (uint16_t*)malloc(MAX_WIDGETS << 1);
-    tuiIndex = (uint32_t*)malloc(MAX_WIDGETS << 2);
-    tuiExtra1 = (uint16_t*)malloc(MAX_WIDGETS << 1);
-    tuiExtra2 = (uint16_t*)malloc(MAX_WIDGETS << 1);
-  }
-  _Open4dGFX(file4d, false);
-  opgfx = 1;
+    String fnTemp = file4d;
+    fnTemp.toUpperCase();
+    if (fnTemp.indexOf(".GCJ") == (fnTemp.length() - 4)) {
+	    _Open4dGFXjpeg(file4d, GCI_SYSTEM_JPEG_USD);
+    } else {  
+        if (!gciImagesUsed) {
+            gciImagesUsed = true;
+            gciobjtouchenable = (uint8_t*)malloc(MAX_WIDGETS);
+            memset(gciobjtouchenable, 0, MAX_WIDGETS);
+            cdv = (uint8_t*)malloc(MAX_WIDGETS);
+            gciobjframes = (uint16_t*)malloc(MAX_WIDGETS << 1);
+            tuix = (int16_t*)malloc(MAX_WIDGETS << 1);
+            tuiy = (int16_t*)malloc(MAX_WIDGETS << 1);
+            tuiw = (int16_t*)malloc(MAX_WIDGETS << 1);
+            tuih = (int16_t*)malloc(MAX_WIDGETS << 1);
+            tuiImageIndex = (uint16_t*)malloc(MAX_WIDGETS << 1);
+            tuiIndex = (uint32_t*)malloc(MAX_WIDGETS << 2);
+            tuiExtra1 = (uint16_t*)malloc(MAX_WIDGETS << 1);
+            tuiExtra2 = (uint16_t*)malloc(MAX_WIDGETS << 1);
+        }
+        _Open4dGFX(file4d, false);
+    }
+	opgfx = 1;
+}
+
+void gfx4desp32_touch::Open4dGFX(const uint8_t* DATa, uint32_t DATlen,
+    const uint8_t* GCIa, uint32_t GCIlen) {
+    DATarray = DATa;
+    GCIarray = GCIa;
+    datArraySize = DATlen;
+    gciArraySize = GCIlen;
+    GCItype = GCI_SYSTEM_PROGMEM;
+    Open4dGFX("gfx4dDummy");
+	opgfx = 1;
+}
+
+void gfx4desp32_touch::Open4dGFX(const uint8_t* JPEGa, uint32_t FLsize) {
+    GCIarray = JPEGa;
+    gciArraySize = FLsize;
+    //GCItype = GCI_SYSTEM_JPEG_FLASH;
+	_Open4dGFXjpeg("", GCI_SYSTEM_JPEG_FLASH); 
+	opgfx = 1;
+}
+
+void gfx4desp32_touch::_Open4dGFXjpeg(String file4d, uint8_t jpType){
+    GCItype = jpType;
+    uint32_t fSize;
+	if (GCItype == GCI_SYSTEM_JPEG_USD){
+		gcjFname = "/" + file4d;
+	#ifdef USE_SDMMC_FILE_SYSTEM
+		userImag = SD_MMC.open("/" + file4d);
+		fSize = userImag.size();
+    #else 
+		userImag = uSD.open(file4d);
+	    fSize = userImag.size();
+	#endif
+		//fSize = userImag.size();
+    } else {
+	    fSize = gciArraySize;
+	    GCIseek(0);  
+    }
+    if (fSize > 0){
+        uint8_t gcjdat[16];
+	    GCIread(gcjdat, 12);
+		uint32_t framesPos = 0x200;
+        gciobjnum = (gcjdat[8] << 24) + (gcjdat[9] << 16) + (gcjdat[10] << 8) + gcjdat[11]; 
+        if (gciobjnum > 0){
+            gciobjtouchenable = (uint8_t*)malloc(gciobjnum);
+	        memset(gciobjtouchenable, 0, gciobjnum);
+            cdv = (uint8_t*)malloc(gciobjnum);
+	        tuiIndex = (uint32_t*)malloc(gciobjnum << 2);
+            tuix = (int16_t*)malloc(gciobjnum << 1);
+            tuiy = (int16_t*)malloc(gciobjnum << 1);
+            tuiw = (int16_t*)malloc(gciobjnum << 1);
+            tuih = (int16_t*)malloc(gciobjnum << 1);
+	        tuiImageIndex = (uint16_t*)malloc(gciobjnum << 1);
+	        tuiExtra1 = (uint16_t*)malloc(gciobjnum << 1);
+            tuiExtra2 = (uint16_t*)malloc(gciobjnum << 1);
+            gciobjframes = (uint16_t*)malloc(gciobjnum << 1);
+            jpegOFFSETSpos = (uint32_t*)malloc(gciobjnum << 2);
+        }
+        uint32_t totframes = 0;
+        uint32_t framesCount = 0;
+        for (int n = 0; n < gciobjnum; n++){
+	        GCIread(gcjdat, 16);
+            tuiIndex[n] = (gcjdat[0] << 24) + (gcjdat[1] << 16) + (gcjdat[2] << 8) + gcjdat[3]; 
+            tuix[n] = (gcjdat[4] << 8) + gcjdat[5];
+            tuiy[n] = (gcjdat[6] << 8) + gcjdat[7];
+            tuiw[n] = (gcjdat[8] << 8) + gcjdat[9];
+            tuih[n] = (gcjdat[10] << 8) + gcjdat[11];
+            gciobjframes[n] = (gcjdat[12] << 8) + gcjdat[13];
+            totframes += gciobjframes[n];
+        }
+		uint32_t readAddr;
+		if (GCItype == GCI_SYSTEM_JPEG_FLASH && !gciIsInPSRAM){
+			framesPos = (16 * gciobjnum) + 16;
+		} else {
+			if (gciobjframes[0] > 1){
+				framesPos = tuiIndex[0];
+			} else {	
+				while (framesPos < fSize){
+					GCIseek(framesPos);
+					GCIread(gcjdat, 4);
+					readAddr = (gcjdat[0] << 24) + (gcjdat[1] << 16) + (gcjdat[2] << 8) + gcjdat[3]; 
+					if (readAddr == tuiIndex[0]){
+						//if (gciobjnum > 1){
+						//	GCIread(gcjdat, 4);
+						//	readAddr = (gcjdat[0] << 24) + (gcjdat[1] << 16) + (gcjdat[2] << 8) + gcjdat[3];
+						//	if (readAddr == tuiIndex[1]) break;
+						//} else {
+							break;
+						//}
+					}
+					framesPos += 0x200;
+				}
+			}
+		}
+		jpegOFFSETS = (uint32_t*)malloc(totframes << 2);
+        jpegSIZES = (uint32_t*)malloc(totframes << 2);
+		GCIseek(framesPos); 
+		uint32_t prev, next;
+		GCIread(gcjdat, 4);
+        if(totframes == 1){
+			prev = tuiIndex[0];
+		} else {
+			prev = (gcjdat[0] << 24) + (gcjdat[1] << 16) + (gcjdat[2] << 8) + gcjdat[3];
+		}
+		int32_t af;
+		if (totframes > 1){
+			for (af = 0; af < totframes - 1; af++){
+				GCIread(gcjdat, 4);
+				next = (gcjdat[0] << 24) + (gcjdat[1] << 16) + (gcjdat[2] << 8) + gcjdat[3]; 
+				jpegSIZES[af] = next - prev;
+				prev = next;
+			}
+		} else {
+			af = 0;
+		}
+		jpegSIZES[af] = fSize - prev;
+		uint32_t jSize; // = tuiIndex[1] - (4 * gciobjframes[0]);
+        GCIseek(framesPos);
+		if (totframes == 1){
+			jpegOFFSETS[framesCount] = tuiIndex[0];
+			jpegOFFSETSpos[0] = 0;
+		} else {
+			for (int n = 0; n < gciobjnum; n++){
+				jpegOFFSETSpos[n] = framesCount;
+				if(gciobjframes[n] == 1){
+					GCIread(gcjdat, 4);
+					tuiIndex[n] = (gcjdat[0] << 24) + (gcjdat[1] << 16) + (gcjdat[2] << 8) + gcjdat[3];
+					jpegOFFSETS[framesCount] = (gcjdat[0] << 24) + (gcjdat[1] << 16) + (gcjdat[2] << 8) + gcjdat[3]; 
+					framesCount ++;
+				} else {
+					for (int i = 0; i < gciobjframes[n]; i++){
+						GCIread(gcjdat, 4);
+						if (i == 0) tuiIndex[n] = (gcjdat[0] << 24) + (gcjdat[1] << 16) + (gcjdat[2] << 8) + gcjdat[3];
+						jpegOFFSETS[framesCount] = (gcjdat[0] << 24) + (gcjdat[1] << 16) + (gcjdat[2] << 8) + gcjdat[3]; 
+						jSize = jpegOFFSETS[framesCount];
+						framesCount ++;
+					}
+				}
+			}
+		}
+    }
 }
 
 /****************************************************************************/
@@ -249,6 +397,74 @@ void gfx4desp32_touch::_Open4dGFX(String file4d, bool scan) {
   }
 }
 
+void gfx4desp32_touch::Open4dGFXtoPSRAM(String file4d) {
+    String fnTemp = file4d;
+    fnTemp.toUpperCase();
+    if (fnTemp.indexOf(".GCJ") == (fnTemp.length() - 4)) {
+		gcjFname = "/" + file4d;
+	#ifdef USE_SDMMC_FILE_SYSTEM
+		userImag = SD_MMC.open(gcjFname);
+    #else 
+		userImag = uSD.open(file4d);
+	#endif
+		uint64_t fSize = userImag.size();
+		if (fSize > 0) cache_GCI = (uint8_t*)ps_malloc(fSize);
+		userImag.read(cache_GCI, fSize);
+		userImag.close();
+		GCIarray = cache_GCI;
+		gciIsInPSRAM = true;
+		gciArraySize = fSize;
+		_Open4dGFXjpeg("", GCI_SYSTEM_JPEG_FLASH);
+		opgfx = 1;
+		return;
+	}
+	dat4d = file4d + ".dat";
+    gci4d = file4d + ".gci";
+#ifdef USE_LITTLEFS_FILE_SYSTEM
+    dat4d = "/" + dat4d;
+    gci4d = "/" + gci4d;
+    userDat = LittleFS.open((char*)dat4d.c_str(), "r");
+#else
+#ifdef USE_SDMMC_FILE_SYSTEM
+    userDat = SD_MMC.open("/" + dat4d);
+#else
+    userDat = uSD.open(dat4d);
+#endif
+#endif
+    cache_DAT_size = userDat.size();
+    if (cache_DAT_size > 0) {
+        if (DAT_PSRAM_allocated > 0) {
+            cache_DAT = (uint8_t*)ps_malloc(DAT_PSRAM_allocated); // Create PSRAM cache space
+        }
+        else {
+            cache_DAT = (uint8_t*)ps_malloc(cache_DAT_size); // Create PSRAM cache space
+        }
+        userDat.read(cache_DAT, cache_DAT_size);
+    }
+    userDat.close();
+#ifdef USE_LITTLEFS_FILE_SYSTEM
+    userImag = LittleFS.open((char*)gci4d.c_str(), "r");
+#else
+#ifdef USE_SDMMC_FILE_SYSTEM
+    userImag = SD_MMC.open("/" + gci4d);
+#else
+    userImag = uSD.open(gci4d);
+#endif
+#endif
+    cache_GCI_size = userImag.size();
+    if (cache_GCI_size > 0) {
+        if (GCI_PSRAM_allocated > 0) {
+            cache_GCI = (uint8_t*)ps_malloc(GCI_PSRAM_allocated); // Create PSRAM cache space
+        }
+        else {
+            cache_GCI = (uint8_t*)ps_malloc(cache_GCI_size); // Create PSRAM cache space
+        }
+        userImag.read(cache_GCI, cache_GCI_size);
+    }
+    userImag.close();
+    Open4dGFX(cache_DAT, cache_DAT_size, cache_GCI, cache_GCI_size);
+}
+
 /****************************************************************************/
 /*!
   @brief  close opened gci file
@@ -270,16 +486,25 @@ void gfx4desp32_touch::Close4dGFX() {
 /****************************************************************************/
 void gfx4desp32_touch::imageTouchEnable(int gcinum, boolean en) {
   if (opgfx) {
-    if (gcinum < 0) {
-      for (int n = 0; n < MAX_WIDGETS; n++) {
+    if (gcinum == -1) {
+      for (int n = 0; n < gciobjnum; n++) {
         gciobjtouchenable[n] =
           (gciobjtouchenable[n] & 0xf0) | ((uint8_t)en & 0x0f);
+      }
+	  int aPos;
+	  for (int n = 0; n < animIndexCounter; n++) {
+        aPos = n << 3;
+		anims[aPos + 7] |= (en & 0x01);
       }
     }
     else {
       gciobjtouchenable[gcinum] =
         (gciobjtouchenable[gcinum] & 0xf0) | ((uint8_t)en & 0x0f);
     }
+  }
+  if (animIndexCounter > 0 && gcinum < -1){
+	int aPos = (gcinum + 32767) << 3;
+	anims[aPos + 7] |= (en & 0x01);  
   }
 }
 
@@ -296,7 +521,7 @@ void gfx4desp32_touch::imageTouchEnable(int gcinum, boolean en, int type,
     gciobjtouchenable[gcinum] = (type << 4) | ((uint8_t)en & 0x0f);
     gciobjframes[gcinum] = frames;
     tuiExtra1[gcinum] = ((orientation == true) << 15) + (gap1 << 8) + gap2;
-    tuiExtra2[gcinum] = tc;
+    tuiExtra2[gcinum] = (tuiExtra2[gcinum] & 0x3fff) | tc;
   }
 }
 
@@ -340,7 +565,7 @@ void gfx4desp32_touch::UserImages(uint16_t uisnb, int16_t framenb) {
       UserImages3image(uisnb, framenb, gciobjframes[uisnb],
         ((tuiExtra1[uisnb] >> 15) == 1),
         (tuiExtra1[uisnb] >> 8) & 0x7f, tuiExtra1[uisnb] & 0x7f,
-        tuiExtra2[uisnb]);
+        tuiExtra2[uisnb & 0x3fff]);
       break;
     case GAUGE2IMAGE:
       UserImages2image(uisnb, framenb, gciobjframes[uisnb],
@@ -349,7 +574,7 @@ void gfx4desp32_touch::UserImages(uint16_t uisnb, int16_t framenb) {
       break;
     default:
       DrawWidget(tuiIndex[uisnb], tuix[uisnb], tuiy[uisnb], tuiw[uisnb],
-        tuih[uisnb], framenb, 0, true, cdv[uisnb]);
+        tuih[uisnb], framenb, 0, true, cdv[uisnb], uisnb);
     }
   }
   ScrollEnable(setemp);
@@ -464,6 +689,54 @@ int16_t gfx4desp32_touch::ImageTouchedAuto() {
     return -1;
   }
   return -1;
+}
+
+uint16_t gfx4desp32_touch::GetSliderValue(int16_t ui, uint8_t axis,
+  uint16_t uiv, uint16_t ming,
+  uint16_t maxg, int range) {
+  int tx, ty, tw, th, tf;
+  if (ui < -1){
+	  int apos = (ui + 32767) << 3;
+	  tx = anims[apos + 3]; 
+	  ty = anims[apos + 4]; 
+	  tw = anims[apos + 5] - tx + 1; 
+	  th = anims[apos + 6] - ty + 1;
+	  tf = range;
+  } else {
+	  tx = tuix[ui];
+	  ty = tuiy[ui];
+	  tw = tuiw[ui];
+	  th = tuih[ui];
+	  tf = gciobjframes[ui] - 1;
+  }
+  int wpos = 0;
+  int wsiz = 0;
+  if (axis == HORIZONTAL_SLIDER) {
+    wpos = uiv - tx - ming;
+    wsiz = tw;
+    if (wpos < 0)
+      wpos = 0;
+    else if (wpos > (wsiz - maxg))
+      wpos = tf - 1;
+    else
+      wpos = (tf - 1) * wpos /
+      (wsiz - maxg);
+    return wpos;
+  }
+  if (axis == VERTICAL_SLIDER) {
+    wpos = uiv - ty - ming;
+    wsiz = th;
+    if (wpos < 0)
+      wpos = tf - 1;
+    else if (wpos > (wsiz - maxg))
+      wpos = 0;
+    else
+      wpos = (tf - 1) -
+      (tf - 1) * wpos /
+      (wsiz - maxg);
+    return wpos;
+  }
+  return wpos;
 }
 
 uint16_t gfx4desp32_touch::GetSliderValue(uint16_t ui, uint8_t axis,
@@ -652,6 +925,38 @@ int gfx4desp32_touch::SpriteTouched() {
   return tresp;
 }
 
+uint16_t gfx4desp32_touch::GetRotaryValue(int hndl, int uix, int uiy, int minarc,
+  int maxarc, int ming, int maxg) {
+  int degdiff = maxarc - minarc;
+  int posit;
+  int tx, ty, tw, th;
+  if (hndl < -1){
+	int apos = (hndl + 32767) << 3;
+	tx = anims[apos + 3]; 
+	ty = anims[apos + 4]; 
+	tw = anims[apos + 5] - tx + 1; 
+	th = anims[apos + 6] - ty + 1; 
+  } else {
+	tx = tuix[hndl];
+	ty = tuiy[hndl];
+	tw = tuiw[hndl];
+	th = tuih[hndl];
+  }
+  int deg =
+    XYposToDegree(uix - (tx + (tw >> 1)),
+      uiy - (ty + (th >> 1))); // x - CentreX
+  if (deg < minarc) // anything in the first 'dead zone' is minvalue
+    deg = 0;
+  else {
+    if (deg > maxarc) // anything in the last 'dead zone' is maxvalue
+      deg = degdiff;
+    else
+      deg -= minarc; // offset by -baseangle
+  }
+  posit = deg * maxg / degdiff; // convert deg to position
+  return posit; 
+}
+
 int16_t gfx4desp32_touch::imageAutoSlider(uint16_t ui, uint8_t axis,
   uint16_t uiv, uint16_t ming,
   uint16_t maxg) {
@@ -718,7 +1023,7 @@ void gfx4desp32_touch::UserImageHide(int hndl, uint16_t color) {
     imageTouchEnable(hndl, false);
   }
   else {
-    for (int n = 0; n < MAX_WIDGETS; n++) {
+    for (int n = 0; n < gciobjnum; n++) {
       RectangleFilled(tuix[n], tuiy[n], tuiw[n], tuih[n], color);
       imageTouchEnable(n, false);
     }
@@ -732,7 +1037,7 @@ void gfx4desp32_touch::UserImageHideBG(int hndl, int objBG) {
     imageTouchEnable(hndl, false);
   }
   else {
-    for (int n = 0; n < MAX_WIDGETS; n++) {
+    for (int n = 0; n < gciobjnum; n++) {
       UserImageDR(objBG, tuix[n], tuiy[n], tuiw[n], tuih[n], tuix[n], tuiy[n]);
       imageTouchEnable(n, false);
     }
