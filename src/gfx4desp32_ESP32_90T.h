@@ -2,7 +2,7 @@
 #define __GFX4D_90T__
 
 #define DISPLAY_TOUCH_TYPE DISP_TOUCH_RTP
-#define ESP32_90T_PIXEL_CLOCK_HZ (18 * 1000 * 1000) // was 14, 20 min in datasheet
+#define ESP32_90T_PIXEL_CLOCK_HZ (16 * 1000 * 1000) // was 14, 20 min in datasheet
 #define ESP32_90T_SWAP_TOUCHY 1
 
 #include "gfx4desp32_rgb_common.h"
