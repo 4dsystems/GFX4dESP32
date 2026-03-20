@@ -436,10 +436,13 @@ void gfx.RectangleFilled(x1, y1, x2, y2, colour), void; // Draws a filled rectan
 // Notes 	: Draws a filled rectangle having a diagonal with endpoints at (x1, y1) and (x2, y2) with colour 'colour'.
 //
 
-void gfx.Rectangle(x1, y1, x2, y2, colour), void; // Draws a rectangle having a diagonal with endpoints at (x1, y1) and (x2, y2) with colour 'colour'.
-// Syntax	: gfx.Rectangle(x, y, w, h, colour);
+void gfx.Rectangle(x1, y1, x2, y2, [w], colour), void; // Draws a rectangle having a diagonal with endpoints at (x1, y1) and (x2, y2) with colour 'colour'.
+// Syntax	: gfx.Rectangle(x1, y1, x2, y2, colour);
+// Syntax	: gfx.Rectangle(x1, y1, x2, y2, w, colour);
 // Usage	: gfx.Rectangle(20, 50, 120, 160, MAGENTA);
+// Usage	: gfx.Rectangle(20, 50, 120, 160, 6, MAGENTA);
 // Notes 	: Draws a rectangle having a diagonal with endpoints at (x1, y1) and (x2, y2) with colour 'colour'.
+//      	: Can have an optional line width for drawing thicker outline rectangles.
 //
 
 void gfx.Orientation([orient]), void; // Changes the screen orientation to LANDSCAPE, LANDSCAPE_R, PORTRAIT or PORTRAIT_R, query the current orientation.
@@ -533,9 +536,29 @@ void gfx.Open4dGFX(DATa, DATlen, GCIa, GCIlen), void; // Loads a 4D DAT array an
 // Notes 	: Loads a 4D DAT array and GCI DATA array for reading 4D widgets
 //
 
-void gfx.Open4dGFXtoPSRAM(file4d), void; // Loads 4D DAT and GCI files into PSRAM
+void gfx.OpenMJPEGvideoFile(fname, x, y, TargetFPS, altw, alth, loop), void; // Opens an MJEPG video file stored on uSD with scaled output.
+// Syntax	: gfx.OpenMJPEGvideoFile(fname, x, y, TargetFPS, altw, alth, loop);
+// Usage	: gfx.OpenMJPEGvideoFile("MyVideo.mjpeg", 0, 0, 25, 640, 480, false);
+// Notes 	: Opens an MJPEG video file and sets parameters for scaled playback.
+//
+
+void gfx.OpenMJPEGvideoArray(array, arraySize, x, y, TargetFPS, altw, alth, loop), void; // Opens an MJEPG video file stored in Flash or PSRAM with scaled output.
+// Syntax	: gfx.OpenMJPEGvideoArray(array, arraySize, x, y, TargetFPS, altw, alth, loop);
+// Usage	: gfx.OpenMJPEGvideoArray(MyVideoArray, MyVideoArray_size, 0, 0, 25, 640, 480, false);
+// Notes 	: Opens an MJPEG video array from Flash or PSRAM and sets parameters for scaled playback.
+//
+
+uint32_t gfx.PlayMJPEGnextFrame(), uint32_t; // Plays the next frame of an opened MJPEG file.
+// Syntax	: gfx.PlayMJPEGnextFrame();
+// Usage	: gfx.PlayMJPEGnextFrame();
+// Notes 	: Plays next MJPEG frame.
+// Notes 	: Playback speed depends on size and MJPEG quality settings.
+//
+
+void gfx.Open4dGFXtoPSRAM(file4d), void; // Loads 4D DAT and GCI files into PSRAMM
 // Syntax	: gfx.Open4dGFXtoPSRAM(file4d);
 // Usage	: gfx.Open4dGFXtoPSRAM("project");
+// Usage	: gfx.Open4dGFXtoPSRAM("project.gcj");
 // Notes	: Loads 4D DAT and GCI files into PSRAM
 //
 
@@ -1754,6 +1777,14 @@ int16_t gfx.imageAutoKnob(hndl, uix, uiy, minarc, maxarc, ming, maxg), 1; // Eva
 // Usage	: gfx.imageAutoKnob(hndl, uix, uiy, minarc, maxarc, ming, maxg);
 // Notes 	: Evaluate and return the new value of the knob based on touch position
 //			: This function is only available for capacitive and resistive touch displays
+//
+
+int16_t gfx.GetRotaryValue(hndl, uix, uiy, minarc, maxarc, ming, maxg), 1; // Evaluate and return the new value of the knob based on touch position
+// Syntax	: gfx.GetRotaryValue(hndl, uix, uiy, minarc, maxarc, ming, maxg);
+// Usage	: gfx.GetRotaryValue(anim1, uix, uiy, minarc, maxarc, ming, maxg);
+// Notes 	: Evaluate and return the new value of the knob based on touch position
+//			: This function is only available for capacitive and resistive touch displays
+//			: Used for custom animations
 //
 
 uint8_t gfx.CheckButtons(), uint8_t; // Evaluate the button touches and return the buttonx touched
