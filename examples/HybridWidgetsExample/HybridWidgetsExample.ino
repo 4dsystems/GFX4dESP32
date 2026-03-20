@@ -1,0 +1,112 @@
+//
+// NB! This is a file generated from the .4Dino file, changes will be lost
+//     the next time the .4Dino file is built
+//
+#include "gfx4desp32_gen4_ESP32_28CT.h"
+
+gfx4desp32_gen4_ESP32_28CT gfx = gfx4desp32_gen4_ESP32_28CT();
+
+#include "HybridWidgetsExampleConst.h"    // Note. This file will not be created if there are no generated graphics
+
+// Uncomment if using GC* in program flash.
+#include "HybridWidgetsExampleGCx.h"     // Note. This file will be generated when graphics destination program flash
+
+/******************************************************************************************************************
+* Demonstration of a Hybrid gauge which is a background image with an animated element on top. In this demo the   *
+* background is an image of a circular gauge with values from 0 to 280. As the image has a white background we    *
+* first draw the image part as a circle directly to frame buffer 1. We then create an animation using StartAnim   *
+* function and assign it to the anim1 variable. The StartAnim function assigns frame buffers for the gauge        *
+* background, needle etc. The ContAnim is used to prepare for new animated elements to be drawn on top of the     *
+* background. Many animations can be created and continued then shown at any time using the ShowAnim function.    *
+* Hybrid widgets are faster than GCI / GCJ widgets and much smaller in size allowing for many complex widgets to  *
+* be stored in Flash.                                                                                               *
+******************************************************************************************************************/
+
+int anim1; // variable for assigning gauge animation id
+int anim2; // variable for assigning Slider animation id
+
+void setup()
+{
+  gfx.begin();
+  gfx.Cls();
+  gfx.ScrollEnable(false);
+  gfx.BacklightOn(true);
+  gfx.Orientation(PORTRAIT);
+  gfx.SmoothScrollSpeed(5);
+  gfx.TextColor(WHITE, BLACK); gfx.Font(2);  gfx.TextSize(1);
+// Uncomment one of the three followin statements depending on the type of graphics file you are using GCI, GCJ, or GC* in program flash.
+//gfx.Open4dGFX("HybridWidgetsExample"); // Opens DAT and GCI files for read using filename without extension.
+//gfx.Open4dGFX("HybridWidgetsExample.gcj"); // Opens GCJ file for read using complete filename.
+gfx.Open4dGFX(HybridWidgetsExample, HybridWidgetsExample_size); // Opens GCJ from program space using array name and size
+//gfx.Open4dGFX(HybridWidgetsExample_dat, HybridWidgetsExample_dat_size, HybridWidgetsExample_gci, HybridWidgetsExamplegci_size); // Opens DAT/GCI from program space using array name and size
+  gfx.touch_Set(TOUCH_ENABLE);                // Global touch enabled
+  gfx.DrawToframebuffer(1);                                               // Set frame buffer to draw gauge background image
+  gfx.Cls();                                                              // Clear frame buffer to BLACK
+  gfx.CircleFilledAA(119, 119, 106, gfx.SelectDataSourceGCI(iImage1));    // Draw Image1 as a circle to remove white background
+  anim1 = gfx.StartAnim(1, 2, 3, 12, 12, 227, 227);                       // Assign anim1 as identity for Animation using frame buffers 1 2 and 3
+  showHybridGauge(0);                                                     // Show Hybrid gauge
+  anim2 = gfx.StartAnim(BLACK, 2, 0, 252, 239, 288);
+  gfx.imageTouchEnable(anim2, true) ;
+  gfx.imageTouchEnable(anim1, true) ;
+  showCodedSlider(0);
+} // end Setup **do not alter, remove or duplicate this line**
+
+void loop()
+{
+  // put your main code here, to run repeatedly:
+  int itouched, val ;
+  if(gfx.touch_Update())
+  {
+    itouched = gfx.imageTouched() ;
+    if (itouched == anim2){
+      int v = gfx.GetSliderValue(anim2, HORIZONTAL_SLIDER, gfx.touch_GetX(), 8, 8, 280);
+      showCodedSlider(v); showHybridGauge(v);
+    }
+    if (itouched == anim1){
+      int v = gfx.GetRotaryValue(anim1, gfx.touch_GetX(), gfx.touch_GetY(), 54, 308, 0, 280);
+      showCodedSlider(v); showHybridGauge(v);
+    }
+    switch (itouched)
+    {                                                         // start touched selection **do not alter, remove or duplicate this line**
+
+      // case statements for Knobs and Sliders go here
+      default :                                               // end touched selection **do not alter, remove or duplicate this line**
+        int button = gfx.ImageTouchedAuto();    // use default for keyboards and buttons
+        val = gfx.getImageValue(button);
+        switch (button)
+        {                                                     // start button selection **do not alter, remove or duplicate this line**
+          // case, one for each button or keyboard, default should end up as -1
+        }                                                     // end button selection **do not alter, remove or duplicate this line**
+    }
+  }
+  //for (int n = 0; n < 280; n+= 2){
+  //  showHybridGauge(n);                                                     // Show Hybrid gauge
+  //  showCodedSlider(n);
+  //}
+}
+
+void showHybridGauge(int val){
+  gfx.ContAnim(anim1);        // Continue previously created animation anim1
+  //                value, x-center, ycenter start-angle end-angle needle-outer-radius needle-inner-radius min-value max-value tip-width base-width needle-color
+  gfx.AngularNeedle(val,   120,      120,    54,         308,      90,                 17,                 0,        280,      2,        2,         RED, 0, 0, 0, 0, 0, 0, 0, 0, 0); // Draw needle on top of animation anim1
+  gfx.ShowAnim(anim1);        // Show built animation anim1
+}
+
+void showCodedSlider(int val){
+  gfx.ContAnim(anim2);        // Continue previously created animation anim2
+  int lftofst = 5;
+  int rgtofst = 5;
+  int width = 224;
+  int height = 20;
+  int iwidth = width - lftofst - rgtofst;
+  int range = 280;
+  int theight = 14;
+  int x = 8; int y = 260;
+  int pos = (iwidth * val / range);
+  gfx.gradientShapeAA(0, 2, x + lftofst, y + (height >> 1) - (theight >> 1), pos, theight, 7, 1, 7, 1, 0, SILVER, 1, 25, CYAN, 0, 45, 0);
+  gfx.gradientShapeAA(0, 2, x + lftofst + pos, y + (height >> 1) - (theight >> 1), iwidth - pos, theight, 1, 7, 1, 7, 0, SILVER, 1, 25, BLACK, 0, 35, 0);
+  gfx.gradientShapeAA(0, 3, x + lftofst + pos - (height >> 1) , y, height, height, 10, 10, 10, 10, 0, SILVER, 0, 25, RED, 0, 25, 0);
+  gfx.CircleFlare(x + lftofst - 1 + pos, y + (height >> 1) - 1, 9, 8, 80, 2, FLARE_EXTERNAL, ORANGERED);
+  gfx.ShowAnim(anim2);        // Show built animation anim2
+}
+
