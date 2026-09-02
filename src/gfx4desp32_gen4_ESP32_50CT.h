@@ -37,18 +37,18 @@ private:
             .h_res = GEN4_RGB_H_RES,
             .v_res = GEN4_RGB_V_RES,
             // The following parameters should refer to LCD spec
-            .hsync_pulse_width = 4, //1, //4, 
-            .hsync_back_porch = 8, //40, //8, 
-            .hsync_front_porch = 8, //20, //8, 
-            .vsync_pulse_width = 4, //1, //4,
-            .vsync_back_porch = 8, //24, //8, 
-            .vsync_front_porch = 8, //16, //8,
+            .hsync_pulse_width = 4,
+            .hsync_back_porch = 8,
+            .hsync_front_porch = 8,
+            .vsync_pulse_width = 4,
+            .vsync_back_porch = 8,
+            .vsync_front_porch = 8,
             .flags = {
-                .hsync_idle_low = true,  //!< The hsync signal is low in IDLE state 
+                //.hsync_idle_low = true,  //!< The hsync signal is low in IDLE state 
                 .vsync_idle_low = true,  //!< The vsync signal is low in IDLE state 
-                .de_idle_high = true,    //!< The de signal is high in IDLE state 
+                //.de_idle_high = true,    //!< The de signal is high in IDLE state 
                 .pclk_active_neg = true, //!< Whether the display data is clocked out on the falling edge of PCLK 
-                .pclk_idle_high = true  //!< The PCLK stays at high level in IDLE phase         
+                //.pclk_idle_high = true  //!< The PCLK stays at high level in IDLE phase         
             },
         },
         .data_width = 16,  // RGB565 in parallel mode, thus 16bit in width
