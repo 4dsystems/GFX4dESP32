@@ -26,6 +26,17 @@ void gfx4desp32_rgb_panel_rt::touch_Set(uint8_t mode) {
     if (mode == TOUCH_ENABLE) {
         _TouchEnable = true;
         if (touchFirstEnable) {
+            Wire.beginTransmission(0x48);
+            if (Wire.endTransmission() == 0) {
+                _touchAddress = 0x48;
+            }
+            else {
+                Wire.beginTransmission(0x49);
+                if (Wire.endTransmission() == 0) {
+                    _touchAddress = 0x49;
+                }
+            }
+
             preferences.begin("touchCal", false);
             int testp = preferences.getShort("calibx1", 0);
             if (testp != 0) {
@@ -84,34 +95,34 @@ bool gfx4desp32_rgb_panel_rt::touch_Update() {
         // read 10 values
         for (i = 0; i < READSPLUS; i++) {
             // read x
-            Wire.beginTransmission(0x48);
+            Wire.beginTransmission(_touchAddress);
             Wire.write((byte)0xc4);
             Wire.endTransmission();
-            bytesReceived = Wire.requestFrom(0x48, 2);
+            bytesReceived = Wire.requestFrom(_touchAddress, 2);
             Wire.readBytes(gTPData + 2, bytesReceived);
             x = (gTPData[2] << 4) | (gTPData[3] >> 4);
             Wire.endTransmission();
             // *** Get touch pressure z1 sample ***
-            Wire.beginTransmission(0x48);
+            Wire.beginTransmission(_touchAddress);
             Wire.write((byte)0xe4);
             Wire.endTransmission();
-            bytesReceived = Wire.requestFrom(0x48, 2);
+            bytesReceived = Wire.requestFrom(_touchAddress, 2);
             Wire.readBytes(gTPData, bytesReceived);
             z1 = (gTPData[0] << 4) | (gTPData[1] >> 4);
             Wire.endTransmission();
             // *** Get touch pressure z2 sample ***
-            Wire.beginTransmission(0x48);
+            Wire.beginTransmission(_touchAddress);
             Wire.write((byte)0xf4);
             Wire.endTransmission();
-            bytesReceived = Wire.requestFrom(0x48, 2);
+            bytesReceived = Wire.requestFrom(_touchAddress, 2);
             Wire.readBytes(gTPData + 8, bytesReceived);
             z2 = (gTPData[8] << 4) | (gTPData[9] >> 4);
             Wire.endTransmission();
             // *** Get touch y sample ***
-            Wire.beginTransmission(0x48);
+            Wire.beginTransmission(_touchAddress);
             Wire.write((byte)0xd4);
             Wire.endTransmission();
-            bytesReceived = Wire.requestFrom(0x48, 2);
+            bytesReceived = Wire.requestFrom(_touchAddress, 2);
             Wire.readBytes(gTPData + 6, bytesReceived);
             y = (gTPData[6] << 4) | (gTPData[7] >> 4);
             Wire.endTransmission();
@@ -406,7 +417,7 @@ void gfx4desp32_rgb_panel_rt::touchCalibration() {
                     MoveTo(calvaluexpos, (calvalueypos * 3) + 64);
                     print("TOUCH_YMAXCAL=");
                     print(ncy2, HEX);
-                    if (ncx1 < ncx2 && ncy1 < ncy2) {
+                    if (ncx1 != ncx2 && ncy1 != ncy2) {
                         MoveTo(calvaluexpos, (calvalueypos * 3) + 80);
                         TextColor(YELLOW, BLACK);
                         print("ACCEPTED");

@@ -23,6 +23,7 @@ protected:
     int16_t lasttouchXpos;
     int16_t lasttouchYpos;
     bool _TouchEnable;
+    uint8_t _touchAddress;
 
     bool touchYswap;
     bool touchXswap;
