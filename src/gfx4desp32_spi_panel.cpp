@@ -2912,7 +2912,7 @@ void gfx4desp32_spi_panel::draw_bitmap(int x1, int y1, int x2, int y2,
     tx_color(ILI9488_CMD_MEMORY_WRITE, c_data, len);
 }
 
-void gfx4desp32_spi_panel::PinMode(byte pin, uint8_t mode) { pinMode(pin, mode); }
+void gfx4desp32_spi_panel::PinMode(byte pin, uint8_t mode, bool restrict) { pinMode(pin, mode); }
 
 void gfx4desp32_spi_panel::DigitalWrite(byte pin, bool state) {
     digitalWrite(pin, state);

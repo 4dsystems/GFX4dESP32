@@ -3272,8 +3272,8 @@ void gfx4desp32_rgb_panel::AlphaBlendLevel(uint32_t alphaLevel) {
           restricted after begin function is called
 */
 /****************************************************************************/
-void gfx4desp32_rgb_panel::PinMode(byte pin, uint8_t mode) {
-    if (IOexpInit && pin > 5)
+void gfx4desp32_rgb_panel::PinMode(byte pin, uint8_t mode, bool restrict) {
+    if (IOexpInit && pin > 5 && restrict)
         return;
     byte output_reg = 0;
     Wire.beginTransmission(GFX4d_IO_EXPANDER_ADDR);

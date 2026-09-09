@@ -205,7 +205,7 @@ public:
     virtual void drawBitmap(int x1, int y1, int x2, int y2, uint16_t* c_data) override;
     virtual void CopyFrameBuffer(uint8_t fbto, uint8_t fbfrom1) override;
     virtual void CopyFrameBufferLine(int16_t x, int16_t y, int16_t w, int fb) override;
-    virtual void PinMode(byte pin, uint8_t mode) override;
+    virtual void PinMode(byte pin, uint8_t mode, bool restrict = true) override;
     virtual void DigitalWrite(byte pin, bool state) override;
     virtual int DigitalRead(byte pin) override;
     virtual void AllocateFB(uint8_t sel) override;

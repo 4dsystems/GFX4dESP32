@@ -86,7 +86,7 @@ void gfx4desp32_touch::Open4dGFX(String file4d) {
         }
         _Open4dGFX(file4d, false);
     }
-	opgfx = 1;
+	if (gciobjnum > 0) opgfx = 1;
 }
 
 void gfx4desp32_touch::Open4dGFX(const uint8_t* DATa, uint32_t DATlen,
@@ -110,7 +110,7 @@ void gfx4desp32_touch::Open4dGFX(const uint8_t* JPEGa, uint32_t FLsize) {
 
 void gfx4desp32_touch::_Open4dGFXjpeg(String file4d, uint8_t jpType){
     GCItype = jpType;
-    uint32_t fSize;
+    uint32_t fSize = 0;
 	if (GCItype == GCI_SYSTEM_JPEG_USD){
 		gcjFname = "/" + file4d;
 	#ifdef USE_SDMMC_FILE_SYSTEM
@@ -121,6 +121,7 @@ void gfx4desp32_touch::_Open4dGFXjpeg(String file4d, uint8_t jpType){
 	    fSize = userImag.size();
 	#endif
 		//fSize = userImag.size();
+		if(!userImag) return;
     } else {
 	    fSize = gciArraySize;
 	    GCIseek(0);  
@@ -144,7 +145,7 @@ void gfx4desp32_touch::_Open4dGFXjpeg(String file4d, uint8_t jpType){
             tuiExtra2 = (uint16_t*)malloc(gciobjnum << 1);
             gciobjframes = (uint16_t*)malloc(gciobjnum << 1);
             jpegOFFSETSpos = (uint32_t*)malloc(gciobjnum << 2);
-        }
+		}
         uint32_t totframes = 0;
         uint32_t framesCount = 0;
         for (int n = 0; n < gciobjnum; n++){

@@ -1,4 +1,6 @@
 #include "gfx4desp32_rgb_panel_t.h"
+#include "GT911.h";
+GT911 ts = GT911();
 
 gfx4desp32_rgb_panel_t::gfx4desp32_rgb_panel_t(
     esp_lcd_rgb_panel_config_t* panel_config, int bk_pin, int bk_on_level,
@@ -9,6 +11,8 @@ gfx4desp32_rgb_panel_t::gfx4desp32_rgb_panel_t(
         touchYinvert),
     gfx4desp32_touch() {
     touchYswap = touchYinvert;
+	h_res = 800;//panel_config->timings.h_res;
+	v_res = 480;//panel_config->timings.v_res;
 }
 
 gfx4desp32_rgb_panel_t::~gfx4desp32_rgb_panel_t() {}
@@ -26,7 +30,39 @@ void gfx4desp32_rgb_panel_t::touch_Set(uint8_t mode) {
         _TouchEnable = true;
         if (touchFirstEnable) {
             touchFirstEnable = false;
-        }
+			t_controller = 0;
+			Wire.beginTransmission(0x38);
+			int error = Wire.endTransmission();
+			if (error == 0){
+				PinMode(GFX4d_TOUCH_INT, INPUT_PULLUP, false);
+				PinMode(GFX4d_TOUCH_RESET, OUTPUT, false);
+				DigitalWrite(GFX4d_TOUCH_RESET, HIGH);
+			} else {
+				t_controller = 1;
+				delay(100);
+				PinMode(GFX4d_TOUCH_INT, OUTPUT, false);
+				PinMode(GFX4d_TOUCH_RESET, OUTPUT, false);
+				DigitalWrite(GFX4d_TOUCH_RESET, LOW);
+				delay(10);
+				DigitalWrite(GFX4d_TOUCH_INT, LOW);
+				delay(10);
+				DigitalWrite(GFX4d_TOUCH_RESET, HIGH);
+				delay(50);
+				PinMode(GFX4d_TOUCH_INT, INPUT_PULLUP, false);
+				PinMode(GFX4d_TOUCH_RESET, INPUT_PULLUP, false);
+				if (ts.begin(-1, -1, 0x5d, 400000)) {	
+				} else {
+					ts.begin(-1, -1, 0x14, 400000);
+				}
+				delay(100);
+				if (mode == TOUCH_FW_WRITE){
+					if (t_controller == 1) ts.fwWrite(GT967_800_480, 226, GT967_TOUCH_CONTROLLER);
+				} else {
+					ts.fwResolution(v_res, h_res, GT967_TOUCH_CONTROLLER);
+				} 
+				ts.SetRotation(1);
+			}
+		}
     }
     else {
         _TouchEnable = false;
@@ -47,19 +83,69 @@ void gfx4desp32_rgb_panel_t::touch_Set(uint8_t mode) {
 int gfx4desp32_rgb_panel_t::touch_GetTouchPoints(int* tpx, int* tpy){
 	int num = 0;
 	if (!(_TouchEnable)) return 0;
-	int bytesReceived, tps;
-    Wire.beginTransmission(0x38);
-    Wire.write((byte)2);
-    Wire.endTransmission();
-    bytesReceived = Wire.requestFrom(0x38, CTP_DATA_LEN);
-    Wire.readBytes(gCTPData, bytesReceived);
-    Wire.endTransmission();
-    if (tps != 0xff) {
-		num = gCTPData[0] ;
-		if (num > 5) num = 5 ;
-		for (int i = 0; i < num; i++) {
-			tpy[i] = (((gCTPData[1 + i * 6] & 0x0f) << 8) + gCTPData[2 + i * 6]) - 1;
-			tpx[i] = ((gCTPData[3 + i * 6] & 0x0f) << 8) + gCTPData[4 + i * 6] ;
+	if (t_controller == 0){
+		int bytesReceived, tps;
+        Wire.beginTransmission(0x38);
+        Wire.write((byte)2);
+        Wire.endTransmission();
+        bytesReceived = Wire.requestFrom(0x38, CTP_DATA_LEN);
+        Wire.readBytes(gCTPData, bytesReceived);
+        Wire.endTransmission();
+        if (tps != 0xff) {
+			num = gCTPData[0] ;
+			if (num > 5) num = 5 ;
+			for (int i = 0; i < num; i++) {
+				tpy[i] = (((gCTPData[1 + i * 6] & 0x0f) << 8) + gCTPData[2 + i * 6]) - 1;
+				tpx[i] = ((gCTPData[3 + i * 6] & 0x0f) << 8) + gCTPData[4 + i * 6] ;
+			}
+		}
+	}
+	if (t_controller == 1){
+		num = ts.touched(GT911_MODE_POLLING);
+		GTPoint* tpp;
+		if(num > 0){
+			tpp = ts.getPoints();
+			for(int t = 0; t < num; t++){
+				if (t_controller == 0){
+					switch(rotation){
+						case 0:
+							tpx[t] = tpp[t].x;
+							tpy[t] = tpp[t].y;			
+							break;
+						case 1:
+							tpx[t] = __width - tpp[t].x;
+							tpy[t] = __height - tpp[t].y;
+							break;
+						case 2:
+							tpx[t] = __width - tpp[t].y;
+							tpy[t] = tpp[t].x;
+							break;
+						case 3:
+							tpx[t] = tpp[t].y;
+							tpy[t] = __height - tpp[t].x;
+							break;
+					}
+				} else {
+					switch(rotation){
+						case 2:
+							tpx[t] = tpp[t].x;
+							tpy[t] = tpp[t].y;			
+							break;
+						case 3:
+							tpx[t] = __width - tpp[t].x;
+							tpy[t] = __height - tpp[t].y;
+							break;
+						case 0:
+							tpx[t] = tpp[t].y;
+							tpy[t] = __height - tpp[t].x;
+							break;
+						case 1:
+							tpx[t] = __width - tpp[t].y;
+							tpy[t] = tpp[t].x;
+							break;
+					}
+				}
+			}
 		}
 	}
 	return num;
@@ -73,93 +159,134 @@ int gfx4desp32_rgb_panel_t::touch_GetTouchPoints(int* tpx, int* tpy){
 */
 /****************************************************************************/
 bool gfx4desp32_rgb_panel_t::touch_Update() {
-    bool intStatus = DigitalRead(GFX4d_TOUCH_INT);
-    // *** if touch is not enabled and no touch int or touch status is not no touch
+	bool intStatus = DigitalRead(GFX4d_TOUCH_INT);
+	// *** if touch is not enabled and no touch int or touch status is not no touch
     // then just return ***
     // *** need to create touch release state before no touch ***
-	if (!_TouchEnable || (intStatus && tPen == 0))
+    if (!_TouchEnable || (intStatus && tPen == 0))
         return false;
     bool update = false;
-    bool validTouch;
-
+    bool validTouch = false;
     int i = 0;
     int tps;
-    uint8_t gTPData[10];
     uint8_t bytesReceived;
-
+    if (t_controller == 0){
     // *** process capacitive touch ***
-    Wire.beginTransmission(0x38);
-    Wire.write((byte)2);
-    Wire.endTransmission();
-    bytesReceived = Wire.requestFrom(0x38, 6);
-    Wire.readBytes(gTPData, bytesReceived);
-    Wire.endTransmission();
-
-    tps = gTPData[0];
-    if (tps != 0xff) { // some FT chips return garbage before first valid read,
+		Wire.beginTransmission(0x38);
+		Wire.write((byte)2);
+		Wire.endTransmission();
+		bytesReceived = Wire.requestFrom(0x38, 6);
+		Wire.readBytes(gCTPData, bytesReceived);
+		Wire.endTransmission();
+		tps = gCTPData[0];
+		if (tps != 0xff) { // some FT chips return garbage before first valid read,
         // try and detect that
-        tPen = tps;
-        if (tPen == 1) {
-            switch (rotation) {
-            case LANDSCAPE:
-                lasttouchYpos = touchYpos;
-                lasttouchXpos = touchXpos;
-                if (touchYswap) {
-                    touchYpos =
-                        __height -
-                        (((gTPData[1 + i * 6] & 0x0f) << 8) + gTPData[2 + i * 6]) - 1;
-                }
-                else {
-                    touchYpos = ((gTPData[1 + i * 6] & 0x0f) << 8) + gTPData[2 + i * 6];
-                }
-                touchXpos = ((gTPData[3 + i * 6] & 0x0f) << 8) + gTPData[4 + i * 6];
-                break;
-            case LANDSCAPE_R:
-                lasttouchYpos = touchYpos;
-                lasttouchXpos = touchXpos;
-                if (touchYswap) {
-                    touchYpos = ((gTPData[1 + i * 6] & 0x0f) << 8) + gTPData[2 + i * 6];
-                }
-                else {
-                    touchYpos =
-                        __height -
-                        (((gTPData[1 + i * 6] & 0x0f) << 8) + gTPData[2 + i * 6]) - 1;
-                }
-                touchXpos = __width -
-                    (((gTPData[3 + i * 6] & 0x0f) << 8) + gTPData[4 + i * 6]) -
-                    1;
-                break;
-            case PORTRAIT_R:
-                lasttouchYpos = touchYpos;
-                lasttouchXpos = touchXpos;
-                if (touchYswap) {
-                    touchXpos = __width - (((gTPData[1 + i * 6] & 0x0f) << 8) + gTPData[2 + i * 6]) - 1;
-                }
-                else {
-                    touchXpos = ((gTPData[1 + i * 6] & 0x0f) << 8) + gTPData[2 + i * 6];
-                }
-                touchYpos = __height -
-                    (((gTPData[3 + i * 6] & 0x0f) << 8) + gTPData[4 + i * 6]) -
-                    1;
-                break;
-            case PORTRAIT:
-                lasttouchYpos = touchYpos;
-                lasttouchXpos = touchXpos;
-                if (touchYswap) {
-                    touchXpos = ((gTPData[1 + i * 6] & 0x0f) << 8) + gTPData[2 + i * 6];
-                }
-                else {
-                    touchXpos = __width -
-                        (((gTPData[1 + i * 6] & 0x0f) << 8) + gTPData[2 + i * 6]) -
-                        1;
-                }
-                //touchXpos = ((gTPData[1 + i * 6] & 0x0f) << 8) + gTPData[2 + i * 6];
-                touchYpos = ((gTPData[3 + i * 6] & 0x0f) << 8) + gTPData[4 + i * 6];
-                break;
-            }
-        }
-        validTouch = true;
-    }
+			tPen = (gCTPData[0] > 0);
+			//MoveTo(300, 180); print(String(tPen)); 
+			num_touch_points = tps;
+			if (tPen == 1) {
+				switch (rotation) {
+				case 0:
+					lasttouchYpos = touchYpos;
+					lasttouchXpos = touchXpos;
+					if (touchYswap) {
+						touchYpos =
+							__height -
+							(((gCTPData[1 + i * 6] & 0x0f) << 8) + gCTPData[2 + i * 6]) - 1;
+					}
+					else {
+						touchYpos = ((gCTPData[1 + i * 6] & 0x0f) << 8) + gCTPData[2 + i * 6];
+					}
+					touchXpos = ((gCTPData[3 + i * 6] & 0x0f) << 8) + gCTPData[4 + i * 6];
+					break;
+				case 1:
+					lasttouchYpos = touchYpos;
+					lasttouchXpos = touchXpos;
+					if (touchYswap) {
+						touchYpos = ((gCTPData[1 + i * 6] & 0x0f) << 8) + gCTPData[2 + i * 6];
+					}
+					else {
+						touchYpos =
+							__height -
+							(((gCTPData[1 + i * 6] & 0x0f) << 8) + gCTPData[2 + i * 6]) - 1;
+					}
+					touchXpos = __width -
+						(((gCTPData[3 + i * 6] & 0x0f) << 8) + gCTPData[4 + i * 6]) -
+						1;
+					break;
+				case 3:
+					lasttouchYpos = touchYpos;
+					lasttouchXpos = touchXpos;
+					if (touchYswap) {
+						touchXpos = __width - (((gCTPData[1 + i * 6] & 0x0f) << 8) + gCTPData[2 + i * 6]) - 1;
+					}
+					else {
+						touchXpos = ((gCTPData[1 + i * 6] & 0x0f) << 8) + gCTPData[2 + i * 6];
+					}
+					touchYpos = __height -
+						(((gCTPData[3 + i * 6] & 0x0f) << 8) + gCTPData[4 + i * 6]) -
+						1;
+					break;
+				case 2:
+					lasttouchYpos = touchYpos;
+					lasttouchXpos = touchXpos;
+					if (touchYswap) {
+						touchXpos = ((gCTPData[1 + i * 6] & 0x0f) << 8) + gCTPData[2 + i * 6];
+					}
+					else {
+						touchXpos = __width -
+							(((gCTPData[1 + i * 6] & 0x0f) << 8) + gCTPData[2 + i * 6]) -
+							1;
+					}
+                //touchXpos = ((gCTPData[1 + i * 6] & 0x0f) << 8) + gCTPData[2 + i * 6];
+					touchYpos = ((gCTPData[3 + i * 6] & 0x0f) << 8) + gCTPData[4 + i * 6];
+					break;
+				}
+			}
+			validTouch = true;
+		}
+	}
+	if (t_controller == 1){
+		tps = ts.touched(GT911_MODE_POLLING);
+		if (tps != -1) { // -1 means timeout for GT967, we might want to return
+			tPen = (tps > 0);
+			num_touch_points = tps;
+			GTPoint* tp;
+			if (tps) tp = ts.getPoints();
+			if (tPen >= 1) {
+				//int temp = tp[0].y;
+				//tp[0].y = tp[0].x;
+				//tp[0].x = temp;
+				switch (rotation) {
+				case 0:
+					lasttouchYpos = touchYpos;
+					lasttouchXpos = touchXpos;
+					touchYpos = __height - tp[0].x;
+					touchXpos = tp[0].y;
+					break;
+				case 1:
+					lasttouchYpos = touchYpos;
+					lasttouchXpos = touchXpos;
+					touchYpos = tp[0].x;
+					touchXpos = __width - tp[0].y;
+					break;
+				case 2:
+					lasttouchYpos = touchYpos;
+					lasttouchXpos = touchXpos;
+					touchYpos = tp[0].y;
+					touchXpos = tp[0].x;
+					break;
+				case 3:
+					lasttouchYpos = touchYpos;
+					lasttouchXpos = touchXpos;
+					touchYpos = __height - tp[0].y;
+					touchXpos = __width - tp[0].x;
+					break;
+				}
+			}
+			validTouch = true;
+		}
+	}
 
     if (validTouch) {
         if (tPen == 1 && (lasttouchXpos != touchXpos || lasttouchYpos != touchYpos))

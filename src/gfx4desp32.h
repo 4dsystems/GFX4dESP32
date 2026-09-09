@@ -331,6 +331,8 @@
 
 #define TOUCH_ENABLE                0x00
 #define TOUCH_DISABLE               0x01
+#define TOUCH_FW_WRITE              0x02
+#define TOUCH_SIMULATED_ENABLE		0x03
 
 #define SCROLL_UP                   0x00
 #define SCROLL_DOWN                 0x01
@@ -738,7 +740,7 @@ public:
     virtual void CopyFrameBuffer(uint8_t fbto, uint8_t fbfrom1) = 0;
     virtual void CopyFrameBufferLine(int16_t x, int16_t y, int16_t w, int fb) = 0;
     void CopyImageLine(int inum, int x, int y, int w);
-    virtual void PinMode(byte pin, uint8_t mode) = 0;
+    virtual void PinMode(byte pin, uint8_t mode, bool restrict = true) = 0;
     virtual void DigitalWrite(byte pin, bool state) = 0;
     virtual int DigitalRead(byte pin) = 0;
     virtual void FlushArea(int x1, int x2, int y1, int y2, int xpos) = 0;
