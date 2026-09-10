@@ -33,7 +33,7 @@ gfx4desp32_qspi_panel_t::~gfx4desp32_qspi_panel_t() {}
 /****************************************************************************/
 void gfx4desp32_qspi_panel_t::touch_Set(uint8_t mode) {
     delay(100);
-	if (mode == TOUCH_ENABLE) {
+	if (mode == TOUCH_ENABLE || mode == TOUCH_FW_WRITE) {
         _TouchEnable = true;
 		if (touchFirstEnable) {
             pinMode(GFX4d_QSPI_TOUCH_RESET, OUTPUT);
@@ -80,18 +80,16 @@ void gfx4desp32_qspi_panel_t::touch_Set(uint8_t mode) {
 				} else {
 					tsq.begin(-1, -1, 0x14, 400000);
 				}
-				delay(100);
+				delay(200);
 				if (mode == TOUCH_FW_WRITE){
-					if (t_controller == 1) tsq.fwWrite(GT967_480_272, 226, t_controller);
+				    tsq.fwWrite(GT967_480_272, 226, GT967_TOUCH_CONTROLLER); 
 				} else {
-					MoveTo(0, 340);
 					tsq.fwResolution(h_res, v_res, GT967_TOUCH_CONTROLLER);
 				} 
 				tsq.SetRotation(0);
 				
 			}
 			touchFirstEnable = false;
-			attachInterrupt(GFX4d_QSPI_TOUCH_INT, gt911_irq_handler, FALLING);
 		}
     }
     else {
@@ -189,12 +187,13 @@ int gfx4desp32_qspi_panel_t::touch_GetTouchPoints(int* tpx, int* tpy){
 */
 /****************************************************************************/
 bool gfx4desp32_qspi_panel_t::touch_Update() {
+	bool intStatus = digitalRead(GFX4d_QSPI_TOUCH_INT);
 	// *** if touch is not enabled and no touch int or touch status is not no touch
     // then just return ***
     // *** need to create touch release state before no touch ***
-    if (!_TouchEnable || (_intIRQ == false && tPen == 0))
+    if (!_TouchEnable || (intStatus && tPen == 0))
         return false;
-	_intIRQ = false;
+	//_intIRQ = false;
     bool update = false;
     bool validTouch = false;
     int i = 0;

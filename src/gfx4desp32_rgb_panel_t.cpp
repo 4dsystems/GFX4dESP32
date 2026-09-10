@@ -26,7 +26,7 @@ gfx4desp32_rgb_panel_t::~gfx4desp32_rgb_panel_t() {}
 /****************************************************************************/
 void gfx4desp32_rgb_panel_t::touch_Set(uint8_t mode) {
     delay(100);
-    if (mode == TOUCH_ENABLE) {
+    if (mode == TOUCH_ENABLE || mode == TOUCH_FW_WRITE) {
         _TouchEnable = true;
         if (touchFirstEnable) {
             touchFirstEnable = false;
@@ -54,13 +54,13 @@ void gfx4desp32_rgb_panel_t::touch_Set(uint8_t mode) {
 				} else {
 					ts.begin(-1, -1, 0x14, 400000);
 				}
-				delay(100);
+				delay(200);
 				if (mode == TOUCH_FW_WRITE){
-					if (t_controller == 1) ts.fwWrite(GT967_800_480, 226, GT967_TOUCH_CONTROLLER);
+				  ts.fwWrite(GT967_800_480, 226, GT967_TOUCH_CONTROLLER); 
 				} else {
-					ts.fwResolution(v_res, h_res, GT967_TOUCH_CONTROLLER);
+					ts.fwResolution(h_res, v_res, GT967_TOUCH_CONTROLLER);
 				} 
-				ts.SetRotation(1);
+				ts.SetRotation(0);
 			}
 		}
     }
