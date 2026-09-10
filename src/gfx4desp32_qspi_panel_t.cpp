@@ -2,11 +2,6 @@
 #include "GT911.h";
 GT911 tsq = GT911();
 
-volatile bool _intIRQ = false;
-
-void IRAM_ATTR gt911_irq_handler() {
-  _intIRQ = true;
-}
 
 gfx4desp32_qspi_panel_t::gfx4desp32_qspi_panel_t(
     int panel_Pin_CS, int panel_Pin_DC, int panel_Pin_MOSI, int panel_Pin_MISO,

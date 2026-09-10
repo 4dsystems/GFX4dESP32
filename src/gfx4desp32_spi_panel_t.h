@@ -23,6 +23,15 @@ public:
   virtual bool touch_Update() override;
   virtual int touch_GetTouchPoints(int* tpx, int* tpy) override;
   uint8_t gCTPData[CTP_DATA_LEN];
+  int t_controller;
+  int num_touch_points;
+  int touchPoints[20];
+  int h_res;
+  int v_res;
+  int touch_res;
+  int touch_int;
+  bool alt_int;
+  int lasttPenD;
 };
 
 #endif // __GFX4D_SPI_PANEL_T__
