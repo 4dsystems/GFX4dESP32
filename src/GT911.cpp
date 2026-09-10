@@ -142,37 +142,46 @@ void GT911::fwWrite(const uint8_t* fwDat, int fwSize, int tCont){
 }
 
 int GT911::fwResolution(uint16_t maxX, uint16_t maxY, int tCont) {
-	int err = 0;
-	if(_info.yResolution == maxY && _info.xResolution == maxX) return 4;
-	uint8_t len1 = GOODIX_REG_CONFIG_MIDDLE - GOODIX_REG_CONFIG_DATA +1;
-	uint8_t len2;
-	if(tCont == 1) len2 = GOODIX_REG_CONFIG_END - GOODIX_REG_CONFIG_MIDDLE;
-	if(tCont == 3) len2 = GOODIX_REG_CONFIG_END_967 - GOODIX_REG_CONFIG_MIDDLE;
-	uint8_t buf1[len1];
-	uint8_t buf2[len2];
-	uint8_t buf3[2];
-	uint8_t buf[len1+len2];
-	if (!(readBytes(GOODIX_REG_CONFIG_DATA, buf1, len1))) return 1;
+  int err = 0;
+  if(_info.yResolution == maxY && _info.xResolution == maxX) return 4;
+  uint8_t len1 = GOODIX_REG_CONFIG_MIDDLE - GOODIX_REG_CONFIG_DATA +1;
+  uint8_t len2, len3;
+  len3 = 0;
+  len2 = GOODIX_REG_CONFIG_END - GOODIX_REG_CONFIG_MIDDLE;
+  //if (tCont == 3) len2 = GOODIX_REG_CONFIG_END_967 - GOODIX_REG_CONFIG_MIDDLE;
+  if (tCont == 3) len3 = GOODIX_REG_CONFIG_END_967 - GOODIX_REG_CONFIG_END;
+  uint8_t buf1[len1];
+  uint8_t buf2[len2];
+  uint8_t buf4[len3];
+  uint8_t buf3[2];
+  uint8_t buf[len1+len2+len3];
+  if (!(readBytes(GOODIX_REG_CONFIG_DATA, buf1, len1))) return 1;
     if (!(readBytes(GOODIX_REG_CONFIG_MIDDLE+1, buf2, len2))) return 2;
-    memcpy(buf, buf1, sizeof(buf1));
-	memcpy(buf+sizeof(buf1), buf2, sizeof(buf2));
-    int tempx, tempy;
-	tempx = buf[1] + (buf[2] << 8);
-	tempy = buf[3] + (buf[4] << 8);	
-    if (tempx != maxX || tempy != maxY){
-		buf[0]++;	
-		buf[1] = (maxX & 0xff);
-		buf[2] = (maxX >> 8);
-		buf[3] = (maxY & 0xff);
-		buf[4] = (maxY >> 8);
-		buf3[0] = calcChecksum(buf, len1+len2);
-		buf3[1] = 0x01;
-		if (!(writeBytes(GOODIX_REG_CONFIG_DATA, buf, len1+len2))) return 3;
-		if(tCont == 1) writeBytes(GOODIX_REG_CONFIG_END+1, buf3, 2);
-		if(tCont == 3 || tCont == 4) writeBytes(GOODIX_REG_CONFIG_END_967+1, buf3, 2);
-	}
-	readInfo();
-	return err;
+    if (tCont == 3){
+    readBytes(GOODIX_REG_CONFIG_END+1, buf4, len3);
+  }
+  memcpy(buf, buf1, sizeof(buf1));
+  memcpy(buf+sizeof(buf1), buf2, sizeof(buf2));
+  if (tCont == 3){
+    memcpy(buf+(sizeof(buf1)+sizeof(buf2)), buf4, sizeof(buf4));
+  }
+  int tempx, tempy;
+  tempx = buf[1] + (buf[2] << 8);
+  tempy = buf[3] + (buf[4] << 8);  
+  if (tempx != maxX || tempy != maxY){
+    buf[0]++;  
+    buf[1] = (maxX & 0xff);
+    buf[2] = (maxX >> 8);
+    buf[3] = (maxY & 0xff);
+    buf[4] = (maxY >> 8);
+    buf3[0] = calcChecksum(buf, len1+len2);
+    buf3[1] = 0x01;
+    if (!(writeBytes(GOODIX_REG_CONFIG_DATA, buf, len1+len2))) return 3;
+    if(tCont == 1) writeBytes(GOODIX_REG_CONFIG_END+1, buf3, 2);
+    if(tCont == 3 || tCont == 4) writeBytes(GOODIX_REG_CONFIG_END_967+1, buf3, 2);
+  }
+  readInfo();
+  return err;
 }
 
 bool GT911::productID(uint8_t *buf, uint8_t len) {
