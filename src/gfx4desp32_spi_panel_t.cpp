@@ -78,7 +78,7 @@ void gfx4desp32_spi_panel_t::touch_Set(uint8_t mode) {
 				if (mode == TOUCH_FW_WRITE){
 				    // tspi.fwWrite(GT967_480_272, 226, GT967_TOUCH_CONTROLLER); 
 				} else {
-					tspi.fwResolution(h_res, v_res, GT967_TOUCH_CONTROLLER);
+					tspi.fwResolution(v_res, h_res, GT967_TOUCH_CONTROLLER);
 				} 
 				tspi.SetRotation(3);
 				
