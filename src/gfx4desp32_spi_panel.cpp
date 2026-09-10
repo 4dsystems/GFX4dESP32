@@ -198,20 +198,20 @@ esp_lcd_panel_handle_t gfx4desp32_spi_panel::__begin() {
         //delay(400);
         ESP_ERROR_CHECK(esp_lcd_new_panel_st7789(io_handle, &panel_config, &panel_handle));
 
-        delay(100);
+        delay(50);
 
         ESP_ERROR_CHECK(esp_lcd_panel_reset(panel_handle));
 
-        delay(100);
+        delay(50);
         //ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(panel_handle, true));
 
         tx_param(ILI9488_CMD_SLEEP_OUT, NULL, 0);
-        delay(200);
+        delay(50);
         tx_param(ILI9488_CMD_DISPLAY_ON, NULL, 0);
-        delay(200);
+        delay(100);
         tx_param(ILI9488_CMD_DISP_INVERSION_ON, NULL, 0);
         tx_param(0x20, NULL, 0);
-        delay(200);
+        delay(100);
 
     }
 
