@@ -19,7 +19,7 @@ public:
     int sd_gpio_MOSI, int sd_gpio_CS, int hres, int vres, bool touchXinvert);
   ~gfx4desp32_spi_panel_t();
 
-  virtual void touch_Set(uint8_t mode) override;
+  virtual void touch_Set(uint8_t mode, const uint8_t * config = NULL) override;
   virtual bool touch_Update() override;
   virtual int touch_GetTouchPoints(int* tpx, int* tpy) override;
   uint8_t gCTPData[CTP_DATA_LEN];

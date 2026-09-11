@@ -26,9 +26,9 @@ gfx4desp32_qspi_panel_t::~gfx4desp32_qspi_panel_t() {}
   @note   experimental
 */
 /****************************************************************************/
-void gfx4desp32_qspi_panel_t::touch_Set(uint8_t mode) {
+void gfx4desp32_qspi_panel_t::touch_Set(uint8_t mode, const uint8_t * config) {
     delay(100);
-	if (mode == TOUCH_ENABLE || mode == TOUCH_FW_WRITE) {
+	if (mode == TOUCH_ENABLE) {
         _TouchEnable = true;
 		if (touchFirstEnable) {
             pinMode(GFX4d_QSPI_TOUCH_RESET, OUTPUT);
@@ -76,8 +76,8 @@ void gfx4desp32_qspi_panel_t::touch_Set(uint8_t mode) {
 					tsq.begin(-1, -1, 0x14, 400000);
 				}
 				delay(200);
-				if (mode == TOUCH_FW_WRITE){
-				    tsq.fwWrite(GT967_480_272, 226, GT967_TOUCH_CONTROLLER); 
+				if (config != NULL){
+				    tsq.fwWrite(config, 226, GT967_TOUCH_CONTROLLER); 
 				} else {
 					tsq.fwResolution(h_res, v_res, GT967_TOUCH_CONTROLLER);
 				} 

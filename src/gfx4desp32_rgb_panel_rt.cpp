@@ -21,7 +21,7 @@ gfx4desp32_rgb_panel_rt::~gfx4desp32_rgb_panel_rt() {}
   @note   experimental
 */
 /****************************************************************************/
-void gfx4desp32_rgb_panel_rt::touch_Set(uint8_t mode) {
+void gfx4desp32_rgb_panel_rt::touch_Set(uint8_t mode, const uint8_t * config) {
     delay(100);
     if (mode == TOUCH_ENABLE) {
         _TouchEnable = true;

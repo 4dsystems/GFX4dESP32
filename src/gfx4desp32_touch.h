@@ -39,7 +39,7 @@ public:
     uint8_t touch_GetInvertMode();
 
     // these should be in rgb/spi touch files
-    virtual void touch_Set(uint8_t mode) = 0;
+    virtual void touch_Set(uint8_t mode, const uint8_t * config = NULL) = 0;
     virtual bool touch_Update() = 0;
 	virtual int touch_GetTouchPoints(int* tpx, int* tpy) = 0;
 

@@ -331,8 +331,6 @@
 
 #define TOUCH_ENABLE                0x00
 #define TOUCH_DISABLE               0x01
-#define TOUCH_FW_WRITE              0x02
-#define TOUCH_SIMULATED_ENABLE		0x03
 
 #define SCROLL_UP                   0x00
 #define SCROLL_DOWN                 0x01

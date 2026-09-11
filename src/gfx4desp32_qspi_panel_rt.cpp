@@ -24,7 +24,7 @@ gfx4desp32_qspi_panel_rt::~gfx4desp32_qspi_panel_rt() {}
   @note   experimental
 */
 /****************************************************************************/
-void gfx4desp32_qspi_panel_rt::touch_Set(uint8_t mode) {
+void gfx4desp32_qspi_panel_rt::touch_Set(uint8_t mode, const uint8_t * config) {
     if (mode == TOUCH_ENABLE) {
         if (touchFirstEnable) {
             pinMode(GFX4d_QSPI_TOUCH_RESET, OUTPUT);

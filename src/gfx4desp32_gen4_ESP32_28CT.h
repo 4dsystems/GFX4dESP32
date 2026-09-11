@@ -13,6 +13,7 @@
 #define GEN4_SPI_HRES 320
 #define GEN4_SPI_VRES 240
 
+#define GT967_CONFIG  NULL // no GT967 variant for this size
 
 class gfx4desp32_gen4_ESP32_28CT : public gfx4desp32_spi_panel_t {
 private:

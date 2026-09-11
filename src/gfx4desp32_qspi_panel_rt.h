@@ -16,7 +16,7 @@ public:
         int sd_gpio_MOSI, int sd_gpio_CS, int hres, int vres, bool touchXinvert);
     ~gfx4desp32_qspi_panel_rt();
 
-    virtual void touch_Set(uint8_t mode) override;
+    virtual void touch_Set(uint8_t mode, const uint8_t * config = NULL) override;
     virtual bool touch_Update() override;
     void touchCalibration();
 
