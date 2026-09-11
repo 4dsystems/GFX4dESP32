@@ -11,6 +11,6 @@ It is recommended to use Workshop4 IDE to get the most of out the library functi
 ### Notes
 
 1.  Workshop4 is a **Windows-only** application.
-2.  This is tested against Arduino ESP32 Core version `3.3.7` and SdFat `2.3.0` for microSD support.
+2.  This is tested against Arduino ESP32 Core version `3.3.11` and SdFat `2.3.0` for microSD support.
 
 In case of any issues, please don't hesitate to [write an issue](https://github.com/4dsystems/GFX4dESP32/issues/new) or contact us directly.
