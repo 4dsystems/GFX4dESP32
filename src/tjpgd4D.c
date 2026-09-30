@@ -24,6 +24,8 @@
 /                     Some performance improvement.
 /----------------------------------------------------------------------------*/
 
+/* 4D Systems: only change from upstream TJpgDec R0.03 (via Espressif esp_jpeg) is the
+/  renamed include files (tjpgd4D.h / tjpgdcnf4D.h). */
 #include "tjpgd4D.h"
 
 

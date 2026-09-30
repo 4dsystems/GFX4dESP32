@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 4D Systems Pty Ltd
+
 #ifndef __GFX4D_QSPI_PANEL_RT__
 #define __GFX4D_QSPI_PANEL_RT__
 

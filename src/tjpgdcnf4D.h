@@ -1,3 +1,7 @@
+/* Adapted by 4D Systems Pty Ltd from Espressif's esp_jpeg tjpgdcnf.h (Apache-2.0):
+/  Kconfig/sdkconfig dependencies removed and fixed values set (JD_SZBUF, JD_FORMAT,
+/  JD_USE_SCALE, JD_TBLCLIP, JD_FASTDECODE). */
+
 /*----------------------------------------------*/
 /* TJpgDec System Configurations R0.03          */
 /*----------------------------------------------*/

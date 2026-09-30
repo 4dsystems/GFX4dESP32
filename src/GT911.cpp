@@ -1,3 +1,16 @@
+/*
+ * SPDX-License-Identifier: MIT
+ *
+ * Copyright (c) 2017 Nik (nik-sharky/arduino-goodix)
+ * Copyright (c) 2021 alex-code (alex-code/GT911)
+ * Modifications Copyright (c) 4D Systems Pty Ltd
+ *
+ * Derived from https://github.com/alex-code/GT911, which is based on
+ * https://github.com/nik-sharky/arduino-goodix. Both are MIT licensed.
+ * The full MIT license text is in THIRD_PARTY_NOTICES.md and must be
+ * retained with any copy or substantial portion of this file.
+ */
+
 #include "GT911.h"
 #include <Wire.h>
 

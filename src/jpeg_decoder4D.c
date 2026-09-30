@@ -4,6 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/*
+ * Modified by 4D Systems Pty Ltd: adapted from Espressif's esp_jpeg component
+ * (jpeg_decoder.c). Changes: renamed headers to jpeg_decoder4D.h / tjpgd4D.h,
+ * disabled the ROM-decoder selection (CONFIG_JD_USE_ROM) so the bundled TJpgDec
+ * is always used, and changed the default JD_FORMAT from 0 (RGB888) to 1 (RGB565).
+ */
+
 #include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "esp_system.h"

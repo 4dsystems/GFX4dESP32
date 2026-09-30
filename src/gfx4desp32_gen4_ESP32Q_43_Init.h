@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 4D Systems Pty Ltd
+
 // NV3041 Init codes 4.3 QSPI
 uint8_t Init_CommandNV[320] = {
     0x00, 0x38,

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 4D Systems Pty Ltd
+
 #include "gfx4desp32_ESP32_90CT.h"
 
 gfx4desp32_ESP32_90CT::gfx4desp32_ESP32_90CT()

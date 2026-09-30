@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 4D Systems Pty Ltd
+
 // ST7789 driver never shipped in 3.2"
 uint8_t Init_CommandST[160] = {
     0x02, 0xB0, 0x00, 0xc4,

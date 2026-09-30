@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 4D Systems Pty Ltd
+
 #ifndef __GEN4_32CT_CLB__
 #define __GEN4_32CT_CLB__
 

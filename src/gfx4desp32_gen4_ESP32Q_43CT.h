@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 4D Systems Pty Ltd
+
 #ifndef __GEN4Q_43CT__
 #define __GEN4Q_43CT__
 

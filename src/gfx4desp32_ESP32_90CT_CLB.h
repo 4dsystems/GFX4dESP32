@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 4D Systems Pty Ltd
+
 #ifndef __GFX4D_90CT_CLB__
 #define __GFX4D_90CT_CLB__
 

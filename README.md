@@ -14,3 +14,7 @@ It is recommended to use Workshop4 IDE to get the most of out the library functi
 2.  This is tested against Arduino ESP32 Core version `3.3.11` and SdFat `2.3.0` for microSD support.
 
 In case of any issues, please don't hesitate to [write an issue](https://github.com/4dsystems/GFX4dESP32/issues/new) or contact us directly.
+
+### License
+
+GFX4dESP32 version 1.3.0 and later is released under the [Apache License 2.0](LICENSE). You may use it in commercial and closed-source products without disclosing your own source code. See [NOTICE](NOTICE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for attribution requirements and third-party components.
